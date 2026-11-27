@@ -159,6 +159,20 @@ window.__encode = async function() {
 	}
 }
 
+/** The app's window of the given `windowType`, once it has navigated there. Electron 45
+ *  reports a new window before it navigates, with an empty URL, so the URL cannot be read
+ *  at the "window" event or straight after `firstWindow()`. */
+async function waitForAppWindow(app, windowType, timeout) {
+	const marker = `windowType=${windowType}`;
+	const deadline = Date.now() + timeout;
+	for (;;) {
+		const match = app.windows().find((w) => w.url().includes(marker));
+		if (match) return match;
+		if (Date.now() > deadline) throw new Error(`No ${windowType} window within ${timeout}ms`);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+}
+
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 const cursorRecordingDataPath = findLatestCursorRecordingData();
 const fixtureVideoPath = path.join(OUTPUT_DIR, "openscreen-preview-fixture.webm");
@@ -183,7 +197,7 @@ const framesDir = path.join(OUTPUT_DIR, "frames");
 fs.mkdirSync(framesDir, { recursive: true });
 
 try {
-	const hudWindow = await app.firstWindow({ timeout: 60_000 });
+	const hudWindow = await waitForAppWindow(app, "hud-overlay", 60_000);
 	await hudWindow.waitForLoadState("domcontentloaded");
 	await hudWindow.evaluate(async () => {
 		for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -207,10 +221,7 @@ try {
 		// switchToEditor closes the HUD page before the evaluate promise can always resolve.
 	}
 
-	const editorWindow = await app.waitForEvent("window", {
-		predicate: (window) => window.url().includes("windowType=editor"),
-		timeout: 30_000,
-	});
+	const editorWindow = await waitForAppWindow(app, "editor", 30_000);
 	await editorWindow.waitForLoadState("domcontentloaded");
 	await editorWindow.waitForSelector("video", { state: "attached", timeout: 30_000 });
 	await editorWindow.waitForSelector("canvas", { state: "attached", timeout: 30_000 });

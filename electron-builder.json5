@@ -178,12 +178,13 @@
   ],
 
   "mac": {
-    // Declared, not merely documented. Electron 41's own LSMinimumSystemVersion is 12.0
-    // and the .app inherits it verbatim when this key is absent — so before this line the
-    // bundle advertised macOS 12 while its native payload was built for 13, and a
-    // Monterey user got as far as the record button before anything went wrong (#515).
-    // LaunchServices now refuses to open the app below 13 instead, which is the honest
-    // signal.
+    // Declared, not merely documented. The .app inherits Electron's own
+    // LSMinimumSystemVersion verbatim when this key is absent. Under Electron 41 that was
+    // 12.0, so before this line the bundle advertised macOS 12 while its native payload was
+    // built for 13, and a Monterey user got as far as the record button before anything
+    // went wrong (#515). LaunchServices now refuses to open the app below 13 instead, which
+    // is the honest signal. Electron's floor has been 13.0 since 44, but the floor that
+    // matters is the native payload's, so it stays declared here.
     //
     // macOS 13 because ScreenCaptureKit capture requires it: ScreenCaptureRecorder is
     // `@available(macOS 13.0, *)`. Keep in step with README.md, website/docs/

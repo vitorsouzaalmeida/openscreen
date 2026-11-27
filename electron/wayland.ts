@@ -47,6 +47,21 @@ export function configureWaylandSupport(commandLine: CommandLine, env: Env): voi
 	// GL/EGL path so DMA-BUF import works. (Chromium itself logs this suggestion:
 	// "'--ozone-platform=wayland' is not compatible with Vulkan ... disabling Vulkan".)
 	appendFeatures(commandLine, "disable-features", "Vulkan");
+	// Electron 45 binds global shortcuts through the GlobalShortcuts portal on GNOME, which
+	// Chromium itself leaves off there: GNOME's portal lists no shortcut for a new session,
+	// so every launch binds again and GNOME asks the user to add Ctrl+Shift+O each time
+	// (https://gitlab.gnome.org/GNOME/xdg-desktop-portal-gnome/-/issues/185). With the feature
+	// off, registration fails as it did up to Electron 41 and globalShortcut.ts reports Open
+	// App as unavailable. GNOME only: on other desktops this feature is what gives the portal
+	// the key to bind.
+	if (isGnomeDesktop(env)) {
+		appendFeatures(commandLine, "disable-features", "GlobalShortcutsPortalPreferredTrigger");
+	}
+}
+
+/** GNOME as Chromium detects it: one of the colon-separated names in XDG_CURRENT_DESKTOP. */
+function isGnomeDesktop(env: Env): boolean {
+	return env.XDG_CURRENT_DESKTOP?.split(":").includes("GNOME") ?? false;
 }
 
 /**

@@ -125,13 +125,6 @@ if (hasSingleInstanceLock) {
 	mainLogFile.install(app.getPath("logs"), `launch ${app.getVersion()} pid ${process.pid}`);
 }
 
-// Use Screen & System Audio Recording permissions instead of the CoreAudio Tap API on macOS.
-// Tap needs NSAudioCaptureUsageDescription in the parent app's Info.plist, which breaks when
-// running from a terminal/IDE during dev.
-if (process.platform === "darwin") {
-	app.commandLine.appendSwitch("disable-features", "MacCatapLoopbackAudioForScreenShare");
-}
-
 // Keep the session default while allowing explicit Xwayland launches.
 if (process.platform === "linux") {
 	configureWaylandSupport(app.commandLine, process.env);
@@ -600,7 +593,7 @@ async function presentAboutDialog() {
 		cancelId: 0,
 		noLink: true,
 	});
-	if (choice.response === 1) clipboard.writeText(`${heading}\n${detail}`);
+	if (choice.response === 1) await clipboard.writeText(`${heading}\n${detail}`);
 }
 
 /** Menu entry point. Not `void showAboutDialog()`: an unhandled rejection here is re-thrown
