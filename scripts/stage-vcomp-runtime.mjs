@@ -88,7 +88,7 @@ if (TARGET_ARCH === "arm64" && fs.existsSync(path.join(binDir("x64"), "whisper-s
 		throw new Error(
 			`win32-x64 holds whisper-stt-server.exe but not ${absent.join(", ")}.\n\n` +
 				"The arm64 installer would ship an x64 transcription fallback that cannot start.\n" +
-				"Stage the helper as a whole: bash scripts/stage-whisper-stt.sh win32-x64",
+				"Stage the x64 helper as a whole, its OpenMP libraries included.",
 		);
 	}
 	STAGINGS.push({ arch: "x64", names: ["vcomp140.dll"] });

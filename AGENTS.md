@@ -7,14 +7,14 @@ OpenScreen is a free, open-source screen recorder and video editor (Electron + R
 - Install deps: `npm install` (Node 22.22.1, npm 10.9.4 — see `package.json#engines`)
 - Start dev:    `npm run dev` (Vite dev server; Electron window opens via `vite-plugin-electron`)
 - Build:        `npm run build` (TypeScript check + Vite build + electron-builder)
-- Typecheck:    `npx tsc --noEmit` — app code only. CI also runs `npx tsc -p tsconfig.test.json --noEmit` in a separate job ("Typecheck (tests)"), so **run both**: test files are invisible to the root config, and a type error in a `*.test.ts` fails CI while the root check stays green.
+- Typecheck:    `npx tsc --noEmit` — app code only. Test files are invisible to the root config, so **also run** `npx tsc -p tsconfig.test.json --noEmit`: a type error in a `*.test.ts` leaves the root check green.
 - Test (unit):  `npx vitest --run <path>` while you work, `npm run test` once at the end — see [Testing instructions](#testing-instructions)
 - Test (e2e):   `npm run test:e2e` (Playwright)
 - Lint:         `npm run lint` (Biome 2.4)
 - Format:       `npm run format` (Biome, tabs, double quotes, 100-col)
 - String check: `npm run i18n:check` (every string key used in `src/` exists in the English catalog)
 
-**Use npm, not bun/pnpm/yarn/Deno.** Not a style preference. Node native modules are rebuilt against Electron's ABI by electron-builder + `@electron/rebuild`, which resolve the tree through `package-lock.json`. Another package manager writes a different lockfile, so that rebuild breaks. `packageManager` + `engines` in `package.json` pin the versions; CI installs with `npm ci`. Note what this does *not* cover: the standalone Swift (macOS) and C++ (Windows) capture helpers are separate executables, built by `npm run build:native:<platform>` and only *copied* into the package as `extraResources` — `build:win` even passes `--config.npmRebuild=false`. Nothing in a normal build compiles them.
+**Use npm, not bun/pnpm/yarn/Deno.** Not a style preference. Node native modules are rebuilt against Electron's ABI by electron-builder + `@electron/rebuild`, which resolve the tree through `package-lock.json`. Another package manager writes a different lockfile, so that rebuild breaks. `packageManager` + `engines` in `package.json` pin the versions. Note what this does *not* cover: the standalone Swift (macOS) and C++ (Windows) capture helpers are separate executables, built by `npm run build:native:<platform>` and only *copied* into the package as `extraResources` — `build:win` even passes `--config.npmRebuild=false`. Nothing in a normal build compiles them.
 
 ## Development principles
 
@@ -40,7 +40,6 @@ OpenScreen is a free, open-source screen recorder and video editor (Electron + R
 - Biome handles lint AND format. Tabs, double quotes, 100-col width, LF line endings. Run `npm run lint:fix` before committing.
 - React functional components only. Hooks at top level (Biome `useHookAtTopLevel` is `error`).
 - Imports: use the `useImportType` discipline (Biome organizes them).
-- Husky + lint-staged runs Biome on staged `*.{ts,tsx,js,jsx,mts,cts,json}`.
 - The repo is pre-1.x and not production-grade — rough edges are expected, but new code should be clean.
 
 ## Testing instructions
@@ -57,43 +56,40 @@ every edit is the main way an agent turns a 5-minute task into a 30-minute one, 
 - **Typecheck and lint freely** — `npx tsc --noEmit` and `npm run lint` are seconds, not
   minutes. They are the right inner-loop check, not the test suite.
 - **Once, at the end** — `npm run test` before you commit or open the PR. One full run per
-  task, not per edit. If the change is narrow and CI will run anyway, the targeted run plus
-  CI is enough; say so rather than burning the wall-clock twice.
+  task, not per edit. There is no CI, so this run is the only one the change gets.
 - **Never** `npm run test:watch` — it does not terminate, and it will hang the session.
 
 ### Layout and conventions
 
 - Unit tests live next to source as `*.test.ts` / `*.test.tsx` (Vitest). Config is
-  `vitest.config.ts`; it covers `src/`, `electron/` and `.github/`.
+  `vitest.config.ts`; it covers `src/`, `electron/` and `scripts/`.
 - **The default environment is `node`.** A test that needs a DOM opts in with
   `// @vitest-environment jsdom` on line 1 — that is also the fix for `document is not
   defined`. Don't add it to a test that doesn't need it: jsdom setup dominates this
   suite's runtime (see the comment in `vitest.config.ts`).
 - Anything platform-conditional (`process.platform`) must pin the platform in the test.
-  The Vitest CI job runs only on Linux, so a Linux-only code path left unpinned is green in CI and red on
+  The suite is run on Linux here, so a Linux-only code path left unpinned is green locally and red on
   every Windows and macOS machine — `electron/recording/webm-seek-index.test.ts` is the
   worked example.
 - E2E tests are in `tests/e2e/` (Playwright). Some specs are platform-specific (e.g. `windows-native-checklist.spec.ts`).
 - **Playwright is not the end of the e2e story.** It drives the app through CDP, which cannot reach real capture, a real webcam, the tray, or the click-through HUD. Everything those miss is covered by a manual pass driven with computer-use — see [Desktop E2E testing with computer-use](#desktop-e2e-testing-with-computer-use) below, which is required for native changes and before promoting a release candidate.
 - Add a test for every new behavior in the same package as the code under test.
-- All tests must pass before opening a PR. CI runs `npm run test` on every PR.
+- All tests must pass before opening a PR. There is no CI, so nothing else runs them.
 - **Which kind of test to write, and where: [`technical-documentation/testing/writing-tests.md`](technical-documentation/testing/writing-tests.md).**
 
 ## Desktop E2E testing with computer-use
 
 **Computer-use is how the manual end-to-end pass is driven — all of it, not only the native parts.** Real capture is what forces it (native screen recording, a physical webcam, the tray: no unit or browser test reaches those), but once the app is up you drive everything the same way — editor, timeline, regions, transcript, export, settings, persistence. Screenshot and click/type on the desktop, through the **computer-use** MCP, against the actual Electron app. This is the required "manual smoke test on real Windows/macOS" for native changes, and the only mode in which the checklist below means anything.
 
-This section is the *mechanics*. **What to actually run is [`technical-documentation/testing/manual-e2e-checklist.md`](technical-documentation/testing/manual-e2e-checklist.md)** — the capture-to-export pass, per-platform sections, and a results log to append to. Run it before promoting a release candidate and after any change to native capture, preview or export. For cursor work specifically, [`native-cursor-diagnostics.md`](technical-documentation/testing/native-cursor-diagnostics.md) gets you sidecars and reports without a full record-edit-export cycle. The checklist links back here for the mechanics below; the pairing only works if you know both halves exist.
+This section is the *mechanics*. **What to actually run is [`technical-documentation/testing/manual-e2e-checklist.md`](technical-documentation/testing/manual-e2e-checklist.md)** — the capture-to-export pass, per-platform sections, and a results log to append to. Run it after any change to native capture, preview or export. For cursor work specifically, [`native-cursor-diagnostics.md`](technical-documentation/testing/native-cursor-diagnostics.md) gets you sidecars and reports without a full record-edit-export cycle. The checklist links back here for the mechanics below; the pairing only works if you know both halves exist.
 
-**If the computer-use MCP is available to you, this pass is yours to run — offer it, don't hand it back.** "Manual" names the input (real OS mouse and keyboard events), not the operator; an agent holding that mouse satisfies every check in the file. So when the work calls for it — a change to native capture, preview or export, or a release candidate waiting on QA — say you can run it and run it, instead of closing with "manual e2e pass required" and leaving a maintainer to do what you were already equipped to do. `list_granted_applications` answers whether the MCP is there at all; if it is not, say *that* plainly, because then the checklist genuinely does fall to a human.
+**If the computer-use MCP is available to you, this pass is yours to run — offer it, don't hand it back.** "Manual" names the input (real OS mouse and keyboard events), not the operator; an agent holding that mouse satisfies every check in the file. So when the work calls for it — a change to native capture, preview or export — say you can run it and run it, instead of closing with "manual e2e pass required" and leaving a maintainer to do what you were already equipped to do. `list_granted_applications` answers whether the MCP is there at all; if it is not, say *that* plainly, because then the checklist genuinely does fall to a human.
 
 **Run whatever slice was asked for.** The whole file is one option, not the only one: a single section, one platform block, or the three checks that cover the change you just made are all legitimate runs — every row in the results log so far is a partial. What is not legitimate is silence about the rest. A check you did not run is **skipped with its reason**, never passed, and the run only exists once it is a row in the results log carrying the build/tag, the platform, and what you did not cover.
 
-**A release candidate is the exception.** The checklist asks for the whole file before a promote, in its own opening, and that is not softened by anything above: a slice covers a *change*, never a promotion. Scope one down and the row you write says `Partial`, which is not a green light to dispatch `promote.yml`.
-
 **Launch the app**
 
-- **A release candidate is tested on its CI-built artifact, not on a dev build.** Getting it, installing it and launching it on each platform: [Running the pass on a CI-built artifact](technical-documentation/testing/manual-e2e-checklist.md#running-the-pass-on-a-ci-built-artifact), in the checklist. The notes below on `electron.exe`, worktrees and stale native binaries are about dev builds.
+- **Some checks need a packaged build, not a dev build.** Building it, installing it and launching it on each platform: [Running the pass on a packaged build](technical-documentation/testing/manual-e2e-checklist.md#running-the-pass-on-a-packaged-build), in the checklist. The notes below on `electron.exe`, worktrees and stale native binaries are about dev builds.
 - Dev build: `npm run dev` — Vite serves the renderer and `vite-plugin-electron` opens the Electron window. The main process logs `Global shortcut registered: CommandOrControl+Shift+O` when ready (Ctrl/Cmd+Shift+O brings the app's window, HUD or editor, to the front).
 - **Set `OPENSCREEN_DISABLE_CONTENT_PROTECTION=1` in the environment you launch from, or the HUD is invisible in every screenshot you take** (Windows 11 22H2 and later, and macOS before 26). It is a module-scope constant in `electron/windows.ts`, read once as the main process loads, so it cannot be turned on afterwards — you relaunch or you work blind. An installed build only gets it when you start its executable from the shell where it is set: a Start-menu, Finder or installer launch does not pass it on. The main process prints `[content-protection] OFF for the HUD window` when it took effect; if that line is missing, or the HUD is missing from your first screenshot, stop and relaunch rather than hunting a HUD you will never see. What it does and when to unset it: the HUD notes below.
 - The app is single-instance through `app.requestSingleInstanceLock()`, which keys on the `userData` path. If a leftover process still holds it, a new launch quits silently (exit 0, no window) — kill leftover `electron` or `Openscreen` processes before relaunching, including a copy the installer started for you. The lock is held by the OS and dies with the process, so there is nothing to clean up on disk. A dev build and the installed `Openscreen` resolve different `userData` paths and can run side by side.
@@ -107,12 +103,12 @@ This section is the *mechanics*. **What to actually run is [`technical-documenta
   findstr /M /C:"encoder-selection" electron\native\bin\win32-x64\wgc-capture.exe
   ```
 
-  Run **both**. Only the second tells "the binary is stale" apart from "my search is broken", and that distinction is not hypothetical: `findstr` handles binaries and ships with Windows, but Git Bash has **no `strings`**, so `strings … | grep` there returns nothing and reads as a confident *absent* for every binary you point it at. Measured against the two helpers this section is about — stale: no match, then HIT; current: HIT, HIT. A control that does not hit means you learned nothing about the binary. If it is stale, rebuild it with `npm run build:native:win` (or `:mac` / `:linux`) — that is the only thing that compiles a helper. Without the toolchain, test the CI-built artifact instead; a dev build cannot answer the question.
+  Run **both**. Only the second tells "the binary is stale" apart from "my search is broken", and that distinction is not hypothetical: `findstr` handles binaries and ships with Windows, but Git Bash has **no `strings`**, so `strings … | grep` there returns nothing and reads as a confident *absent* for every binary you point it at. Measured against the two helpers this section is about — stale: no match, then HIT; current: HIT, HIT. A control that does not hit means you learned nothing about the binary. If it is stale, rebuild it with `npm run build:native:win` (or `:mac` / `:linux`) — that is the only thing that compiles a helper. Without the toolchain, a dev build cannot answer the question.
 - **And it is the whole directory, not the one binary you came for.** `electron/native/bin/<platform>/` also holds the compositor addon, the cursor sampler, the ffmpeg DLLs it dlopens, and the STT binaries — each frozen independently at whenever someone last ran a build. Refreshing only the helper leaves a mismatched set, and a mismatched set fails like a product bug: an export died on `open_input: -22 (Invalid argument)` from `compositor.exportMulti` purely because the addon was four days older than the av\* DLLs it was built against, while `ffmpeg` on the command line opened the very same file without complaint. If you are borrowing binaries from an installed build, copy the **entire** directory and diff it by hash afterwards — the last check turned up sixteen differing files and two missing outright.
 
 **Granting access**
 
-- `request_access` resolves names against installed apps. A **dev build runs as `electron.exe`** (or `Electron.app`), *not* the installed `Openscreen` — grant **`electron.exe`** or the dev window stays masked in screenshots. An installed build, CI artifact included, is the other way round: grant **`Openscreen`**. Non-allowlisted windows are masked (solid rectangles); the screenshot note lists their process names to add. On Windows they are also **minimized** whenever computer-use brings an app forward, which is why Hide desktop icons needs `wgc-capture.exe` granted mid-take (see that check in the checklist).
+- `request_access` resolves names against installed apps. A **dev build runs as `electron.exe`** (or `Electron.app`), *not* the installed `Openscreen` — grant **`electron.exe`** or the dev window stays masked in screenshots. An installed build is the other way round: grant **`Openscreen`**. Non-allowlisted windows are masked (solid rectangles); the screenshot note lists their process names to add. On Windows they are also **minimized** whenever computer-use brings an app forward, which is why Hide desktop icons needs `wgc-capture.exe` granted mid-take (see that check in the checklist).
 - **Start the app before asking for it.** `electron.exe` is not an installed app, so the resolver only finds it once the process exists *and* owns a window; ask any earlier and the call fails with `doesn't match any installed or running application` — and one unresolvable name short-circuits the whole request, including the names that would have resolved. Granting `Openscreen` instead is not a workaround: it resolves to `…\programs\openscreen\openscreen.exe`, so the dev window stays masked while the grant reports success.
 - **Some windows a pass needs are not OpenScreen's.** The macOS permission prompts are drawn by system processes, the Linux portal picker by the desktop's portal. Which process owns each is not recorded yet: grant the one the screenshot note names, and write it into the checklist's grant step for the next run.
 - **Apple's source picker (macOS 15.2+) belongs to Control Centre, which computer-use cannot be granted.** Launch with `OPENSCREEN_MAC_SOURCE_PICKER=legacy` so the source button opens the app's own selector instead, which the agent drives; the cost is a one-time Screen Recording grant. Only the checks on Apple's picker itself are left to a human. Recipe: [Running the pass unattended on macOS](technical-documentation/testing/manual-e2e-checklist.md#running-the-pass-unattended-on-macos).
@@ -136,9 +132,9 @@ This section is the *mechanics*. **What to actually run is [`technical-documenta
 
 **Updates**
 
-- **Run the update pass on every release candidate and after any change to the update path.** A build with a broken updater can only be left through that updater, so a defect here strands every user who installs it. What to run, and how to get a newer version to update to: [Updating in place](technical-documentation/testing/manual-e2e-checklist.md#updating-in-place--post-212), in the checklist.
+- **Run the update pass after any change to the update path.** A build with a broken updater can only be left through that updater, so a defect here strands every user who installs it. What to run, and how to get a newer version to update to: [Updating in place](technical-documentation/testing/manual-e2e-checklist.md#updating-in-place--post-212), in the checklist.
 - **It needs an installed build.** The background check and the blue update button both require `app.isPackaged`: a dev build shows neither, and that absence proves nothing. The Store package does not apply either; the Store updates it.
-- **On macOS, only the RC path works:** install `rc.N`, publish `rc.N+1`. Editing `app-update.yml` inside a signed `.app`, which is how the local feed works on Windows and Linux, breaks the bundle's seal, and Squirrel then refuses the update.
+- **macOS has no local path.** Editing `app-update.yml` inside a signed `.app`, which is how the local feed works on Windows and Linux, breaks the bundle's seal, and Squirrel then refuses the update.
 - **Only the click installs.** Quitting with the button showing must install nothing. If an update installs on its own, at quit or at any other moment, that is a defect, not a feature to note.
 
 **End-to-end flow (record → edit)**
@@ -154,21 +150,14 @@ The other way in is the editor's **Record** mode: the HUD's settings plus *Auto-
 **Judging the rendered picture**
 
 - A preview screenshot is a **downscaled** view of the compositor's output (a 1920-wide render shown in a ~600px pane, then downscaled again by the screenshot). Fine detail — a corner radius, a 1° edge slope, a soft shadow — does not survive that, and squinting at it produces confident wrong conclusions. To decide anything about pixels, **export and measure**: `Export → Advanced → MP4, 1080p`, then `ffmpeg -ss <t> -i out.mp4 -frames:v 1 -c:v ppm frame.ppm` and walk the raw bytes (a P6 PPM is a 15-line parser) for the exact edges. That is what settled a "the tilt is truncated" report: measured right edge 1539 px against a computed corner at 1540 — no clipping at all, the real defect was elsewhere.
-- In a source checkout, ffmpeg lives at `crates/thirdparty/ffmpeg-*/bin/ffmpeg.exe` (also needed on `PATH` for the compositor addon to load). Measuring a CI artifact's export needs any `ffmpeg`/`ffprobe`, not this one.
+- In a source checkout, ffmpeg lives at `crates/thirdparty/ffmpeg-*/bin/ffmpeg.exe` (also needed on `PATH` for the compositor addon to load). Measuring an installed build's export needs any `ffmpeg`/`ffprobe`, not this one.
 
 ## PR & commit conventions
 
 - Branch from `main`; never push to it directly.
 - Commit messages: short imperative summary, optional body. Recent style mixes conventional-ish prefixes (`ci:`, `chore:`, `fix:`) with plain messages — either is fine, just be consistent within a PR.
-- **PR titles must follow Conventional Commits** (`feat:`, `fix:`, `chore:`, `refactor:`, `perf:`, `docs:`, `test:`, `build:`, `ci:`, `style:`, `revert:`). Enforced by the `semantic-pr` job in `ci.yml`. This feeds GitHub's auto-generated release notes with clean categories.
-- Open PR via `gh pr create` once CI is green.
-- PR template is in `.github/pull_request_template.md`.
-
-## Release flow
-
-Two `workflow_dispatch` workflows: cut an RC, then promote it to stable. **Full operational guide, branch contract, cherry-pick rules, and manual fallback: `technical-documentation/engineering/release-and-secrets.md`.** Read it before touching a release.
-
-The one rule to know before you merge anything: **there is one release branch per stable version** (`release/vX.Y.Z`), created at rc.1 and **frozen** until promote. Only cherry-picked bugfixes land on it, so anything merged to `main` after the cut ships in the *next* cycle, not the one in flight.
+- **PR titles follow Conventional Commits** (`feat:`, `fix:`, `chore:`, `refactor:`, `perf:`, `docs:`, `test:`, `build:`, `ci:`, `style:`, `revert:`).
+- Open PR via `gh pr create` once lint, both typechecks and the tests pass locally.
 
 ## Security
 
@@ -178,7 +167,7 @@ The one rule to know before you merge anything: **there is one release branch pe
 
 ## Specialized notes
 
-- **Native capture is platform-fragile**: macOS uses ScreenCaptureKit (Swift), Windows uses WGC (C++/Win32). CI unit-tests the Swift capture core, builds both macOS helpers and checks the compositor on macOS, Windows and Linux. These checks do not exercise real capture, permissions or devices; manual smoke tests on the affected platforms are still required for native changes. See [CI coverage](technical-documentation/engineering/ci-workflows.md#tier-1-application-and-documentation-ci).
+- **Native capture is platform-fragile**: macOS uses ScreenCaptureKit (Swift), Windows uses WGC (C++/Win32). Nothing automated exercises real capture, permissions or devices; manual smoke tests on the affected platforms are required for native changes.
 - **Rendering is native**: the Rust compositor in `crates/compositor/` renders the editor preview and every export, MP4 and GIF. It runs on Direct3D 11 on Windows, Metal on macOS and wgpu on Linux, with a CPU fallback on Windows and Linux. The renderer only paints the preview frames it pulls onto a `<canvas>`. Details: `technical-documentation/README.md`, then `architecture/native-compositor.md`.
 - **UI strings**: the app is English-only, with no language picker and no locale detection — don't add either. Strings still live in a catalog, `src/i18n/locales/en/<namespace>.json` (e.g. `settings.json`), read through `useScopedT` in the renderer and `mainT` in the main process. Run `npm run i18n:check` after adding or renaming a key: a missing one renders as the raw `namespace.key`.
 - **Build pipeline**: `npm run build` is full electron-builder. For iterating on renderer only, use `npm run build-vite` (Vite + tsc, no packaging).

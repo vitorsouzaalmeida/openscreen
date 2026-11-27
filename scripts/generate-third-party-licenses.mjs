@@ -1,6 +1,5 @@
 // Writes build-licenses/THIRD-PARTY-LICENSES.txt, the full licence texts of the third-party code
-// compiled into the installers. electron-builder.json5 ships it in resources/, beside
-// THIRD-PARTY-NOTICES.md, which covers the other bundled components.
+// compiled into the installers. electron-builder.json5 ships it in resources/.
 //
 // Two sources, both read at build time so a dependency bump needs no manual step:
 //   - npm: every production entry of package-lock.json. node_modules is not packaged, but the
@@ -163,9 +162,7 @@ export function renderLicenses({ npm, crates }) {
 		"compiled into the native compositor addon (compositor_view.node). Each distinct text",
 		'appears once, preceded by the packages that ship it as "name version (declared licence)".',
 		"",
-		"The other bundled components (FFmpeg, whisper.cpp, ONNX Runtime, fonts, model weights",
-		"and more) and their source offers are described in THIRD-PARTY-NOTICES.md, beside this",
-		"file. Generated at build time by scripts/generate-third-party-licenses.mjs.",
+		"Generated at build time by scripts/generate-third-party-licenses.mjs.",
 		"",
 		summary("npm packages", npm),
 		summary("Rust crates", crates),

@@ -47,7 +47,7 @@ buildNpmPackage {
   # release time and it had already drifted two minors behind the app it names.
   # (`npmDepsHash` below still has to follow the lockfile — that is Nix, not a
   # choice — but it fails loudly, where a stale version number never does.
-  # nix-check.yml prints it for a lockfile PR; releases refresh it themselves.)
+  # Refresh it with `nix run nixpkgs#prefetch-npm-deps -- package-lock.json`.)
   version = (lib.importJSON ../package.json).version;
 
   src =
@@ -70,7 +70,7 @@ buildNpmPackage {
       );
     };
 
-  npmDepsHash = "sha256-OLUnSK8QyqUfaGIjaiiflXMp1bKl5p8gT5ihOZXmw7Y=";
+  npmDepsHash = "sha256-IZVbw2AvB8WVJJhlplruRIzLe4QmNDDZ5mYXctOEdxc=";
 
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
 

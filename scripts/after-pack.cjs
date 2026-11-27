@@ -5,8 +5,8 @@
 // (PublishManager's afterPack handler). The release job packs with `--mac --dir`, so its target
 // list is just `dir` and the file was never written: every shipped `.app` logged `ENOENT …
 // app-update.yml` a minute after launch and every self-update fell back to the release page
-// (#1431). afterPack runs before electron-builder signs the bundle, and before build.yml's ad-hoc
-// signing, so the file is sealed into the signature like any other resource.
+// (#1431). afterPack runs before electron-builder signs the bundle, and before any ad-hoc
+// signing done afterwards, so the file is sealed into the signature like any other resource.
 //
 // macOS only on purpose. Windows gets the file from nsis, and the Store (appx) build must NOT get
 // one — see the `publish` comment in electron-builder.json5. Linux writes it per target in fpm.

@@ -12,16 +12,16 @@ This project uses Vitest for unit/integration tests, plus Playwright for desktop
 > There used to be a third tier — "browser tests" in real headless Chromium via
 > `vitest.browser.config.ts` and `npm run test:browser`, for `VideoDecoder`,
 > `MediaRecorder`, `OffscreenCanvas` and WebGL. **It no longer exists**: no config, no
-> script, no `*.browser.test.ts` file, and no CI job. Real-codec and real-GPU behavior is
-> covered instead by the Rust compositor's own `cargo test` suites (`crates/`, run by the
-> three `rust-*-compositor-check` CI jobs) and by the manual checklist below.
+> script and no `*.browser.test.ts` file. Real-codec and real-GPU behavior is
+> covered instead by the Rust compositor's own `cargo test` suites (`crates/`) and by the
+> manual checklist below.
 
 ## Unit tests
 
 **Config:** `vitest.config.ts`  
 **Runs in:** Node by default; jsdom only for files that ask for it  
-**File pattern:** `{src,electron,.github}/**/*.test.{ts,tsx}`  
-**CI command:** `npm run test`
+**File pattern:** `{src,electron,scripts}/**/*.test.{ts,tsx,mjs}`  
+**Command:** `npm run test`
 
 Use unit tests for pure logic, utility functions, data transformations, and React behavior.
 
@@ -43,8 +43,8 @@ it only if it renders a component, uses `renderHook`, or reaches for a browser g
 
 ### Platform-conditional code
 
-The Vitest CI job runs only on Linux. A test covering a `process.platform`-gated path must pin the
-platform itself, or it passes vacuously in CI and fails on every Windows and macOS
+The suite is run on Linux here. A test covering a `process.platform`-gated path must pin the
+platform itself, or it passes vacuously on Linux and fails on every Windows and macOS
 machine. `electron/recording/webm-seek-index.test.ts` sets `process.platform` in
 `beforeEach` and restores it in `afterEach` — copy that shape.
 

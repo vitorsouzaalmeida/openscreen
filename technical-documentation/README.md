@@ -1,10 +1,8 @@
 # Technical documentation
 
 Reference documentation for how OpenScreen is built. It describes the system **as it is on this
-branch** — not how it got here. Product direction lives in [`../ROADMAP.md`](../ROADMAP.md),
-day-to-day contributor rules in [`../AGENTS.md`](../AGENTS.md) and
-[`../CONTRIBUTING.md`](../CONTRIBUTING.md), and the CLI reference in
-[`../docs/cli.md`](../docs/cli.md).
+branch** — not how it got here. Day-to-day contributor rules live in
+[`../AGENTS.md`](../AGENTS.md), and the CLI reference in [`../docs/cli.md`](../docs/cli.md).
 
 Organised by **type** — architecture (what the system is), engineering (how it is built and
 shipped), testing (how it is verified) — and within each type, by **subsystem**.
@@ -36,8 +34,6 @@ who reads and writes the project document.
 |---|---|
 | [rendering-performance.md](engineering/rendering-performance.md) | The measurement record for preview fluidity and export speed |
 | [build-and-packaging.md](engineering/build-and-packaging.md) | Build commands, native artifacts, per-platform packaging |
-| [ci-workflows.md](engineering/ci-workflows.md) | The GitHub Actions tiers and how artifacts flow between them |
-| [release-and-secrets.md](engineering/release-and-secrets.md) | Cutting and promoting a release; the secrets it needs |
 | [tooltips.md](engineering/tooltips.md) | Writing and building tooltips and accessible names: the rules, the toggle pattern, the shared terms |
 
 ## Testing

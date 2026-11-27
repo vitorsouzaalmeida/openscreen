@@ -30,8 +30,7 @@
 //
 // LICENSING: ONNX Runtime is MIT, which is compatible with this MIT app — but the
 // archive is checked rather than trusted, the same way fetch-ffmpeg.mjs verifies
-// ffmpeg's LGPL-ness instead of believing the asset name. Attribution ships in
-// THIRD-PARTY-NOTICES.md.
+// ffmpeg's LGPL-ness instead of believing the asset name.
 
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
@@ -58,10 +57,9 @@ const VERSION = "1.27.1";
  *
  * `v1.27.1` is a LIGHTWEIGHT tag — it points straight at a commit and can be moved by
  * anyone with push rights upstream. Nothing here fetches source at install time, so this
- * does not affect `npm run fetch:onnxruntime`; it matters to
- * `.github/workflows/build-onnxruntime-macos.yml`, which builds the library and would
- * otherwise attest an artifact to "whatever that tag meant that morning". The workflow
- * resolves the tag and refuses to build if it no longer resolves here.
+ * does not affect `npm run fetch:onnxruntime`; it records which commit the macOS library
+ * pinned below was built from, so that a rebuild starts from the same source rather than
+ * from "whatever that tag meant that morning".
  */
 const SOURCE_COMMIT = "df2ba1cf8108aa63627cf4cdf8f807880b938616";
 const BASE = `https://github.com/microsoft/onnxruntime/releases/download/v${VERSION}`;
@@ -89,8 +87,8 @@ const NUGET = `https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/$
  * resolves against the OS instead of emitting locally (#515). So `npm run build:mac`
  * cannot package a macOS bundle at all with the upstream artifact.
  *
- * `.github/workflows/build-onnxruntime-macos.yml` builds one with the floor pinned and
- * prints the `PINNED` entry to paste here. Everything else about this file is
+ * The `PINNED` entry here is a build of that commit with the floor pinned, made by
+ * the upstream project. Everything else about this file is
  * unchanged: an immutable URL, and a SHA-256 verified before the archive is opened.
  * What moves is who built the bytes, not how much they are trusted.
  */
@@ -136,7 +134,7 @@ const PINNED = {
 	// not package at all. No published release fixes that: every one from 1.24 on is
 	// `minos 14.0`, and every one before it is at least 13.3.
 	//
-	// This one is built by `.github/workflows/build-onnxruntime-macos.yml` from the
+	// This one was built by the upstream project's GitHub Actions from the
 	// commit above, with the deployment target pinned, and published under a
 	// `v0.0.0-*` tag — the marker this repo already uses for a binary that needs a
 	// permanent URL but is not a product version. Its provenance is attested:

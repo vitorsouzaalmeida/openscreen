@@ -132,7 +132,7 @@ stdenv.mkDerivation {
   # Not a nix convention, and deliberate: the CMakeLists sets
   # CMAKE_INSTALL_RPATH to '$ORIGIN:$ORIGIN/bin' for Linux, so the binary looks
   # for libwhisper.so and the ggml objects beside itself. That is also exactly how
-  # scripts/stage-whisper-stt.sh lays them out in electron/native/bin/linux-x64/.
+  # scripts/build-whisper-stt.sh lays them out in electron/native/bin/linux-x64/.
   # Splitting them into $out/bin and $out/lib would mean overriding an RPATH the
   # upstream file chose on purpose, for the sake of a directory name.
   installPhase = ''

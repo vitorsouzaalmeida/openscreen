@@ -246,7 +246,6 @@ OpenScreen is community-driven. If you need help, want to report a bug, or just 
 
 - 💬 **Discord** — [Join the OpenScreen Discord](https://getopenscreen.com/discord) for real-time help, showcase, and discussion
 - 🐞 **[GitHub Issues](https://github.com/getopenscreen/openscreen/issues)** — bug reports and feature requests
-- 🗺️ **[Roadmap](./ROADMAP.md)** — see what we're building next
 - ❤️ **Support the project** — [GitHub Sponsors](https://github.com/sponsors/EtienneLescot) or [Ko-fi](https://ko-fi.com/etiennelescot)
 
 ---

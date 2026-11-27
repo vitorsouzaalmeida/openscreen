@@ -554,17 +554,6 @@ Two macOS/Linux-specific hazards, both of which shipped silently:
    (editing a Mach-O header invalidates its signature, and arm64 refuses to
    execute a modified unsigned image).
 
-`scripts/stage-whisper-stt.sh` gates the installer on actually loading the
-binary with a scrubbed `PATH`. That gate was written for Windows, where the
-loader dies mute, so it asserted only that the process *printed something* —
-and dyld and `ld.so` are chatty, so a macOS helper missing every ggml dylib
-printed a four-line loader error and passed. It now requires the
-`[whisper-stt] boot:` line that `main()` itself emits, which proves execution
-rather than noise, and it no longer depends on `timeout` (GNU coreutils, absent
-from a stock macOS runner — unqualified, `env: timeout: No such file or
-directory` was itself enough "output" to satisfy the old check without ever
-starting the binary).
-
 ## The transcription contract
 
 The wire types in `electron/stt/transcriptionContract.ts` are shared across
@@ -957,17 +946,14 @@ carried over):
   is the build script's `--cuda` flag, which built a SIDE-BY-SIDE
   `whisper-stt-server-cuda` binary: `candidateBinaryPaths()` only ever
   looks for the plain name, so that build could not be selected at
-  runtime no matter what the host had. Nothing in the script or the CI
-  matrix turns CUDA on today.
+  runtime no matter what the host had. Nothing in the script turns
+  CUDA on today.
 - **No CoreML/ANE encoder.** Metal already covers Apple GPU; CoreML is
   a future perf refinement.
-- **HTTP integration test not on CI.** `npm run test:whisper-stt` does the
+- **HTTP integration test is run by hand.** `npm run test:whisper-stt` does the
   `POST /inference` round-trip and asserts the contract, but nothing runs it on
-  the macOS-ARM/Metal, Ubuntu-x64/Vulkan, Windows-x64/Vulkan matrix. The native
-  build matrix (`build-whisper-stt.yml`) is the right place to land it — each
-  job already has the freshly built helper on disk, so it only needs a clip and
-  the model. Off macOS the harness needs `--wav`, so a committed fixture (or a
-  runner-side TTS) is the missing piece. Until then the three GPU paths are
+  the macOS-ARM/Metal, Ubuntu-x64/Vulkan, Windows-x64/Vulkan matrix. Off macOS
+  the harness needs `--wav`. The three GPU paths are
   verified only by whoever runs it locally: **macOS arm64/Metal was verified
   this way on 2026-07-30 (WER 0.0000 on an English and a French clip, rtf
   0.18–0.25 on an M1); Vulkan on Windows and Linux has not been re-checked

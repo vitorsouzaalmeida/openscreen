@@ -395,8 +395,7 @@ export class SttManager {
 		// is gitignored, so a dev tree keeps whatever was last staged there —
 		// silently reverts this to "every chunk detects on its own": the echo
 		// comes back as the literal "auto", the guard below rejects it, and
-		// nothing anywhere says why. `scripts/stage-whisper-stt.sh` refuses to
-		// overwrite a local binary by design, so it will not rescue you either.
+		// nothing anywhere says why. Rebuild it with `npm run build:whisper-binaries`.
 		// Verified end-to-end on 352s of real speech: `[undefined,"en","en","en"]`.
 		let language = req.language && req.language !== "auto" ? req.language : undefined;
 

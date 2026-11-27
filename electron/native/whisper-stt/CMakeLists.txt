@@ -49,8 +49,8 @@ set(GGML_CPU_ALL_VARIANTS   OFF CACHE BOOL "" FORCE)
 # ponytail: this was ON, under a comment claiming it produced a "+avx2 +fma
 # +f16c" baseline. It does not. GGML_NATIVE=ON makes ggml compile the CPU
 # backend with `-march=native` (ggml/src/ggml-cpu/CMakeLists.txt), i.e. for
-# whichever CPU happened to run the build. `.github/workflows/build-whisper-stt.yml`
-# builds the shipped binaries on GitHub-hosted runners, and the x64 images are
+# whichever CPU happened to run the build. Upstream builds the shipped binaries
+# on GitHub-hosted runners, and the x64 images are
 # Xeons that carry AVX-512, so a published artifact could contain AVX-512 and
 # die with SIGILL on every AMD before Zen 4 and every Intel consumer part since
 # Alder Lake — while the baseline silently shifted with whatever hardware

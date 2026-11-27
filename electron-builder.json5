@@ -93,7 +93,6 @@
     "!preview*.png",
     "!*.md",
     "!README.md",
-    "!CONTRIBUTING.md",
     "!LICENSE"
   ],
   // Asset layout contract: "wallpapers/" and "cursors/" under resourcesPath must
@@ -107,16 +106,9 @@
   // userData cache on first use by electron/stt/modelManager.ts, so no model
   // files are bundled at build time.
   "extraResources": [
-    // Attribution + LGPL source offer for the bundled ffmpeg DLLs and
-    // whisper.cpp binaries. Redistributing LGPL libraries obliges us to ship
-    // the notice with them, so it goes in resources/, not just in the repo.
-    {
-      "from": "THIRD-PARTY-NOTICES.md",
-      "to": "THIRD-PARTY-NOTICES.md"
-    },
     // The full licence texts of the npm packages Vite bundles and of the crates compiled into
-    // the compositor addon. Generated, not committed: every build:* script and build.yml's
-    // macOS job run `npm run licenses:generate` first. electron-builder only warns about a
+    // the compositor addon. Generated, not committed: every build:* script runs
+    // `npm run licenses:generate` first. electron-builder only warns about a
     // missing source here, so scripts/before-pack.cjs is what refuses to package without it.
     {
       "from": "build-licenses/THIRD-PARTY-LICENSES.txt",
@@ -172,13 +164,13 @@
     "entitlements": "macos.entitlements",
     "entitlementsInherit": "macos.entitlements",
     // Squirrel.Mac can only install from a ZIP, so auto-update needs one beside each DMG.
-    // It is NOT listed here on purpose: the macOS job packs with `electron-builder --mac --dir`,
-    // and `--dir` skips every target — so adding "zip" (or anything else) to this list would be
-    // dead config that reads as if it worked. The DMG below is likewise hand-rolled with
-    // `hdiutil` in build.yml, which is why the release assets are named `-macOS-Apple-Silicon-`
-    // rather than following `artifactName`. The update ZIP is produced with `ditto` in the same
-    // job, from the signed and stapled .app. Same trap as `linux.target` below, where the CLI
-    // target list replaces this one.
+    // It is NOT listed here on purpose: upstream's release build packs with
+    // `electron-builder --mac --dir`, and `--dir` skips every target — so adding "zip" (or
+    // anything else) to this list would be dead config that reads as if it worked. Its DMG is
+    // likewise hand-rolled with `hdiutil`, which is why the release assets are named
+    // `-macOS-Apple-Silicon-` rather than following `artifactName`, and the update ZIP is
+    // produced with `ditto` from the signed and stapled .app. Same trap as `linux.target`
+    // below, where the CLI target list replaces this one.
     "target": [
       {
         "target": "dmg",
@@ -270,11 +262,10 @@
   // Aucun n'a été vu avant parce que les métapaquets de bureau les tirent tous les
   // trois — libgomp1 seulement via libfftw3-single3, libimagequant0 et libsoxr0, trois
   // libs média périphériques. Une install minimale ou un WM monté à la main n'a
-  // aucune de ces garanties. C'est ce que le job `verify-linux-package` prouve
-  // désormais à chaque build, en interrogeant le loader plutôt que cette liste.
+  // aucune de ces garanties.
   //
-  // `xdg-desktop-portal` est la MÊME classe de bug, et le job ci-dessus ne la verra
-  // jamais : il interroge ld.so, or un portail est un service D-Bus et n'apparaît dans
+  // `xdg-desktop-portal` est la MÊME classe de bug, et `ldd` ne la verra
+  // jamais : un portail est un service D-Bus et n'apparaît dans
   // aucun DT_NEEDED. Toute la capture Linux passe par lui — X11 compris, le helper
   // n'a pas d'autre chemin — et sans lui l'app affiche l'erreur zbus brute (#324).
   //
@@ -288,11 +279,10 @@
   // l'exécution par `portal.rs::portal_unavailable`, qui nomme le backend à installer —
   // et c'est la seule moitié qui couvre l'AppImage, qui ne déclare rien.
   //
-  // Nom identique sur les trois distributions, et vérifié plutôt que supposé :
-  // `verify-linux-package.sh` installe réellement le paquet dans une image nue, où un nom
-  // inexistant fait échouer la transaction entière — c'est comme ça que `http-parser` a
-  // été pris sur pacman. Les trois formats répondent `ok install: declared depends
-  // resolved` sur ubuntu:22.04, fedora:40 et archlinux:latest (run 31391020354).
+  // Nom identique sur les trois distributions, et vérifié plutôt que supposé : le paquet
+  // a été installé dans une image nue d'ubuntu:22.04, de fedora:40 et d'archlinux:latest,
+  // où un nom inexistant fait échouer la transaction entière — c'est comme ça que
+  // `http-parser` a été pris sur pacman.
   "deb": {
     "depends": [
       "libgtk-3-0",
