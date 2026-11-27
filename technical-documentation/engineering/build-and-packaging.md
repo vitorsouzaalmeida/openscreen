@@ -30,7 +30,7 @@ Linux packaging also requires `zsync` (`sudo apt-get install zsync`), which supp
 
 `scripts/appimage-updates.cjs` fills the runtime's reserved `.upd_info` section without moving its appended filesystem. The `artifactBuildCompleted` hook removes the old blockmap, writes the update information, rebuilds the blockmap and replaces the artifact's update metadata **before** electron-builder schedules publication. It then generates `.zsync` from the final bytes; `afterAllArtifactBuild` includes that sidecar when publishing directly. Recheck the internal `appendBlockmap` helper and hook ordering when upgrading electron-builder from 26.15.3.
 
-Stable builds use `gh-releases-zsync` with the upstream repository's `latest` channel. RCs still produce sidecars with explicit tagged download URLs, but leave external discovery empty: AppImageUpdate's `latest-all` can select a helper-only prerelease with no AppImage asset. RC updates continue through electron-updater. CI checks both policies and uploads the sidecars as release assets.
+Stable builds use `gh-releases-zsync` with the upstream repository's `latest` channel. RCs still produce sidecars with explicit tagged download URLs, but leave external discovery empty: AppImageUpdate's `latest-all` can select a helper-only prerelease with no AppImage asset. RC updates continue through electron-updater.
 
 ## Native artifacts
 
@@ -116,7 +116,7 @@ The remedy here is to ship it: `scripts/stage-vcomp-runtime.mjs` copies `vcomp14
 
 #### The CRT proper, via ONNX Runtime
 
-The camera-background feature vendors `onnxruntime.dll` (`scripts/fetch-onnxruntime.mjs`), an upstream release binary that imports `msvcp140`, `msvcp140_1`, `vcruntime140` and `vcruntime140_1`. It is not ours to rebuild, so `-C target-feature=+crt-static` — the answer for our own Rust addon — does not apply, and the guard's other exit does not either: `WIN_REQUIRED` in the same hook refuses to package *without* `onnxruntime.dll`, because a build missing it degrades cleanly and silently into a camera-background control that does nothing. Requiring the DLL and refusing its imports left the Windows installer unbuildable from the moment the feature landed, and nothing noticed, because `build.yml` only runs on dispatch or a tag and no Windows build had been dispatched since.
+The camera-background feature vendors `onnxruntime.dll` (`scripts/fetch-onnxruntime.mjs`), an upstream release binary that imports `msvcp140`, `msvcp140_1`, `vcruntime140` and `vcruntime140_1`. It is not ours to rebuild, so `-C target-feature=+crt-static` — the answer for our own Rust addon — does not apply, and the guard's other exit does not either: `WIN_REQUIRED` in the same hook refuses to package *without* `onnxruntime.dll`, because a build missing it degrades cleanly and silently into a camera-background control that does nothing. Requiring the DLL and refusing its imports left the Windows installer unbuildable from the moment the feature landed, and nothing noticed, because no Windows build had been made since.
 
 So the same remedy covers both: `stage-vcomp-runtime.mjs` stages the CRT set alongside `vcomp140.dll`, all five from the redistributable directory of the building toolchain, and the guard stops objecting because the imports now ship. **The check that this is complete is the build itself** — `before-pack` reads the real import table of the real payload and refuses on anything still unshipped, which is a stronger statement than any unit test of the staging script could make.
 
@@ -124,21 +124,7 @@ So the same remedy covers both: `stage-vcomp-runtime.mjs` stages the CRT set alo
 
 Everything the payload needs from outside itself is now either shipped beside it or present on every Windows edition — with one exception worth knowing: `wgc-capture.exe` imports `mf.dll`, `mfplat.dll` and `mfreadwrite.dll`, and **Media Foundation is absent from Windows N editions** unless the user installs the Media Feature Pack. Recording would fail there with the same `0xC0000135` as above. Untested and unhandled; N editions are sold in Europe.
 
-### Verifying a package actually loads
-
-The two failures above were found by the Store, not by us, and each was fixed with a guard aimed at the failure already understood — the colocation check would never have caught the redistributable, and the import-table check would never have caught the `PATH` bug. Both are worth keeping, and neither generalises.
-
-`scripts/verify-appx-native.ps1` is the check that does. It registers a built `.appx` and asks the Windows loader to resolve every shipped binary from inside the package: `LoadLibraryEx` with `LOAD_WITH_ALTERED_SEARCH_PATH` for each `.dll`/`.node` — the same call Node makes for an addon — and, for each helper executable, a start with no arguments. Whatever the next unresolvable dependency turns out to be, this fails on it.
-
-```bash
-powershell -File scripts/verify-appx-native.ps1 -Appx release/1.9.1/Openscreen.Setup.1.9.1.appx
-```
-
-Add `-KeepRegistered` to leave the package installed and click through the app afterwards. Loose registration needs Developer Mode; the script will not enable it for you, because that is a machine-wide setting. The `Windows Store package` job runs the same script on every build, enabling Developer Mode on the runner it is about to discard.
-
-Two things it deliberately does not do. It never records: a real capture needs a GPU and a desktop session that a CI runner does not usefully have, and a flaky gate gets switched off — the loader is the part that broke both times, and it can be tested without either. And it proves nothing about a machine that lacks a runtime, because every runner and every developer machine has the Visual C++ Redistributable; that half is held by the import-table check in `before-pack.cjs`.
-
-### Verifying a Linux package resolves on a clean machine
+### Linux packages on a clean machine
 
 Linux repeated the Windows lesson one release later. 1.9.1 fixed the symbol-version floor and shipped three sonames that nothing declared and nothing bundled: `libgbm.so.1` and `libasound.so.2`, needed by the Electron binary itself, so a clean Ubuntu 22.04 exited `127` before any window appeared; and `libgomp.so.1`, needed by all 32 ELFs of the STT stack, so the app started and only transcription died in `ld.so`.
 
@@ -146,33 +132,23 @@ The symbol-version guard could not have seen it. It checks how *new* the require
 
 All three hid behind the same accident. Desktop metapackages pull every one of them, `libgomp1` only via `libfftw3-single3`, `libimagequant0` and `libsoxr0` — three peripheral media libraries no desktop actually needs. Every machine anyone tested on therefore had them.
 
-`scripts/verify-linux-package.sh` installs a built package into a **bare container** of the target distro and runs `ldd` over every ELF that ships, reporting any soname the package neither declares nor bundles. It then starts `openscreen`, `whisper-stt-server` and `openscreen-pipewire-helper`, because reaching `main()` is the part `ldd` cannot show: a binary the loader rejects exits `127` with `error while loading shared libraries`, while one that starts prints its own usage or its own structured error.
+The way to see this class of gap is to install a built package into a **bare container** of the target distro and run `ldd` over every ELF that ships: the build machine has more installed than the machines the package goes to, so a check that runs on it is not a check. The package names genuinely differ between distros. `libgomp.so.1` is `libgomp1` on Debian and `libgomp` on both Fedora and Arch, where it was split out of `gcc-libs` — a guess would have been wrong.
 
-```bash
-bash scripts/verify-linux-package.sh deb release/1.9.2/Openscreen-Linux-1.9.2.deb
-```
+The AppImage declares nothing, so there is no `depends` list to get right. Its exposure is handled at the source, which is the layer to prefer anyway. Of the three sonames 1.9.2 chased, exactly one may be bundled, and `scripts/build-whisper-stt.sh` now does: `libgomp.so.1` is a self-contained runtime, it is absent from [the AppImage project's excludelist](https://github.com/AppImage/pkg2appimage/blob/master/excludelist), and the STT binaries already carry `RUNPATH=$ORIGIN:$ORIGIN/bin`, so a copy beside them is found before the system one — no `patchelf`, no `AppRun` wrapper. The other two are on that excludelist and say why: `libgbm.so.1` is "part of mesa" and speaks to the host's DRM stack, `libasound.so.2` loads the host's ALSA plugins and configuration. A bundled copy of either is worse than none.
 
-The container is the point, not an implementation detail — the runner has more installed than the machines we ship to, so a check that runs on it is not a check. For the same reason the script installs no convenience tooling inside the container: `binutils` would arrive with a transitive closure that could mask what is being measured, and `ldd` is glibc, already there.
+**Which script does the copying is the interesting part.** It belongs to the build, not to packaging, because provenance is what makes the bundled copy correct: a published whisper build is made on `ubuntu-22.04`, the same floor `before-pack.cjs` enforces, so the library that ships comes from the same machine and the same glibc as the binaries that load it, and it travels with them. Copying it at packaging time instead would take it from whoever ran the build — and a 24.04 desktop's `libgomp` needs `GLIBC_2.38`, which the symbol-version guard then rejects, leaving a developer on a current distro unable to package at all.
 
-`rpm` and `pacman` are verified too, and they are the ones with no other safety net: nobody installs them often enough to report a gap quickly, and the package names genuinely differ. `libgomp.so.1` is `libgomp1` on Debian and `libgomp` on both Fedora and Arch, where it was split out of `gcc-libs` — a guess would have been wrong.
-
-The AppImage is deliberately not covered by this check. What the check verifies is that everything a package needs is either declared or shipped, and the AppImage declares nothing — there is no manifest to verify against, so it would report every library the format legitimately expects from the host. That is the AppImage model working as intended, not a defect, and a check that cannot distinguish the two says nothing.
-
-The exposure is instead handled at the source, which is the layer to prefer anyway. Of the three sonames 1.9.2 chased, exactly one may be bundled, and `scripts/build-whisper-stt.sh` now does: `libgomp.so.1` is a self-contained runtime, it is absent from [the AppImage project's excludelist](https://github.com/AppImage/pkg2appimage/blob/master/excludelist), and the STT binaries already carry `RUNPATH=$ORIGIN:$ORIGIN/bin`, so a copy beside them is found before the system one — no `patchelf`, no `AppRun` wrapper. The other two are on that excludelist and say why: `libgbm.so.1` is "part of mesa" and speaks to the host's DRM stack, `libasound.so.2` loads the host's ALSA plugins and configuration. A bundled copy of either is worse than none.
-
-**Which script does the copying is the interesting part.** It belongs to the build, not to packaging, because provenance is what makes the bundled copy correct: `build-whisper-stt.yml` pins its Linux leg to `ubuntu-22.04`, the same floor `before-pack.cjs` enforces, so the library that ships comes from the same machine and the same glibc as the binaries that load it, and it travels inside the whisper artifact to every consumer. Copying it at packaging time instead would take it from whoever ran the build — and a 24.04 desktop's `libgomp` needs `GLIBC_2.38`, which the symbol-version guard then rejects, leaving a developer on a current distro unable to package at all. `scripts/stage-whisper-stt.sh` only asserts it arrived, and says to re-run the whisper workflow if it did not.
-
-That last consequence — a developer on a current distro unable to package at all — has a supported way out, because the alternative is that nobody can test a packaging change without pushing and waiting for CI. `OPENSCREEN_SYMBOL_FLOOR=host` swaps the pinned ceiling for what this machine's own `libc.so.6` and `libstdc++.so.6` *define*, read straight out of the libraries node is already running against, so there is no `ldconfig` to parse and no `binutils` to require.
+That last consequence — a developer on a current distro unable to package at all — has a supported way out, because the alternative is that nobody on a current distro can test a packaging change at all. `OPENSCREEN_SYMBOL_FLOOR=host` swaps the pinned ceiling for what this machine's own `libc.so.6` and `libstdc++.so.6` *define*, read straight out of the libraries node is already running against, so there is no `ldconfig` to parse and no `binutils` to require.
 
 ```bash
 OPENSCREEN_SYMBOL_FLOOR=host npm run build:linux
 ```
 
-It relaxes the ceiling rather than removing the guard: a payload needing something even the host lacks still fails, and the parser assertion that keeps the scan honest runs either way. What it gives up is the distro-floor promise, which is the promise a local build is not making — so the build prints the ceiling it substituted and says not to publish the result. Any value other than `host` is an error rather than a silent enforce or a silent waive, and the variable is **refused outright when `CI` is set**: an escape hatch that can reach a published artifact is a hole, and the runners are pinned to the floor so nothing on CI needs it. `scripts/before-pack.test.mjs` covers both refusals.
+It relaxes the ceiling rather than removing the guard: a payload needing something even the host lacks still fails, and the parser assertion that keeps the scan honest runs either way. What it gives up is the distro-floor promise, which is the promise a local build is not making — so the build prints the ceiling it substituted and says not to publish the result. Any value other than `host` is an error rather than a silent enforce or a silent waive, and the variable is **refused outright when `CI` is set**: an escape hatch that can reach a published artifact is a hole. `scripts/before-pack.test.mjs` covers both refusals.
 
 What remains host-supplied for the AppImage is the GTK/GLib/NSS stack, which no AppImage bundles — theme engines, GIO modules and pixbuf loaders all resolve against the host. `libvulkan.so.1` is already bundled at the AppImage root by electron-builder itself. For the Vulkan *driver*, which cannot be bundled, `d3d_linux::diagnose` names the Mesa package instead.
 
-**One dependency class stays invisible to everything above**, and 1.9.3 adds it after #328: `xdg-desktop-portal`. All Linux capture goes through it — X11 included, the helper has no other path — but a portal is a D-Bus service, so it appears in no `DT_NEEDED` entry and `ldd` will never name it however bare the container is. Note precisely which half the check still holds: it cannot tell you the portal is *missing* from the list, but the install step does prove that a name you put there exists, which is what confirmed `xdg-desktop-portal` on all three distros. It hid behind the same metapackage accident as the three sonames, and it is now declared on `deb`, `rpm` and `pacman`. Declaring it is only half the fix: the frontend merely routes, and the ScreenCast implementation comes from a desktop-specific backend (`-gnome`, `-kde`, `-hyprland`, `-wlr`, `-gtk`) that no `depends` list here can choose without being wrong on half the machines. The other half is `portal.rs::portal_unavailable`, which names those backends in the error the user actually sees — the same answer `diagnose` gives for the Vulkan driver, and the only one that reaches the AppImage.
+**One dependency class stays invisible to everything above**, and 1.9.3 adds it after #328: `xdg-desktop-portal`. All Linux capture goes through it — X11 included, the helper has no other path — but a portal is a D-Bus service, so it appears in no `DT_NEEDED` entry and `ldd` will never name it however bare the container is. It hid behind the same metapackage accident as the three sonames, and it is now declared on `deb`, `rpm` and `pacman`. Declaring it is only half the fix: the frontend merely routes, and the ScreenCast implementation comes from a desktop-specific backend (`-gnome`, `-kde`, `-hyprland`, `-wlr`, `-gtk`) that no `depends` list here can choose without being wrong on half the machines. The other half is `portal.rs::portal_unavailable`, which names those backends in the error the user actually sees — the same answer `diagnose` gives for the Vulkan driver, and the only one that reaches the AppImage.
 
 ### Testing without the build machine's advantages
 
@@ -180,8 +156,8 @@ Every failure in this section shares one shape: **the machines we test on have m
 
 Three layers address it, and the order matters:
 
-1. **Remove the dependency at the source.** A statically linked CRT cannot be missing; a runner pinned to the oldest supported distro cannot bind symbols the user does not have. This is the only layer that needs no testing at all, so prefer it whenever there is a choice.
-2. **Prove it automatically.** Static analysis for absences that are known and enumerable (`before-pack.cjs` reads import tables and ELF symbol-version needs), and a real load for everything else — `verify-appx-native.ps1` under package identity on Windows, `verify-linux-package.sh` in a bare container on Linux. Both exist because static analysis only ever knows about the mistakes already made.
+1. **Remove the dependency at the source.** A statically linked CRT cannot be missing; a build made on the oldest supported distro cannot bind symbols the user does not have. This is the only layer that needs no testing at all, so prefer it whenever there is a choice.
+2. **Prove it automatically.** Static analysis for absences that are known and enumerable: `before-pack.cjs` reads import tables and ELF symbol-version needs. It only ever knows about the mistakes already made.
 3. **A pristine machine before a Store submission.** The only layer that catches a failure nobody has thought of yet.
 
 For layer 3, keep a virtual machine whose entire value is what is *not* installed in it. VirtualBox and VMware Workstation both run on Windows 11 Home, which has neither Windows Sandbox nor Hyper-V; Microsoft publishes Windows 11 ISOs at no cost, and an unactivated install is fine for this.
@@ -191,7 +167,7 @@ For layer 3, keep a virtual machine whose entire value is what is *not* installe
 What to run inside it, cheapest first:
 
 - **The `.exe` installer.** No Developer Mode, no ceremony, and it carries the same native binaries as the appx. Record something and open the editor: if recording starts and the preview renders, the missing-runtime class is clear for both Windows channels at once.
-- **The appx**, for what is specific to MSIX — package-graph DLL resolution, which the `.exe` cannot exercise. Enable Developer Mode and run `verify-appx-native.ps1`, then launch the app by hand. Developer Mode installs no runtime, so it does not compromise what the VM is for.
+- **The appx**, for what is specific to MSIX — package-graph DLL resolution, which the `.exe` cannot exercise. Enable Developer Mode, extract the `.appx` (a plain zip), delete `AppxSignature.p7x` and `AppxBlockMap.xml` from the extracted folder, then run `Add-AppxPackage -Register <folder>\AppxManifest.xml`, and launch the app by hand. Developer Mode installs no runtime, so it does not compromise what the VM is for.
 
 Expect the compositor to report a software backend: a VM has no real GPU, and `probeBackend()` returning `"software"` there is correct, not a regression. Enable the hypervisor's 3D acceleration so the preview renders at all.
 
@@ -213,7 +189,7 @@ npm run build:native:compositor      # Windows
 npm run build:native:compositor:mac  # macOS
 ```
 
-**On macOS it also asserts the payload is complete**, which is a stronger check than freshness and exists because the hook used to return early on every non-Windows platform. That gap was not theoretical: the macOS CI job built the ScreenCaptureKit helper but never ran `fetch:ffmpeg:mac` or `build:native:compositor:mac`, so the `.app` it produced had no compositor addon — preview and export dead in the installed app, with nothing in any log. Nothing caught it, because the one guard that would have was Windows-only.
+**On macOS it also asserts the payload is complete**, which is a stronger check than freshness and exists because the hook used to return early on every non-Windows platform. That gap was not theoretical: upstream's macOS release job built the ScreenCaptureKit helper but never ran `fetch:ffmpeg:mac` or `build:native:compositor:mac`, so the `.app` it produced had no compositor addon — preview and export dead in the installed app, with nothing in any log. Nothing caught it, because the one guard that would have was Windows-only.
 
 The hook now reads `electron/native/bin/darwin-<arch>/` — the directory `mac.extraResources` ships wholesale, so "present here" means "present in the installed app" — and refuses to package unless it holds all of:
 
@@ -226,8 +202,6 @@ The hook now reads `electron/native/bin/darwin-<arch>/` — the directory `mac.e
 | `openscreen-screencapturekit-helper` | native screen capture unavailable |
 
 It then applies the same staleness comparison to the **shipped** addon (the arch-tagged copy), not the dev copy under `electron/native/compositor-view/build/`, since the arch-tagged one is what electron-builder actually packages.
-
-CI: the Windows job runs `build:win`, which rebuilds before packaging. The macOS job spells its steps out — it needs `--dir` plus a hand-rolled DMG and signing — and had drifted from the `build:mac` recipe; it now vendors the LGPL ffmpeg tree and builds the Metal addon before packing, both cached.
 
 The check compares modification times, so `git checkout` (which restamps source files) can occasionally flag an addon that is genuinely fine. That trade is deliberate — a false alarm costs one rebuild, whereas a missed stale addon ships a broken installer. Run `node scripts/before-pack.cjs` on its own to see the verdict without packaging.
 
@@ -285,7 +259,7 @@ Copies of the same three files also remain at their old `public/` paths, because
 
 ### Windows
 
-The default electron-builder target is NSIS, with an assisted installer that allows users to change the installation directory. `npm run build:win:store` explicitly selects the configured `appx` target for Microsoft Store packaging. The AppX identity, publisher, capabilities, and Store languages come from `electron-builder.json5`. Release CI builds and retains both the NSIS installer and AppX package, although the GitHub release publisher currently downloads only the `openscreen-windows-x64` and `openscreen-windows-arm64` NSIS artifacts.
+The default electron-builder target is NSIS, with an assisted installer that allows users to change the installation directory. `npm run build:win:store` explicitly selects the configured `appx` target for Microsoft Store packaging. The AppX identity, publisher, capabilities, and Store languages come from `electron-builder.json5`.
 
 #### Store tile assets
 
@@ -296,7 +270,7 @@ The default electron-builder target is NSIS, with an assisted installer that all
 Four of the file names are load-bearing: `StoreLogo`, `Square150x150Logo`, `Square44x44Logo` and `Wide310x150Logo` are the ones electron-builder replaces with placeholders when absent. `SmallTile`, `LargeTile` and `SplashScreen` are opt-in — their `<uap:>` manifest attributes are emitted only when a matching file is present. Each logo also ships `.scale-125/150/200` variants (plus `.scale-400` on the small assets) and, for the 44x44 app-list icon, `.targetsize-*` and `.targetsize-*_altform-unplated` variants for the taskbar and Start list. Any `.scale-`/`.targetsize-` file switches electron-builder into its `makepri.exe` path, which generates `resources.pri` and packages it alongside; the unqualified 100% file of every asset is kept as the neutral fallback candidate so an unresolved qualifier still finds art. Because `appx.backgroundColor` is `transparent`, Windows paints the tile in the user's accent colour, so the tiles are drawn as a padded logo on a transparent canvas rather than full-bleed art — and the two tiles carrying `showNameOnTiles` shift their logo up to clear the name band.
 #### Neither Windows artifact is signed
 
-Unlike macOS, no Windows signing is configured anywhere in the repo. Both CI artifacts come out unsigned — confirmed by `Get-AuthenticodeSignature` on the 1.8.0 build:
+Unlike macOS, no Windows signing is configured anywhere in the repo. Both the NSIS installer and the AppX package come out unsigned — confirmed by `Get-AuthenticodeSignature` on the 1.8.0 build:
 
 | Artifact | Signature |
 |---|---|
@@ -312,7 +286,7 @@ Buying a certificate is the fix for the `.exe`, and it stays a live option (roug
 
 ### macOS
 
-Electron-builder targets DMG for both `arm64` and `x64`, enables hardened runtime, and applies `macos.entitlements` to the app and inherited code. The entitlements allow Electron JIT/native library loading and audio, camera, and screen capture. The configuration itself sets `notarize: false`; release CI packages the `.app`, creates and signs the DMG manually, submits it to `notarytool`, staples the ticket, and validates Gatekeeper. Pre-release tags go through the same path as stable ones — signing alone leaves Gatekeeper at `rejected, source=Unnotarized Developer ID`, so an RC that is signed but not notarized still forces testers to clear the quarantine attribute. Missing Apple credentials produce an ad-hoc-signed artifact.
+Electron-builder targets DMG for both `arm64` and `x64`, enables hardened runtime, and applies `macos.entitlements` to the app and inherited code. The entitlements allow Electron JIT/native library loading and audio, camera, and screen capture. The configuration itself sets `notarize: false`, and nothing in this repository signs or notarizes a build: signing alone leaves Gatekeeper at `rejected, source=Unnotarized Developer ID`, so a local build has to have its quarantine attribute cleared.
 
 ### Linux and Nix
 
@@ -320,6 +294,6 @@ Electron-builder produces AppImage, `.deb`, `.pacman`, and `.rpm` targets. Each 
 
 ## Node and toolchain versions
 
-`package.json#engines` and `.nvmrc` both pin Node.js `22.22.1`. The package manifest pins npm `10.9.4` through both `packageManager` and `engines.npm`. The Nix shell supplies Node 22, while the shared GitHub Actions setup currently requests the Node 22 release line rather than the exact patch.
+`package.json#engines` and `.nvmrc` both pin Node.js `22.22.1`. The package manifest pins npm `10.9.4` through both `packageManager` and `engines.npm`. The Nix shell supplies Node 22.
 
 TypeScript is `5.9.3`, Vite is `7.3.2`, Electron is `45.5.0`, and electron-builder is `26.8.1` in `package.json`. Native versions are controlled by their platform tools and project files rather than a single repository-wide compiler version.

@@ -113,7 +113,7 @@ const MAC_REQUIRED = [
 		match: (name) => name === "whisper-stt-server",
 		what: "the whisper.cpp STT helper",
 		breaks: "transcription and captions fail with a developer error shown to end users",
-		fix: "Build it with:\n\n    npm run build:whisper-binaries\n\nor stage CI's with `bash scripts/stage-whisper-stt.sh darwin-<arch>`.",
+		fix: "Build it with:\n\n    npm run build:whisper-binaries",
 	},
 	{
 		match: (name) => /^libggml.*\.dylib$/.test(name),
@@ -198,7 +198,7 @@ const LINUX_REQUIRED = [
 		match: (name) => name === "whisper-stt-server",
 		what: "the whisper.cpp STT helper",
 		breaks: "transcription and captions fail with a developer error shown to end users",
-		fix: "Build it with:\n\n    npm run build:whisper-binaries\n\nor stage CI's with `bash scripts/stage-whisper-stt.sh linux-x64`.",
+		fix: "Build it with:\n\n    npm run build:whisper-binaries",
 	},
 	{
 		match: (name) => /^libggml.*\.so(\.\d+)*$/.test(name),
@@ -624,8 +624,8 @@ function checkLinuxNativePayload(context) {
  * The ceiling is what the OLDEST distro the README claims actually provides. Ubuntu
  * 22.04 is the binding one — glibc 2.35, libstdc++6 from GCC 12 — against Debian 12's
  * 2.36 with the same libstdc++. Raising any of these is a decision to drop a distro
- * from the README, not a build detail; the runners are pinned to match (build.yml's
- * build-linux and build-whisper-stt.yml).
+ * from the README, not a build detail; a build meant for publishing has to be made
+ * on that distro.
  */
 const MAX_SYMBOL_VERSION = { GLIBC: "2.35", GLIBCXX: "3.4.30", CXXABI: "1.3.13" };
 
@@ -844,8 +844,7 @@ function resolveSymbolCeiling() {
 			"OPENSCREEN_SYMBOL_FLOOR=host is refused under CI.\n\n" +
 				"It exists so a developer on a newer distro can build a package for their own\n" +
 				"machine; a released artifact built with it would not start on the distros the\n" +
-				"README claims. The runners are pinned to the floor (build.yml build-linux,\n" +
-				"build-whisper-stt.yml), so nothing on CI needs it.",
+				"README claims.",
 		);
 	}
 	return { ceiling: hostSymbolCeiling(), pinned: false };
@@ -954,8 +953,7 @@ function checkLinuxSymbolVersionFloor(dir) {
 			"version the build machine offers, so this means something was built on a newer image\n" +
 			"than the floor. On the target it dies in ld.so before main() or fails require(), while\n" +
 			"the app still launches — so it reads as a broken app, and no package format catches it.\n\n" +
-			"Build on the pinned runners: ubuntu-22.04 in .github/workflows/build.yml (build-linux)\n" +
-			"and build-whisper-stt.yml. To see which symbols pulled a version in:\n\n" +
+			"Build on the floor distro, ubuntu-22.04. To see which symbols pulled a version in:\n\n" +
 			"    readelf -V <file>\n" +
 			"    readelf -W --dyn-syms <file> | grep @GLIBC_2.38\n\n" +
 			(pinned

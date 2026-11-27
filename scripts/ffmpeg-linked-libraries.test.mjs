@@ -19,9 +19,9 @@
 // under test is a property of the literal lists anyway.
 //
 // The nix derivation is the reason this file exists rather than an assertion inside
-// before-pack.test.mjs: `.github/workflows/nix-build.yml` does not run on pull requests
-// and there is no nix on the Windows dev box, so nix/compositor-view.nix reaches main with
-// no pre-merge signal at all. A text assertion is not `nix build`, but it does catch the
+// before-pack.test.mjs: nothing runs `nix build` before a merge, so
+// nix/compositor-view.nix reaches main with no pre-merge signal at all. A text
+// assertion is not `nix build`, but it does catch the
 // one mistake that has actually happened.
 
 import fs from "node:fs";

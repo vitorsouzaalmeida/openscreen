@@ -29,8 +29,6 @@
 //     tag, asset name and digest are one unit.
 //   Source approved by Etienne (2026-07-16). BtbN is linked from ffmpeg.org's
 //   download page and published on winget as BtbN.FFmpeg.LGPL.
-//   Attribution + source offer for what we redistribute: THIRD-PARTY-NOTICES.md,
-//   which electron-builder ships into resources/.
 //
 // LICENSING — the other thing this script exists to protect:
 //   ffmpeg is LGPL *by default*. It becomes GPL only when built with

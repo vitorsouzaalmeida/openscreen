@@ -65,9 +65,7 @@ scripts/diagnostic-tool/
   diagnostic.sh         # macOS / Linux launcher
 ```
 
-## CI artifacts
+## Prebuilt bundles
 
-`.github/workflows/diagnostic-artifact.yml` builds per-platform zips
-that bundle this directory with the prebuilt helper. The workflow runs on
-every push to main and on manual dispatch; artifacts are retained for 14
-days.
+The upstream project publishes per-platform zips that bundle this directory
+with the prebuilt helper.

@@ -100,7 +100,7 @@ export function candidateBinaryPaths(here: string = process.cwd()): string[] {
  * Arch-tagged directories to search, native first.
  *
  * Windows on ARM gets a second tag. There is no arm64 whisper build to find:
- * `.github/workflows/build-whisper-stt.yml` produces `win32-x64` only, and
+ * the helper is built for `win32-x64` only, and
  * `scripts/build-whisper-stt.sh` has no acceleration case for `win32-arm64` — so an
  * arm64 package resolves a directory that will never hold the helper, and every
  * transcription fails with "binary not found".

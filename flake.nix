@@ -8,10 +8,8 @@
     # now answers with 403 — it rate-limits that endpoint to 1 req/s and points
     # clients at the CDN instead (rust-lang/crates.io#13482). Every crate in the
     # lockfile failed, so `nix build` died in `cargo-vendor-dir` before reaching a
-    # single derivation of ours: `Nix build` was red on main from 2026-08-30, and
-    # since `nix-check.yml` only compares npmDepsHash and `nix-build.yml` did not
-    # run on pull requests, the derivation itself was not being built anywhere --
-    # not before a merge, and not after one either while this was red.
+    # single derivation of ours: `nix build` was red on main from 2026-08-30, and
+    # nothing built the derivation before a merge, so it went unnoticed.
     # d2f6794 carries the switch to `https://static.crates.io/crates`.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };

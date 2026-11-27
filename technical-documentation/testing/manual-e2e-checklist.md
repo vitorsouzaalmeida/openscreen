@@ -1,12 +1,12 @@
 # Manual end-to-end checklist
 
-This checklist covers the real desktop capture-to-export path: the parts that unit, browser, and Playwright tests cannot exercise, including real screen capture, a physical webcam, the system tray, the native compositor, and export. Run it before promoting a release candidate and after any change to native capture, preview, or export.
+This checklist covers the real desktop capture-to-export path: the parts that unit, browser, and Playwright tests cannot exercise, including real screen capture, a physical webcam, the system tray, the native compositor, and export. Run it after any change to native capture, preview, or export.
 
-**"Manual" is about the input, not the operator.** These checks need real OS mouse and keyboard events, not a human hand — so an agent with the computer-use MCP runs them, on demand, and a request for one section after a targeted change is as much a run as the whole file before a promote. Availability check and the rule on partial runs: [AGENTS.md](../../AGENTS.md#desktop-e2e-testing-with-computer-use).
+**"Manual" is about the input, not the operator.** These checks need real OS mouse and keyboard events, not a human hand — so an agent with the computer-use MCP runs them, on demand, and a request for one section after a targeted change is as much a run as the whole file. Availability check and the rule on partial runs: [AGENTS.md](../../AGENTS.md#desktop-e2e-testing-with-computer-use).
 
 Sections marked **v1.8.0** cover what that release changed: clip-anchored modifiers, local transcription, the macOS Metal compositor, and the new effect controls.
 
-Sections marked **post-1.10.0** cover what has landed on `main` since the v1.10.0 tag: the AI camera background, the caption anchor model, pixel-resolution crop, editor window bounds, update settings, the Windows recording encoder and AAC changes, **imported audio and voice-over recording**, and **transcript word editing with word insertion**. Run the whole file for a release candidate; the marked sections are the ones with no prior release to fall back on.
+Sections marked **post-1.10.0** cover what has landed on `main` since the v1.10.0 tag: the AI camera background, the caption anchor model, pixel-resolution crop, editor window bounds, update settings, the Windows recording encoder and AAC changes, **imported audio and voice-over recording**, and **transcript word editing with word insertion**. The marked sections are the ones with no prior release to fall back on.
 
 Sections and checks marked **v2.0.0** cover what v2 changed: the editor's Record mode and automatic zooms after a take, Apple's source picker and the permissions window on macOS, the export dialog's settings panel, and the webcam's capture resolution and frame rate. The v2 editor also reshaped controls older sections name (the top bar, the transport, the inspector); those checks were rewritten in place rather than marked.
 
@@ -14,16 +14,16 @@ Sections and checks marked **post-2.0.0** cover what has landed on `main` since 
 
 ## How to run this
 
-1. Drive the real Electron app with computer-use — real OS mouse and keyboard events. For a release candidate, launch the CI-built artifact (see [Running the pass on a CI-built artifact](#running-the-pass-on-a-ci-built-artifact) below); for a change under development, a dev build started with `npm run dev`.
+1. Drive the real Electron app with computer-use — real OS mouse and keyboard events. Launch a dev build started with `npm run dev`, or a packaged build when the check needs an installed app (see [Running the pass on a packaged build](#running-the-pass-on-a-packaged-build) below).
 
    "Manual" here usually means an agent holding the mouse, so the tempting shortcut is not a browser shim: it is driving the real app through CDP instead. **Do not.** Playwright's `.click()`, `javascript_tool`-dispatched pointer events and anything else synthesised into the renderer arrive *below* the OS hit-test. On Windows and macOS the HUD is input-transparent until a real cursor move lifts it, so an injected click fires the DOM handler and comes back green while the path a user actually takes was never exercised at all.
 
    That trap is specific to the HUD and the countdown overlay — they are the only click-through windows; the editor is an ordinary one, and an injected click there does reach the handler a user would reach. The reason not to inject in the editor either is the first line of this file: this checklist covers what unit, browser and **Playwright** tests cannot. Drive it the way those tests already drive it and you have re-run the coverage you had, then written "passed" beside the parts nothing checked.
 2. The app is single-instance per `userData` path. If a leftover Electron/OpenScreen process still holds the lock, stop that process before relaunching; a second launch can exit successfully without opening a window. The lock is held by the OS and is released when the process dies, so there is nothing to delete on disk.
-3. For a dev build from a worktree, link or junction `node_modules` to the main checkout and provide the prebuilt native capture binaries for the platform before starting the dev build. **Date those binaries against the change you came to test.** Nothing rebuilds them, so an older helper runs the old code path in silence: the recording succeeds and the thing you were checking for is simply absent. See AGENTS.md for how to check one and how to rebuild it; when you cannot, test the CI-built artifact, because a dev build cannot answer a native question.
+3. For a dev build from a worktree, link or junction `node_modules` to the main checkout and provide the prebuilt native capture binaries for the platform before starting the dev build. **Date those binaries against the change you came to test.** Nothing rebuilds them, so an older helper runs the old code path in silence: the recording succeeds and the thing you were checking for is simply absent. See AGENTS.md for how to check one and how to rebuild it; when you cannot, a dev build cannot answer a native question.
 
    **A junctioned `node_modules` is only as current as the checkout it points at.** Diff the two `package.json` dependency sets before trusting it: a dependency added after that checkout's HEAD is simply absent, and the failure does not name it — `vite` logs one `Rollup failed to resolve import` line among the build noise, the main process starts anyway, and the IPC handlers in the module that failed to bundle are never registered. Symptom seen: `No handler registered for 'get-app-info'` and no visible window, from a missing `electron-updater`. Installing the one missing package into the shared tree reconciles that tree against the *older* lockfile, so re-check the packages you need afterwards rather than assuming the install was additive.
-4. Grant computer-use access to the process name that actually owns the window: `electron.exe` or `Electron.app` for a dev build, and the installed name `Openscreen` for a packaged build or CI artifact. Do not grant access only to the installed app name when testing a dev build — it resolves to the *installed* executable and reports success while the dev window stays masked. This is step 4 and not step 1 for a reason: a dev build is not an installed app, so the resolver cannot find it until it is running and owns a window, and one unresolvable name voids the whole request.
+4. Grant computer-use access to the process name that actually owns the window: `electron.exe` or `Electron.app` for a dev build, and the installed name `Openscreen` for a packaged build. Do not grant access only to the installed app name when testing a dev build — it resolves to the *installed* executable and reports success while the dev window stays masked. This is step 4 and not step 1 for a reason: a dev build is not an installed app, so the resolver cannot find it until it is running and owns a window, and one unresolvable name voids the whole request.
 
    **Ask for everything in ONE call — after the launches above, before the first check.** `request_access` takes a list, and once a grant is in place the rest of the pass runs without a single further prompt: a full capture-to-export run is dozens of clicks and none of them ask again. So the only thing keeping a human at the keyboard is *how many* dialogs you raise and *when*. Raise one, before the first check, and the operator can walk away for the rest of the run; discover a fourth app you need an hour in and they cannot. That is also why this cannot move earlier — the resolver needs the app running, and one unresolvable name voids the batch. **One exception, on Windows:** `wgc-capture.exe` only exists while recording, so it is granted mid-pass, at the Hide desktop icons check. Tell the operator to stay for that second dialog. Beyond the app under test, ask for:
 
@@ -49,25 +49,11 @@ Sections and checks marked **post-2.0.0** cover what has landed on `main` since 
    The **AI camera background** needs two more things that nothing else does: the ONNX Runtime shared library staged beside the addon (`npm run fetch:onnxruntime`, which a plain `npm run dev` does not run) and a recording that actually has a webcam track. Without the library the control is *correctly* absent — so an absent control is only a defect once you have confirmed the library is there. Check both directions before writing a verdict.
 10. Prefer a project with at least two clips from the same asset for the modifier sections. A single-clip project cannot exercise anchoring, reorder, or cross-boundary splitting at all, which is where the v1.8.0 timeline model changed.
 
-### Running the pass on a CI-built artifact
+### Running the pass on a packaged build
 
-A release candidate is tested on what CI built, not on a dev build. The artifact carries one matched native payload built from the commit under test, so the stale-binary traps of a dev build do not apply to it. It comes from `.github/workflows/build.yml` dispatched by hand on the branch under test with `release_tag` left empty, which builds every platform and publishes nothing: `gh workflow run build.yml -R getopenscreen/openscreen --ref <branch> -f arch=both` (`arch` picks the macOS architectures).
+Some checks need an installed app rather than a dev build: the updater, the install channel, anything that reads `app.isPackaged`. Build the package from the commit under test with `npm run build:linux`, `npm run build:win` or `npm run build:mac`. Each rebuilds the capture helper and the compositor addon first, and `scripts/before-pack.cjs` refuses to package a stale or incomplete native payload, so the stale-binary traps of a dev build do not apply. The installers land in `release/<version>/`.
 
-**Get the artifact.** The run's page lists the artifacts at the bottom, under Artifacts, for anyone logged in to GitHub; each one downloads as a zip. From a terminal, find the run, then download an artifact by name. Artifacts expire after 30 days.
-
-```bash
-gh run list -R getopenscreen/openscreen --workflow build.yml --branch <branch>
-gh run download <run-id> -R getopenscreen/openscreen -n openscreen-windows-x64
-```
-
-| Artifact | What it holds |
-|---|---|
-| `openscreen-windows-x64`, `openscreen-windows-arm64` | `Openscreen.Setup.<version>-x64.exe` or `Openscreen.Setup.<version>-arm64.exe`, the NSIS installer, with its `.blockmap` and the update-feed JSON |
-| `openscreen-windows-store` | `Openscreen.Setup.<version>.appx`, the Store package |
-| `openscreen-mac-arm64`, `openscreen-mac-x64` | `Openscreen-macOS-Apple-Silicon-<version>.dmg` or `Openscreen-macOS-Intel-<version>.dmg`, with the update ZIP and its JSON |
-| `openscreen-linux` | `Openscreen-Linux-<version>` as `.AppImage`, `.deb`, `.rpm` and `.pacman`, with `latest-linux.yml` |
-
-`<version>` comes from `package.json`, not from the branch, so it does not tell two candidates apart. The results row carries the run id, and the version About OpenScreen reports.
+`<version>` comes from `package.json`, not from the branch, so it does not tell two builds apart. The results row carries the commit, and the version About OpenScreen reports.
 
 **Windows.**
 
@@ -81,13 +67,12 @@ gh run download <run-id> -R getopenscreen/openscreen -n openscreen-windows-x64
   ```
 
 - Grant `Openscreen`, not `electron.exe`.
-- `openscreen-windows-store` is unsigned as well, and Windows does not install an unsigned package. From a source checkout, `powershell -File scripts/verify-appx-native.ps1 -Appx <file> -KeepRegistered` registers it for a pass by hand, then grant the name its Start-menu entry shows. Loose registration needs Developer Mode, a machine-wide setting its owner turns on or not.
+- The Store package (`npm run build:win:store`) is unsigned as well, and Windows does not install an unsigned package. To register it for a pass by hand, extract the `.appx` (a plain zip), delete `AppxSignature.p7x` and `AppxBlockMap.xml` from the extracted folder, then run `Add-AppxPackage -Register <folder>\AppxManifest.xml`, then grant the name its Start-menu entry shows. Loose registration needs Developer Mode, a machine-wide setting its owner turns on or not.
 
 **macOS.**
 
-- Take the artifact that matches the Mac: `arm64` for Apple Silicon, `x64` for Intel.
-- The DMG is signed with the Developer ID, notarized and stapled only when the run has all six Apple secrets (`MAC_CERTIFICATE_P12`, `MAC_CERTIFICATE_PASSWORD`, `MAC_CSC_NAME`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`). Without them the `.app` is ad-hoc signed and the DMG is neither signed nor notarized; the job's *Notarize DMG* step then shows as skipped. On the Mac, `spctl -a -vv -t install <dmg>` answers `accepted` and `source=Notarized Developer ID` for a notarized DMG.
-- Gatekeeper refuses an unnotarized DMG that a browser downloaded. Clearing its quarantine attribute is a security override the Mac's owner decides on, not the agent. macOS ties permission grants to the code signature, and an ad-hoc signature changes with every build, so grants made to one candidate may not carry to the next.
+- Nothing in this repository signs or notarizes a build: the `.app` is ad-hoc signed and the DMG is neither signed nor notarized.
+- Gatekeeper refuses an unnotarized DMG that a browser downloaded. Clearing its quarantine attribute is a security override the Mac's owner decides on, not the agent. macOS ties permission grants to the code signature, and an ad-hoc signature changes with every build, so grants made to one build may not carry to the next.
 - Open the DMG and drag Openscreen into Applications.
 - On macOS 26 and later no flag is needed: launch it as a user would. On macOS 13 to 15 the flag takes a launch from Terminal, `OPENSCREEN_DISABLE_CONTENT_PROTECTION=1 /Applications/Openscreen.app/Contents/MacOS/Openscreen`. Started that way, macOS files the permission prompts under **Terminal**, not OpenScreen (2026-10-14, macOS 26.5): with OpenScreen allowed under *Screen & System Audio Recording* and Terminal not, the legacy launch still raised the Screen Recording prompt. Launch with `open -a /Applications/Openscreen.app --env OPENSCREEN_DISABLE_CONTENT_PROTECTION=1 --env OPENSCREEN_DIAGNOSTIC=1 --stdout <log> --stderr <log>` instead (add `--env OPENSCREEN_MAC_SOURCE_PICKER=legacy` for the unattended run): OpenScreen stays its own responsible process, the env reaches only it, and the main log lands in the file. While an `Openscreen mcp` stdio server runs, `open` says the app is already running and starts nothing; add `-n`.
 - Grant `Openscreen`, plus the picker and prompt processes from step 4.
@@ -656,14 +641,13 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 
 ### Updating in place — post-2.1.2
 
-**Why this section is never skipped on a candidate.** An update is the one path a release cannot fix after the fact: a build whose updater is broken can only be left through that broken updater, so everyone who installs it stays on it. Run this section for every release candidate, on every platform, and for any change to `auto-updater.ts`, `background-update.ts`, `install-channel.ts`, `update-checker.ts`, `mcp/update-notice.ts`, the update code in `main.ts`, the NSIS or publish config in `electron-builder.json5`, or the feed scripts (`scripts/mac-update-feed.mjs`).
+**Why this section matters.** An update is the one path a later build cannot fix after the fact: a build whose updater is broken can only be left through that broken updater, so everyone who installs it stays on it. Run this section for any change to `auto-updater.ts`, `background-update.ts`, `install-channel.ts`, `update-checker.ts`, `mcp/update-notice.ts`, the update code in `main.ts`, or the NSIS or publish config in `electron-builder.json5`.
 
 **A dev build cannot run it.** The background check and the update button both require `app.isPackaged`, so `npm run dev` shows none of them. Test an installed build, on a channel that updates itself: NSIS, DMG, AppImage, deb, rpm or pacman. Never the Store package, which is kept current by the Store.
 
-**Getting a newer version to update to.** Two ways, both against an installed build of the code under test.
+**Getting a newer version to update to.** Serve a local feed to an installed build of the code under test. This works on Windows and Linux. macOS has no local path: editing anything inside a signed `.app`, `app-update.yml` included, breaks its seal, and Squirrel then refuses the update.
 
-- **The release candidate path, every platform.** Install `rc.N` from its GitHub pre-release, then publish `rc.N+1` (the normal RC flow, see `release-and-secrets.md`). An installed RC follows the newest `rc` pre-release on GitHub, not the stable release, and every RC publishes `latest.yml`, `latest-mac.yml` and `latest-linux.yml`, so `rc.N` finds `rc.N+1` on its own. This exercises the code of `rc.N`, which is the point. The only way on macOS: editing anything inside a signed `.app`, `app-update.yml` included, breaks its seal, and Squirrel then refuses the update.
-- **A local feed, Windows and Linux, for a change before any RC exists.** Install the CI-built artifact of the branch (per user on Windows, so no UAC prompt gets in the way). Keep a copy of `resources/app-update.yml` in the install folder, then replace its content with:
+- **A local feed, Windows and Linux.** Install a packaged build of the branch (per user on Windows, so no UAC prompt gets in the way). Keep a copy of `resources/app-update.yml` in the install folder, then replace its content with:
 
   ```yaml
   provider: generic
@@ -671,7 +655,7 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
   updaterCacheDirName: openscreen-updater
   ```
 
-  In an empty folder, put any working installer of the same platform and architecture: the previous release, or the same artifact again. Its file name must contain `x64` or `arm64` (the architecture electron-updater matches). Write `latest.yml` beside it (`latest-linux.yml` for an AppImage), naming a version above the installed one, for example `9.9.9`:
+  In an empty folder, put any working installer of the same platform and architecture: a previous release, or the same package again. Its file name must contain `x64` or `arm64` (the architecture electron-updater matches). Write `latest.yml` beside it (`latest-linux.yml` for an AppImage), naming a version above the installed one, for example `9.9.9`:
 
   ```yaml
   version: 9.9.9
@@ -685,7 +669,7 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 
   Get the digest with `node -e "console.log(require('crypto').createHash('sha512').update(require('fs').readFileSync(process.argv[1])).digest('base64'))" <file>`. It must be base64, not hex: a hex digest fails every download with a checksum mismatch. Serve the folder on that port from the folder itself, for example with `node -e "require('http').createServer((q,s)=>require('fs').createReadStream('.'+decodeURIComponent(q.url.split('?')[0])).on('error',()=>{s.statusCode=404;s.end()}).pipe(s)).listen(8765,'127.0.0.1')"`. It drops the query string on purpose: electron-updater asks for `latest.yml?noCache=…`, and a server that keeps the query answers every check with a 404.
 
-  **How to tell an install happened.** The installed version may not move: a CI artifact carries the version in `package.json`, often the same as the last release. The tell is `app-update.yml`: the installer writes its own, so once an update went through, the file is back to `provider: github`.
+  **How to tell an install happened.** The installed version may not move: a locally packaged build carries the version in `package.json`, often the same as the last release. The tell is `app-update.yml`: the installer writes its own, so once an update went through, the file is back to `provider: github`.
 
 **Before each run, and to clean up.** Empty the updater's cache, or a download from the previous run is reused without being fetched: `%LOCALAPPDATA%\openscreen-updater`, `~/Library/Caches/openscreen-updater` or `~/.cache/openscreen-updater`. Afterwards, restore the saved `app-update.yml` or reinstall, delete `mcp-update-check.json` from `userData`, and stop the local server.
 
@@ -697,7 +681,7 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 - [ ] **post-2.1.2** — Click the button. Confirm the app restarts into the update. On a per-machine Windows install, and on deb, rpm or pacman, the system asks for an administrator first (UAC, or the password dialog), and the update installs once granted.
 - [ ] **post-2.3.0** — Windows, with a per-user install and an older all-users one side by side (`/S /currentuser` and `/S /allusers`). Click the button in the per-user copy: no UAC prompt, no wizard, the update lands in `%LOCALAPPDATA%\Programs\Openscreen`, and the all-users copy in `C:\Program Files\Openscreen` keeps its version. Then click it in the all-users copy: one UAC prompt, and the update lands in Program Files.
 - [ ] **post-2.1.2** — With an agent's session open (`Openscreen mcp` started in a terminal and left waiting on its input, or Claude Code or Codex connected to it), click the button. On Windows the update ends that session, as the installer replaces every running copy. That is expected: the click is the user's decision. The agent's client gets the new version the next time it starts the server.
-- [ ] **post-2.1.2** — Stop the local server, or point `url` at a port nothing serves, and relaunch. Confirm the button still appears and opens the release page in the browser: when the self-updater fails, the release lookup on GitHub is the way out. This needs a GitHub release newer than the installed version, so run it on an RC whose stable successor is not out yet, or on any build older than the latest release.
+- [ ] **post-2.1.2** — Stop the local server, or point `url` at a port nothing serves, and relaunch. Confirm the button still appears and opens the release page in the browser: when the self-updater fails, the release lookup on GitHub is the way out. This needs a GitHub release newer than the installed version, so run it on a build older than the latest release.
 - [ ] **post-2.1.2** — The agent-only user. On the installed build, write `{"latestVersion":"9.9.9","checkedAt":<now in ms>}` to `mcp-update-check.json` in `userData`, then start `Openscreen mcp` and send it an `initialize` request. Confirm the `instructions` in the answer open with "OpenScreen 9.9.9 is available" and tell the agent never to update OpenScreen itself. Delete the file, and confirm a Store install, or a dev build, says nothing even with it present. No computer-use is needed: a client that prints the `initialize` answer is enough, such as a short Node script that spawns the process, writes one JSON-RPC line and reads the first non-blank line back. On Windows the first line Electron writes is blank.
 
 ### New effects and controls — v1.8.0
@@ -862,7 +846,7 @@ Apple's picker is owned by Control Centre, and computer-use cannot be granted Co
 2. **Then, once per Mac and app identity**, the Mac owner allows OpenScreen under System Settings → Privacy & Security → *Screen & System Audio Recording*, and the app is relaunched: it reads that grant at launch. TCC keys the grant on the signature: a Developer ID build keeps it from one RC to the next, while an ad hoc signed local package asks again after each build.
 3. **Relaunch with `OPENSCREEN_MAC_SOURCE_PICKER=legacy`** from the shell, like the content-protection flag. The HUD's source button and Record mode's Source row then open the app's own *Screens* / *Windows* selector, which computer-use drives exactly as on Windows. Every other section runs from there without a human.
 4. **macOS may ask, about once a month, whether OpenScreen may keep bypassing the private window picker.** That alert is a system one too: the operator answers it. It is the only prompt left, and one more reason the grant has to be in place before the legacy run, not discovered during it.
-5. **Say it in the results row.** A pass run under `legacy` did not exercise Apple's picker, so the row names which takes used which picker. For a release candidate, the human slice is part of "the whole file": skipping it makes the row `Partial`.
+5. **Say it in the results row.** A pass run under `legacy` did not exercise Apple's picker, so the row names which takes used which picker. Skipping the human slice makes a whole-file row `Partial`.
 
 Recording through the stdio MCP server or the CLI also bypasses the picker: `startRecording` and `record` pick a display or window by name, headless. They need the classic Screen Recording grant too, given to whatever launched them (the agent's terminal or IDE for the stdio server). That makes a take, not a HUD check — use it to get footage for the editor sections, never to tick a recording check.
 
@@ -895,7 +879,6 @@ These checks are the human slice: an agent cannot click Apple's picker (see abov
 - [ ] Confirm the portal picker appears BEFORE the 3-2-1 countdown, not during or after it.
 - [ ] Start the same flow from the editor's Record mode (*Start recording*) and confirm it behaves identically to the HUD — no source to pick, picker first, then countdown.
 - [ ] **post-2.0.0** — On a distro without `libfuse2` (Ubuntu 24.04 as installed), confirm the AppImage launches directly.
-- [ ] **post-2.0.0** — For a stable release, confirm the assets carry `*.AppImage.zsync` and `latest-linux.yml`, and that AppImageUpdate finds the update from the previous AppImage. A release candidate ships the `.zsync` but embeds no update information.
 - [ ] **post-2.0.0** — Where DMA-BUF buffers fail (some NVIDIA or VM setups), confirm a take starts anyway, after the `capture-retry-shared-memory` warning.
 - [ ] **post-2.0.0** — Run the CLI's `record` on Wayland and confirm the portal picker asks once, with the log line "Recording source: chosen in the system picker (--display and --window do not apply)".
 - [ ] Cancel the countdown after answering the picker and confirm the compositor's "screen is being shared" indicator goes away rather than lingering.

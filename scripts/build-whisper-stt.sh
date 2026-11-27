@@ -370,9 +370,9 @@ libparakeet*.so|libparakeet*.so.*|\
   # mechanism at all, so on a machine without it the whole STT stack dies in
   # ld.so before main() and transcription shows an end user a developer error.
   #
-  # It belongs HERE rather than in stage-whisper-stt.sh, and that distinction is
+  # It belongs HERE rather than in a packaging step, and that distinction is
   # the whole point: this script runs on the machine that COMPILES these
-  # binaries, and build-whisper-stt.yml pins that to ubuntu-22.04, matching the
+  # binaries, which for a published build is ubuntu-22.04, matching the
   # floor before-pack.cjs enforces. Copying it at packaging time instead took it
   # from whoever happened to run the build — and a 24.04 desktop's libgomp needs
   # GLIBC_2.38, so a developer there could no longer package at all. Staged here
@@ -423,7 +423,7 @@ fi
 # measured 26.0 on the shipped v1.10.0 payload, and ~15.x from CI's `macos-latest`,
 # a floor that moves on its own whenever GitHub rolls that image.
 #
-# This is the macOS twin of the ubuntu-22.04 pin in build-whisper-stt.yml: same defect
+# This is the macOS twin of building the Linux binaries on ubuntu-22.04: same defect
 # (a shipped binary's floor decided by the runner rather than by the project), different
 # libc. Note it is NOT a loader version gate — dyld does not refuse a binary whose minos
 # exceeds the running OS. Setting it is what makes the linker enforce macOS 12 symbol

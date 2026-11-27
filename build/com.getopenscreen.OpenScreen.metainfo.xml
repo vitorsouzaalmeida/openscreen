@@ -19,13 +19,12 @@
   appId is not on the table — it decides the userData directory of every
   existing install.
 
-  Editing this file: `appstreamcli validate` is what CI runs, and it is worth
-  running before pushing. Note that an XML comment may not contain a double
-  hyphen, so the flags CI passes are spelled out in ci.yml and not here — this
-  very paragraph failed validation once for naming them. Nothing consumes the
-  file yet — the Flatpak manifest that will is not written — so CI validating it
-  is the only thing standing between an edit here and a submission rejected for
-  it months later.
+  Editing this file: run `appstreamcli validate` on it before pushing. Note
+  that an XML comment may not contain a double hyphen, so its flags are not
+  spelled out here — this very paragraph failed validation once for naming
+  them. Nothing consumes the file yet — the Flatpak manifest that will is not
+  written — so that validation is the only thing standing between an edit here
+  and a submission rejected for it months later.
 -->
 <component type="desktop-application">
   <id>com.getopenscreen.OpenScreen</id>

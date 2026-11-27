@@ -52,7 +52,7 @@ describe("gpuDetector", () => {
 	});
 
 	/**
-	 * Windows on ARM ships no whisper build: `build-whisper-stt.yml` produces
+	 * Windows on ARM ships no whisper build: the helper is built for
 	 * `win32-x64` only, and `scripts/build-whisper-stt.sh` has no acceleration case
 	 * for `win32-arm64` at all. An arm64 package therefore resolves a tag that will
 	 * never contain the helper, and speech-to-text fails with "binary not found" —

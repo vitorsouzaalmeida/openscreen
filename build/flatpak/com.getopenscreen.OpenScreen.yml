@@ -1,13 +1,13 @@
 # Flatpak manifest — SPIKE, not a submission.
 #
-# The point of this file is to be built by .github/workflows/flatpak-spike.yml and
+# The point of this file is to be built with flatpak-builder and
 # FAIL INFORMATIVELY. Flathub forbids the shortcut every other channel in this repo
 # takes: "All source available submissions must be built entirely from source code.
 # This requirement applies to the main application component defined in the manifest,
 # as well as any runtime dependencies included in the manifest." OpenScreen is MIT,
 # so it is source-available, so no repackaged .deb and no extra-data escape hatch.
 #
-# Every value marked SPIKE below is a guess the CI run is supposed to confirm or
+# Every value marked SPIKE below is a guess a build is supposed to confirm or
 # refute. Do not treat this as a reviewed manifest.
 app-id: com.getopenscreen.OpenScreen
 runtime: org.freedesktop.Platform

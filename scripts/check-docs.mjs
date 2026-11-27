@@ -38,10 +38,9 @@ const LEGACY = [
 	"ux-ui-spec",
 ];
 
-// Pre-#90 release-branch naming. One branch per *stable* version now
-// (`release/vX.Y.Z`), created at rc.1 and reused, because prerelease.yml and
-// promote.yml have to resolve the same ref; a doc that reintroduces the
-// suffixed name sends a maintainer to a branch nothing ever creates.
+// Pre-#90 release-branch naming. Upstream keeps one branch per *stable* version
+// (`release/vX.Y.Z`), created at rc.1 and reused; a doc that reintroduces the
+// suffixed name sends a reader to a branch nothing ever creates.
 //
 // A LEGACY substring entry is not enough here: the rot used BOTH spellings, and
 // the one that mattered was the concrete `release/v1.5.0-rc.1` sitting in a
@@ -68,8 +67,6 @@ const REQUIRED = [
 	"architecture/decisions.md",
 	"engineering/rendering-performance.md",
 	"engineering/build-and-packaging.md",
-	"engineering/ci-workflows.md",
-	"engineering/release-and-secrets.md",
 	"testing/writing-tests.md",
 	"testing/manual-e2e-checklist.md",
 	"testing/native-cursor-diagnostics.md",
