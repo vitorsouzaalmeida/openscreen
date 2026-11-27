@@ -1039,7 +1039,7 @@ export function createNotesWindow(): BrowserWindow {
 }
 
 /** A hidden window running one of the CLI runners (src/cli/): `openscreen <command>`, or a
- *  media tool of an MCP server. */
+ *  media tool of `openscreen mcp`. */
 export function createRunnerWindow(windowType: string): BrowserWindow {
 	const win = new BrowserWindow({
 		width: 1280,

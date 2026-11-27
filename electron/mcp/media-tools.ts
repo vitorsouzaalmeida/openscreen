@@ -1,16 +1,13 @@
 // What an agent needs around the editing DSL to make a video on its own: record a
 // take, have it become a project, export the project, and look at the result.
-// Served next to the document tools by both servers, the in-app one and `openscreen
-// mcp`, so every edit between the recording and the export goes through the DSL like
-// any other client's.
+// Served next to the document tools by `openscreen mcp`, so every edit between the
+// recording and the export goes through the DSL like any other client's.
 //
-// One implementation, two recorders. `openscreen mcp` records in a hidden runner of its
-// own process and lays the take out as a project here (`runnerRecorder`). The app
-// records through its recording bar, as its own Record button does, and its editor opens
-// the take (`app-recorder.ts`): the app never runs a second recorder beside its own.
+// `openscreen mcp` records in a hidden runner of its own process and lays the take out
+// as a project here (`runnerRecorder`): it never drives the app's recording bar.
 //
-// No `electron` import: the runners, the recorder, the decoder and the documents are
-// handed in, so the tools run under plain vitest with stand-ins.
+// No `electron` import: the runners, the decoder and the documents are handed in, so
+// the tools run under plain vitest with stand-ins.
 
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
@@ -61,8 +58,8 @@ import type {
 	CursorRecordingSample,
 } from "../../src/native/contracts";
 import { buildNativeClipList, buildSceneDescription } from "../../src/native/sceneDescription";
-import { runDocumentTool } from "../ai-edition/deep-agent/service";
 import type { DocumentService } from "../ai-edition/document-service";
+import { runDocumentTool } from "../ai-edition/document-tools";
 import { writeFileReplacing } from "../atomic-rename";
 import type { RunnerHandlers } from "../cli/runnerHost";
 import { type AudioReport, measureWav } from "./audio-report";
@@ -76,9 +73,7 @@ import {
 } from "./contact-sheet";
 import type { OpenedVideo } from "./hidden-video";
 import {
-	MCP_EDITS_SETTING,
 	type McpToolRunner,
-	type McpTransport,
 	READ_CHECKPOINT_TOOL,
 	type RunnerEdit,
 	textResult as text,
@@ -115,26 +110,12 @@ export interface RunningTake {
 	stop(title: string | undefined): Promise<RecordedTake>;
 }
 
-export interface TakeRecorder {
+interface TakeRecorder {
 	/** Resolves once capture has started; throws why it did not. */
 	start(request: RecordRequest): Promise<RunningTake>;
 }
 
 export interface MediaToolDeps {
-	/** The app may finish a client take from its HUD, without stopRecording. */
-	recordingActive?(): boolean;
-	/** Observes the app's current take without starting or stopping it. */
-	waitForRecording?: (
-		timeoutMs: number,
-		signal: AbortSignal,
-	) => Promise<RecordedTake & { recordingStartedAt: number }>;
-
-	/** The server these tools are served by: their texts say what is true on it. */
-	transport: McpTransport;
-	/** Whether a client may record and export: the in-app server's "MCP edits". */
-	editsAllowed(): boolean;
-	/** Records the takes. Default: a hidden record runner, as `openscreen mcp` does. */
-	recorder?: TakeRecorder;
 	runners: {
 		start(
 			request: CliRequest,
@@ -283,20 +264,13 @@ const REGION_SCHEMA: z.ZodType<FrameRegion> = z
 	);
 
 /** What getFrames and getContactSheet both take, to say which moments of what. */
-function frameQueryShape(transport: McpTransport, maxFrames: number, defaultCount: number) {
+function frameQueryShape(maxFrames: number, defaultCount: number) {
 	return {
 		projectId: z
 			.string()
 			.optional()
 			.describe("Look at this project: its last export, or the frames an export would show."),
-		path: z
-			.string()
-			.optional()
-			.describe(
-				transport === "http"
-					? "Or look at this video file, by its absolute path."
-					: "Or look at this video file.",
-			),
+		path: z.string().optional().describe("Or look at this video file."),
 		atSec: z
 			.array(z.number().nonnegative())
 			.max(maxFrames)
@@ -397,22 +371,15 @@ const GIF_SIZES = Object.keys(GIF_SIZE_PRESETS) as [GifSizePreset, ...GifSizePre
 const MP4_OPTIONS = ["quality", "fps"] as const;
 const GIF_OPTIONS = ["gifFrameRate", "gifSize", "gifLoop"] as const;
 
-/** Where a take is made and where it lands, on each server. */
-const TAKE_NOTES: Record<McpTransport, string> = {
-	http: "Recording is the app's own: startRecording hands over to OpenScreen's recording bar, as the editor's Record button does, so the editor closes for the take, and stopRecording opens the take in the editor, where the user sees each edit land and can undo it. Its zooms on the clicks follow Record mode's Auto-zoom after recording, as for any take.",
-	stdio:
-		"These projects are in the OpenScreen app's project list, so the user can open one in its editor.",
-};
-
 /** The media tools' capability block, placed before the projects-and-checkpoints rules
  *  (`mcpInstructions`) on the server that registers them. */
-export function mediaPreamble(transport: McpTransport): string {
+export function mediaPreamble(): string {
 	return [
 		"OpenScreen records the screen, turns each take into a project you edit with the document tools, and exports it as a video.",
-		"A demo goes: listSources, then startRecording, then drive the app, then stopRecording. To observe a take the user controls on the in-app HTTP server, call waitForRecording while it is recording or saving; the user stops it. It returns the projectId and a checkpointId. Edit with the document tools, always passing that projectId: every edit is saved to the project straight away, and restoreCheckpoint with the checkpointId takes the project back to the raw take in one step. Then exportVideo, and getFrames with the projectId to check the export before you hand it over: it takes the same ruler seconds as the document tools, so a trim or a speed region never shifts what you look at. getContactSheet shows many moments as one image, to read the rhythm of the whole film or a transition frame by frame, getBeforeAfter shows what your edits changed since a checkpoint, and getAudioReport measures the sound, which no frame shows.",
+		"A demo goes: listSources, then startRecording, then drive the app, then stopRecording. It returns the projectId and a checkpointId. Edit with the document tools, always passing that projectId: every edit is saved to the project straight away, and restoreCheckpoint with the checkpointId takes the project back to the raw take in one step. Then exportVideo, and getFrames with the projectId to check the export before you hand it over: it takes the same ruler seconds as the document tools, so a trim or a speed region never shifts what you look at. getContactSheet shows many moments as one image, to read the rhythm of the whole film or a transition frame by frame, getBeforeAfter shows what your edits changed since a checkpoint, and getAudioReport measures the sound, which no frame shows.",
 		"To edit a video you already have instead, createProject with its videoPath; importMedia adds a video, an audio file or an image to a project, an image as a silent clip of it.",
 		"Drive the app with the real mouse when you can: OpenScreen records the pointer, draws a clean cursor and zooms on the clicks as the editor does: clicks close in time and on screen share one zoom, and the first seconds and the end stay on the whole screen. If you drive it from a script instead (Playwright, CDP), the screen pointer never moves: log each action as the script runs it, then hand the log to setPointerTrack after stopRecording. A video your script captured itself takes one too: createProject with it, then setPointerTrack with recordingStartedAt.",
-		TAKE_NOTES[transport],
+		"These projects are in the OpenScreen app's project list, so the user can open one in its editor.",
 	].join("\n");
 }
 
@@ -422,51 +389,27 @@ export interface MediaTools {
 	/** Includes a take's startup and project save, and an export's finalization. */
 	isBusy(): boolean;
 	/** Adds the tools to a server. Their state (the take, the exports) is shared by every
-	 *  server they are added to: the in-app server builds one per request. */
+	 *  server they are added to. */
 	register(server: McpServer): void;
 }
 
-const START_RECORDING_NOTES: Record<McpTransport, string> = {
-	http: "It goes through OpenScreen's recording bar, as the editor's Record button does: the editor closes for the take, so this is refused while the editor has unsaved changes, and the bar's countdown applies. On Linux the system's portal asks the user what to record, whatever window or display says. On macOS the take records the window or display named here, even where the bar otherwise asks in Apple's picker (macOS 15.2 or later); that needs OpenScreen's Screen Recording permission, and without it the call is refused. The bar records with these settings, and gets the user's own back once the take ends.",
-	stdio: "On Linux the desktop's own picker asks the user which window to record.",
-};
+const START_RECORDING_NOTE =
+	"On Linux the desktop's own picker asks the user which window to record.";
 
-const STOP_RECORDING_DESCRIPTIONS: Record<McpTransport, string> = {
-	http: "Stop the recording. OpenScreen's editor opens the take as a new project, as it does after any recording: one clip, plus the zooms planned from the recorded clicks when Record mode's Auto-zoom after recording is on, and autoZooms says how many. Returns the projectId to edit, now open in the editor, a checkpointId that restores the take as it opened, and the take's videoPath.",
-	stdio:
-		"Stop the recording and turn the take into a new project, laid out as the editor lays out a fresh recording: one clip, plus the zooms planned from the recorded clicks. Not one per click: clicks close in time and on screen share one zoom, a click in the first seconds or the one that stopped the take gets none, and autoZooms says how many there are. Returns the projectId to edit, a checkpointId that restores the raw take, and the take's videoPath.",
-};
+const STOP_RECORDING_DESCRIPTION =
+	"Stop the recording and turn the take into a new project, laid out as the editor lays out a fresh recording: one clip, plus the zooms planned from the recorded clicks. Not one per click: clicks close in time and on screen share one zoom, a click in the first seconds or the one that stopped the take gets none, and autoZooms says how many there are. Returns the projectId to edit, a checkpointId that restores the raw take, and the take's videoPath.";
 
-const CREATE_PROJECT_NOTES: Record<McpTransport, string> = {
-	http: "The editor keeps the project it has open: the new one is in OpenScreen's project list, for the user to open.",
-	stdio: "It is in the OpenScreen app's project list, so the user can open it in its editor.",
-};
+const CREATE_PROJECT_NOTE =
+	"It is in the OpenScreen app's project list, so the user can open it in its editor.";
 
-const EXPORT_PATH_DESCRIPTIONS: Record<McpTransport, string> = {
-	http: "Where to write the video: an absolute path ending in .mp4 or .gif. This server runs inside the app, so it has no working directory of yours to resolve a relative one against.",
-	stdio:
-		"Where to write the video: an absolute path, or one relative to this server's working directory, ending in .mp4 or .gif.",
-};
+const EXPORT_PATH_DESCRIPTION =
+	"Where to write the video: an absolute path, or one relative to this server's working directory, ending in .mp4 or .gif.";
 
-const AUDIO_PATH_DESCRIPTIONS: Record<McpTransport, string> = {
-	http: "Where to write the audio: an absolute path ending in .wav or .m4a. This server runs inside the app, so it has no working directory of yours to resolve a relative one against.",
-	stdio:
-		"Where to write the audio: an absolute path, or one relative to this server's working directory, ending in .wav or .m4a.",
-};
+const AUDIO_PATH_DESCRIPTION =
+	"Where to write the audio: an absolute path, or one relative to this server's working directory, ending in .wav or .m4a.";
 
-const CAPTIONS_PATH_DESCRIPTIONS: Record<McpTransport, string> = {
-	http: "Where to write the subtitles: an absolute path ending in .srt or .vtt. This server runs inside the app, so it has no working directory of yours to resolve a relative one against.",
-	stdio:
-		"Where to write the subtitles: an absolute path, or one relative to this server's working directory, ending in .srt or .vtt.",
-};
-
-const GATED_MESSAGE = `Nothing was recorded or exported: OpenScreen lets MCP clients record and export only while the user allows it. Ask the user to turn on ${MCP_EDITS_SETTING}.`;
-
-/** A path a client passed, resolved; `null` for a relative one the in-app server cannot place. */
-function clientPath(transport: McpTransport, value: string): string | null {
-	if (transport === "http" && !path.isAbsolute(value)) return null;
-	return path.resolve(value);
-}
+const CAPTIONS_PATH_DESCRIPTION =
+	"Where to write the subtitles: an absolute path, or one relative to this server's working directory, ending in .srt or .vtt.";
 
 export const POINTER_TRACK_TOOL = "setPointerTrack";
 
@@ -634,7 +577,6 @@ async function createProjectFromVideo(
 		document,
 		"replaceTimeline",
 		{ intervals: [{ startSec: 0, endSec: durationSec }], reason: "The recorded take" },
-		true,
 		{},
 	);
 	if (!seeded.ok || !seeded.document) throw new Error(seeded.resultJson);
@@ -646,7 +588,7 @@ async function createProjectFromVideo(
 	return { document: saved, durationSec, autoZooms: suggestions.length };
 }
 
-/** `openscreen mcp`'s recorder: a hidden record runner, and the take laid out as a project here. */
+/** The recorder: a hidden record runner, and the take laid out as a project here. */
 function runnerRecorder(deps: MediaToolDeps): TakeRecorder {
 	const now = deps.now ?? Date.now;
 	return {
@@ -725,13 +667,11 @@ interface TakeSlot {
 }
 
 export function createMediaTools(deps: MediaToolDeps): MediaTools {
-	const { transport } = deps;
-	const recorder = deps.recorder ?? runnerRecorder(deps);
+	const recorder = runnerRecorder(deps);
 	/** The take being recorded, then saved: held until it is a project. */
 	let take: TakeSlot | null = null;
-	/** A take runs: this server's own, or one the user started from the HUD, which the in-app
-	 *  host reports. An export or a measure would take frames from it either way. */
-	const recording = () => take !== null || deps.recordingActive?.() === true;
+	/** A take runs: an export or a measure would take frames from it. */
+	const recording = () => take !== null;
 	// A take and an export never run together: each is a heavy job of its own, and a
 	// take's capture must not lose frames to an export.
 	let exporting = false;
@@ -843,9 +783,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				note = " The project changed after this export: export it again to see the changes.";
 			}
 		} else {
-			const resolved = clientPath(transport, query.path ?? "");
-			if (!resolved) return text(`The path must be absolute, got "${query.path}".`, true);
-			videoPath = resolved;
+			videoPath = path.resolve(query.path ?? "");
 		}
 
 		const video = await deps.openVideo(videoPath);
@@ -986,7 +924,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 		server.registerTool(
 			"startRecording",
 			{
-				description: `Start recording one window (preferred: nothing else on the desktop is captured) or one display. Returns once capture has started; then drive the app and call stopRecording. By default the pointer is recorded as data, so the export draws a clean cursor and the zooms planned from the clicks. A webcam recorded with it shows as a picture-in-picture in the project. Hiding the desktop icons follows the user's own Record mode setting. ${START_RECORDING_NOTES[transport]}`,
+				description: `Start recording one window (preferred: nothing else on the desktop is captured) or one display. Returns once capture has started; then drive the app and call stopRecording. By default the pointer is recorded as data, so the export draws a clean cursor and the zooms planned from the clicks. A webcam recorded with it shows as a picture-in-picture in the project. Hiding the desktop icons follows the user's own Record mode setting. ${START_RECORDING_NOTE}`,
 				inputSchema: z.object({
 					window: z
 						.string()
@@ -1021,8 +959,6 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 			},
 			async (args) => {
-				if (!deps.editsAllowed()) return text(GATED_MESSAGE, true);
-				if (take?.running && !take.stopping && deps.recordingActive?.() === false) take = null;
 				if (take?.stopping) {
 					return text("The last take is still being saved. Try again in a moment.", true);
 				}
@@ -1059,7 +995,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 		server.registerTool(
 			"stopRecording",
 			{
-				description: STOP_RECORDING_DESCRIPTIONS[transport],
+				description: STOP_RECORDING_DESCRIPTION,
 				inputSchema: z.object({
 					title: z.string().optional().describe("The project's title in OpenScreen."),
 				}),
@@ -1080,49 +1016,6 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 					return await stopTake(current.running, args.title);
 				} finally {
 					take = null;
-				}
-			},
-		);
-
-		server.registerTool(
-			"waitForRecording",
-			{
-				description:
-					"Wait for the current recording in the OpenScreen app to finish and its project to be saved, including a take started by the user at the recording bar. Never starts or stops a recording. Binds to this take only, including while it saves; returns an error immediately if none is active. Returns the same recording fields as stopRecording. Timeout or request cancellation only ends the wait. Available on the in-app HTTP server; openscreen mcp cannot observe the app's recording bar.",
-				inputSchema: z.object({
-					timeoutSec: z
-						.number()
-						.int()
-						.min(1)
-						.max(3600)
-						.default(300)
-						.describe(
-							"Maximum seconds to wait, including saving (1–3600, default 300). Set the client's tool-call timeout longer than this.",
-						),
-				}),
-				annotations: READ_ONLY,
-			},
-			async ({ timeoutSec }, { signal }) => {
-				if (!deps.waitForRecording)
-					return text(
-						"waitForRecording requires the in-app HTTP MCP server. Connect to it to observe the user's recording.",
-						true,
-					);
-				const observedTake = take;
-				try {
-					const recorded = await deps.waitForRecording(timeoutSec * 1000, signal);
-					return recordingResult(recorded, recorded.recordingStartedAt);
-				} catch (error) {
-					return text(error instanceof Error ? error.message : String(error), true);
-				} finally {
-					// A take still starting keeps its claim: only a running one can have finished.
-					if (
-						take === observedTake &&
-						take?.running &&
-						!take.stopping &&
-						deps.recordingActive?.() === false
-					)
-						take = null;
 				}
 			},
 		);
@@ -1169,7 +1062,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 					"Render a project to an MP4 (H.264) or a GIF with OpenScreen's compositor: the background, cursor, zooms, cuts, speed changes and annotations as edited. Returns the file's path; call getFrames with the projectId to check it at the ruler seconds you edited with. The video's shape follows the project's format (setAspectRatio). The options are the Export dialog's: quality and fps for an MP4; gifFrameRate, gifSize and gifLoop for a GIF.",
 				inputSchema: z.object({
 					projectId: z.string(),
-					path: z.string().describe(EXPORT_PATH_DESCRIPTIONS[transport]),
+					path: z.string().describe(EXPORT_PATH_DESCRIPTION),
 					quality: z
 						.enum(["medium", "good", "source"])
 						.optional()
@@ -1198,12 +1091,10 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 			},
 			async (args, extra) => {
-				if (!deps.editsAllowed()) return text(GATED_MESSAGE, true);
 				if (recording()) return text("A recording is running. Stop it before exporting.", true);
 				if (exporting)
 					return text("An export is already running. Wait for it, then try again.", true);
-				const outPath = clientPath(transport, args.path);
-				if (!outPath) return text(`The path must be absolute, got "${args.path}".`, true);
+				const outPath = path.resolve(args.path);
 				const extension = path.extname(outPath).toLowerCase();
 				if (extension !== ".mp4" && extension !== ".gif") {
 					return text(`The path must end in .mp4 or .gif, got "${args.path}".`, true);
@@ -1291,7 +1182,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 					"Write a project's audio to a WAV or an M4A, exactly as exportVideo's MP4 mixes it: the recording's sound, the imported tracks with their offset, trims, gain and fades, through the same cuts and speed regions. With audioId (addAudio's, or an audioTracks entry's trackId, its id when it has no trackId), only that track, alone, placed where it plays in the export: the file lasts as long as the video, silent around the track. It renders the project as an export does, so it takes about as long as exportVideo.",
 				inputSchema: z.object({
 					projectId: z.string(),
-					path: z.string().describe(AUDIO_PATH_DESCRIPTIONS[transport]),
+					path: z.string().describe(AUDIO_PATH_DESCRIPTION),
 					audioId: z
 						.string()
 						.optional()
@@ -1300,12 +1191,10 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 			},
 			async (args, extra) => {
-				if (!deps.editsAllowed()) return text(GATED_MESSAGE, true);
 				if (recording()) return text("A recording is running. Stop it before exporting.", true);
 				if (exporting)
 					return text("An export is already running. Wait for it, then try again.", true);
-				const outPath = clientPath(transport, args.path);
-				if (!outPath) return text(`The path must be absolute, got "${args.path}".`, true);
+				const outPath = path.resolve(args.path);
 				const format = path.extname(outPath).toLowerCase().slice(1);
 				if (!isAudioExportFormat(format)) {
 					return text(`The path must end in .wav or .m4a, got "${args.path}".`, true);
@@ -1337,7 +1226,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 					"Write a project's captions to a subtitle file, SubRip (.srt) or WebVTT (.vtt), picked by the path's extension. The entries are the lines the burnt-in captions show, with the same words per line, timed in seconds of the exported video: after the trims and the speed regions, so the file plays in sync with exportVideo's MP4. It does not need the captions to be on, and does not turn them on. language picks the words: omitted, the language the captions show (getCaptions' language); null, the transcript's own words; a code, that translation layer (getCaptions lists them under translations). Captions come from the transcript, so a project with none on its caption lane has nothing to write and is refused. Returns the path, the format, the language written and the number of entries. Instant: nothing is rendered.",
 				inputSchema: z.object({
 					projectId: z.string(),
-					path: z.string().describe(CAPTIONS_PATH_DESCRIPTIONS[transport]),
+					path: z.string().describe(CAPTIONS_PATH_DESCRIPTION),
 					language: z
 						.string()
 						.nullable()
@@ -1349,9 +1238,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 			},
 			async (args) => {
-				if (!deps.editsAllowed()) return text(GATED_MESSAGE, true);
-				const outPath = clientPath(transport, args.path);
-				if (!outPath) return text(`The path must be absolute, got "${args.path}".`, true);
+				const outPath = path.resolve(args.path);
 				const format = path.extname(outPath).toLowerCase().slice(1);
 				if (!isSubtitleFileFormat(format)) {
 					return text(`The path must end in .srt or .vtt, got "${args.path}".`, true);
@@ -1486,7 +1373,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 					"To check an edit, pass projectId: atSec are the ruler seconds the document tools use, mapped through the trims and speed regions to the moment the export plays them. You get the project's last export, or, when it has none or has changed since, the frames its export would show, rendered from the project without exporting it. With path instead, you get any video file (a take's videoPath, say) and atSec are that file's own seconds.",
 					"With region, each frame is only that part of the picture, at the video's own resolution, scaled down only when that part is wider than 1280 pixels: the way to read small text, or to check an edge or a corner. To see many moments at once, such as the rhythm of the whole film or a transition frame by frame, use getContactSheet.",
 				].join("\n"),
-				inputSchema: z.object(frameQueryShape(transport, MAX_FRAMES, 6)),
+				inputSchema: z.object(frameQueryShape(MAX_FRAMES, 6)),
 				annotations: READ_ONLY,
 			},
 			async (args) => {
@@ -1523,7 +1410,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 					"projectId, path and the times mean what they mean for getFrames: ruler seconds with projectId, rendered from the project when it has no current export; the file's own seconds with path.",
 				].join("\n"),
 				inputSchema: z.object({
-					...frameQueryShape(transport, MAX_SHEET_FRAMES, 12),
+					...frameQueryShape(MAX_SHEET_FRAMES, 12),
 					columns: z
 						.number()
 						.int()
@@ -1582,7 +1469,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 			},
 		);
 
-		const pairShape = frameQueryShape(transport, MAX_PAIRS, 4);
+		const pairShape = frameQueryShape(MAX_PAIRS, 4);
 		server.registerTool(
 			"getBeforeAfter",
 			{
@@ -1761,7 +1648,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 			{
 				description: [
 					"Create a new project, in the look new projects start with in OpenScreen (the style preset marked for them, else the last edited project's), as the editor's New does. Empty, or from a video file laid out as one clip, as the editor lays out an opened video, with zooms planned from the clicks when the video is an OpenScreen recording with its pointer track; autoZooms says how many.",
-					`Returns the projectId to edit and a checkpointId that restores the project as it was created. Fill an empty one with importMedia. ${CREATE_PROJECT_NOTES[transport]}`,
+					`Returns the projectId to edit and a checkpointId that restores the project as it was created. Fill an empty one with importMedia. ${CREATE_PROJECT_NOTE}`,
 				].join("\n"),
 				inputSchema: z.object({
 					title: z
@@ -1780,12 +1667,6 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 			},
 			async (args) => {
-				if (!deps.editsAllowed()) {
-					return text(
-						`No project was created: OpenScreen lets MCP clients create projects only while the user allows it. Ask the user to turn on ${MCP_EDITS_SETTING}.`,
-						true,
-					);
-				}
 				projectOperations += 1;
 				try {
 					const title = args.title?.trim();
@@ -1836,7 +1717,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 	}
 
 	return {
-		preamble: mediaPreamble(transport),
+		preamble: mediaPreamble(),
 		isBusy: () => take !== null || exporting || projectOperations > 0,
 		register,
 	};

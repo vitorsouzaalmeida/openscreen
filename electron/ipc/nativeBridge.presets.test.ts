@@ -74,7 +74,6 @@ beforeEach(async () => {
 	registerNativeBridgeHandlers({
 		getPlatform: () => "darwin",
 		getAiEditionDocuments: () => ({}),
-		getAiEditionLlmConfig: () => ({}),
 		getStylePresets: () => service,
 	} as unknown as NativeBridgeContext);
 	const handler = electron.handle.mock.calls[0]?.[1] as (

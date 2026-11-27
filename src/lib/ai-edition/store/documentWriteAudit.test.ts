@@ -234,8 +234,6 @@ const DECLARED: WritePath[] = [
 	w("src/lib/ai-edition/store/useCaptions.ts", "commit", "save", "gesture"),
 	w("src/lib/ai-edition/store/useCaptions.ts", "deleteTranslation", "save", "gesture"),
 	w("src/lib/ai-edition/store/useCaptions.ts", "deleteTranslation", "set", "automatic"),
-	w("src/lib/ai-edition/store/useCaptions.ts", "saveTranslation", "save", "gesture"),
-	w("src/lib/ai-edition/store/useCaptions.ts", "saveTranslation", "set", "automatic"),
 	w("src/lib/ai-edition/store/useCaptions.ts", "set", "save", "gesture"),
 	w("src/lib/ai-edition/store/useCaptions.ts", "set", "set", "automatic"),
 	// A slider mid-drag: sixty of these a second, one undo step for the lot, opened

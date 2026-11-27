@@ -29,10 +29,6 @@ interface Window {
 		) => Promise<import("../src/native/contracts").NativeBridgeResponse<TData>>;
 		/** Export bench only (--bench=): tells main the run is over so it can quit. */
 		benchFinished?: () => Promise<void>;
-		/** Clipboard write via main (issue #738): Electron denies the renderer's
-		 *  navigator.clipboard.writeText, so Copy message crosses to main's
-		 *  clipboard module. Optional: shim/web contexts have no bridge. */
-		copyToClipboard?: (text: string) => Promise<void>;
 		/** Native (D3D) export progress — frames encoded so far, pushed at ~10 Hz max while
 		 *  `compositor.export`/`compositor.exportMulti` runs. Distinct from `exportOnFrameAck`,
 		 *  the OLD web/CPU pipeline's per-frame ack, not a progress signal. */
@@ -46,9 +42,6 @@ interface Window {
 				meta: import("../src/native/contracts").CompositorSharedFrameMeta,
 			) => void,
 		) => () => void;
-		reportRecordingOutcome?: (
-			outcome: import("../src/lib/recordingSession").RecordingOutcome,
-		) => Promise<{ success: boolean }>;
 
 		getSources: (opts: Electron.SourcesOptions) => Promise<ProcessedDesktopSource[]>;
 		switchToEditor: () => Promise<void>;
@@ -100,9 +93,6 @@ interface Window {
 		) => Promise<import("../src/lib/keystrokes/keyRecording").KeyRecordingData | null>;
 		onSourceSelectorClosed: (callback: () => void) => () => void;
 		onAutoStartRecording: (callback: () => void) => () => void;
-		onAiEditionChatEvent: (
-			callback: (event: import("../src/native/contracts").AiEditionChatEvent) => void,
-		) => () => void;
 		/** Optional: absent in the browser shim and in tests that stub electronAPI. */
 		onAiEditionMcpRequest?: (
 			callback: (

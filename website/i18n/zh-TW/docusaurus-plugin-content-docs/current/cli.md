@@ -167,14 +167,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` 與 `--max-words` 設定每則字幕的字數。兩者皆可設為 1 到 12，與編輯器相同。預設值：2 與 7。
-- 字幕就是繪製在影片上的逐字稿，因此在編輯器中，你可以像處理其他字幕一樣調整樣式、修正與翻譯。再次執行會保留逐字稿，只設定每則字幕的字數。
+- 字幕就是繪製在影片上的逐字稿，因此在編輯器中，你可以像處理其他字幕一樣調整樣式與修正。再次執行會保留逐字稿，只設定每則字幕的字數。
 - 專案會以編輯器本身的格式儲存。像[下方](#example-an-automated-product-demo)所示編輯專案 JSON 的腳本，會在 `captions` 之前進行編輯，而且 `pack` 目前還無法讀取這種格式。
 - 專案的螢幕影片必須有音軌，例如用 `record --mic` 錄製的影片。
 - 字幕會燒錄進匯出的影片，不會輸出字幕檔。請參閱[字幕](./captions.md)。
 
 ### `openscreen mcp` {#openscreen-mcp}
 
-透過 stdin 與 stdout 提供 OpenScreen 的 MCP 工具，供啟動它的程式設計代理使用：包括剪輯工具，以及錄影、匯出與靜態影格的工具。你不需要自己執行它；依照[讓代理製作整支影片](./ai-editing.md#letting-an-agent-make-the-whole-video)的說明設定好之後，就由你的代理執行。
+透過 stdin 與 stdout 提供 OpenScreen 的 MCP 工具，供啟動它的程式設計代理使用：包括剪輯工具，以及錄影、匯出與靜態影格的工具。你不需要自己執行它；依照 [AI 剪輯](./ai-editing.md#setting-it-up)的說明設定好之後，就由你的代理執行。
 
 ### `openscreen pack` {#openscreen-pack}
 

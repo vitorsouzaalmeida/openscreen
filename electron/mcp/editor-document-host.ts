@@ -3,7 +3,7 @@
 // The open project lives in the renderer's store (with the revision that guards
 // agent writes), not in the main process, so each MCP call asks the editor for
 // a snapshot and hands the result back to the editor's own revision-guarded
-// apply — the same `applyAgentDocumentIfCurrent` an in-app chat turn uses.
+// apply (`applyAgentDocumentIfCurrent`).
 //
 // The editor announces itself on AI_EDITION_MCP_HOST_CHANNEL when it starts
 // answering, and again with `false` when it stops; a destroyed window counts as

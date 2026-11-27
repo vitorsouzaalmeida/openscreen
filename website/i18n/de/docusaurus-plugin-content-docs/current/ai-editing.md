@@ -2,89 +2,30 @@
 id: ai-editing
 title: KI-Bearbeitung
 sidebar_position: 8
-description: "Mit eigenem LLM-Schlüssel OpenScreen-Projekte im Chat bearbeiten. Optional und standardmäßig aus: Ohne Verbindung wird nichts an ein Modell gesendet."
+description: "OpenScreen-Projekte mit deinem eigenen Agenten bearbeiten: Claude Code, Codex oder ein beliebiger MCP-Client startet `openscreen mcp` und nimmt auf, bearbeitet, transkribiert und exportiert. Kein Anbieter und kein Schlüssel in der App."
 keywords:
   - KI-Videobearbeitung
-  - LLM-Videoeditor
-  - Bearbeitung per Chat
-  - eigener API-Schlüssel
+  - MCP-Videoeditor
+  - Videobearbeitung mit Claude Code
+  - Videobearbeitung mit Codex
   - Datenschutz
 ---
 
 # KI-Bearbeitung
 
-OpenScreen bringt einen optionalen Agenten mit, der dein Projekt über einen Chat-Bereich bearbeitet. Er ist **aus, bis du selbst einen Anbieter verbindest**, und vorher wird nichts an ein Modell gesendet. Nach dem Verbinden spricht der Agent nur mit diesem Anbieter, genau wie die [Untertitelübersetzung](./captions.md#translation). Die übrige Netzwerknutzung der App (Download der Transkriptionsmodelle, Suche nach Updates) ist in den [FAQ](./faq.md#does-openscreen-work-offline) aufgeführt.
+OpenScreen hat kein eigenes Modell, und in der App lässt sich auch keines verbinden. Die KI-Bearbeitung übernimmt ein Agent, den du bereits nutzt, etwa Claude Code oder Codex: Er startet `openscreen mcp`, den MCP-Server von OpenScreen, und arbeitet über dessen Werkzeuge. Der Agent meldet sich mit seinem eigenen Konto an, und OpenScreen sieht es nie. OpenScreen selbst sendet nichts an ein Modell: Was der Agent über die Werkzeuge liest, etwa das Projekt, das Transkript und Standbilder, geht an den Anbieter dieses Agenten, unter deinem Konto bei ihm. Die eigene Netzwerknutzung der App (Download der Transkriptionsmodelle, Suche nach Updates) ist in den [FAQ](./faq.md#does-openscreen-work-offline) aufgeführt.
 
 :::tip
-Nichts davon ist erforderlich. Aufnahme, Bearbeitung, Transkription, Untertitel und Export funktionieren alle ohne Konto und ohne Anbieter, egal, ob du den Chat-Bereich jemals öffnest. Davon braucht nur die Transkription einen Download, und zwar einmalig: ihre [Modelle](./captions.md#transcribing) beim ersten Durchlauf.
+Nichts davon ist erforderlich. Aufnahme, Bearbeitung, Transkription, Untertitel und Export funktionieren alle ohne Konto und ohne Agenten. Davon braucht nur die Transkription einen Download, und zwar einmalig: ihre [Modelle](./captions.md#transcribing) beim ersten Durchlauf.
 :::
-
-## Einen Anbieter verbinden {#connecting-a-provider}
-
-Öffne die Chat-Spalte (über den Schalter ganz links in der oberen Leiste, im Modus **Edit**), dann **AI settings** → wähle einen Anbieter und füge einen API-Schlüssel ein:
-
-| Anbieter | Hinweise |
-|---|---|
-| **Claude API** (Anthropic) | |
-| **OpenAI API** | |
-| **Gemini API** (Google) | |
-| **Mistral API** | |
-| **OpenRouter API** | Ein Schlüssel, viele Modelle. |
-| **MiniMax API** / **MiniMax Token Plan** | |
-| **OpenAI Compatible** | Jeder Endpunkt mit OpenAI-kompatibler API; die Basis-URL gibst du selbst an. |
-
-Dein Schlüssel wird verschlüsselt über den Schutz für Zugangsdaten deines Betriebssystems gespeichert (Electron `safeStorage`). Ist keine Verschlüsselung verfügbar, schlägt das Speichern fehl, statt auf Klartext auszuweichen. Die Server von OpenScreen sehen den Schlüssel nie, denn es gibt keine: Anfragen gehen direkt von deinem Rechner an den gewählten Anbieter. Anbieterspezifische Umgebungsvariablen funktionieren ebenfalls, falls du gar keinen Schlüssel speichern willst.
 
 :::note
-Die Anmeldeoptionen für ChatGPT und GitHub Copilot wurden **in 1.8.0 entfernt**. Sie funktionierten, indem die App Client-Zugangsdaten dieser Anbieter mitlieferte, und die dürfen wir nicht weitergeben. Nutze stattdessen einen Anbieter mit API-Schlüssel.
+Frühere Versionen hatten einen Chat-Bereich im Editor, der über deinen eigenen API-Schlüssel mit einem Modellanbieter verbunden war, und einen MCP-Server, der in den Einstellungen der App einzuschalten war. Beide wurden entfernt, zusammen mit den zwei Funktionen, die über diesen Schlüssel liefen: der Schaltfläche **Translate** im Bereich **Captions** und **Smart cuts** im Menü **Auto-enhance** der Zeitleiste. Diese Aufgaben erledigt jetzt dein eigener Agent über die hier beschriebenen Werkzeuge.
 :::
 
-## Den Agenten nutzen {#using-the-agent}
+## Einrichten {#setting-it-up}
 
-Beschreibe die Änderung in Alltagssprache, etwa „schneide die Stille im Intro heraus“ oder „zoome hinein, wenn ich das Terminal öffne“. Der Agent arbeitet mit echten, rückgängig machbaren Operationen auf der Zeitleiste, nicht mit einem neuen Rendering: Er kann Schnitte, Zooms, Geschwindigkeitsbereiche, Annotationen (Text, Pfeile und Unschärfen, die private Details auf dem Bildschirm verbergen), importierte Audiospuren samt Ein- und Ausblendung und Full-Camera-Segmente hinzufügen und anpassen, automatische Zooms auf deine Klicks setzen, Start- und Endpunkte und den Zuschnitt eines Clips ändern, Material einer anderen Quelle platzieren, Clips duplizieren, umsortieren oder entfernen und das Transkript lesen, um herauszufinden, was du meinst. Außerdem stellt er das Aussehen des Videos ein: Hintergrund, Innenabstand, abgerundete Ecken, Schatten, Geräterahmen, Format, das Kamera-Layout, den Cursor und die Gesamtlautstärke. Er kann außerdem die [Untertitel](./captions.md) einschalten, gestalten und platzieren und sie selbst in eine andere Sprache übersetzen. Und er kann einen visuellen Effekt schreiben, den die Einstellungen nicht bieten: siehe [Eigene Effekte](./effects.md).
-
-Der Bereich drumherum:
-
-- **Unterhaltungen**: Verlauf, umbenennen, löschen und eine neue beginnen. Jede hat ihren eigenen Agentenzustand.
-- **Modellauswahl**: aktuelle Modellliste des verbundenen Anbieters, mit einer Einstellung für den Reasoning-Aufwand, wo der Anbieter das unterstützt.
-- **Kontextanzeige**: geschätzte verbrauchte Tokens im Verhältnis zum Budget, mit der Aktion **Compact context**, die frühere Runden zusammenfasst, statt sie zu verwerfen.
-- **Rewind to this message**: macht die Änderungen des Agenten und alle folgenden Runden ab diesem Punkt rückgängig und stellt Projekt, Unterhaltung und Agentenzustand gemeinsam wieder her.
-- **Agenten-Änderungen**: ein Schalter in **AI settings**. Ist er aus, wird jede Änderung, die der Agent versucht, abgelehnt: Er kann das Projekt weiterhin lesen und beschreiben, was er ändern würde, wendet aber nichts an, bis du den Schalter wieder einschaltest.
-
-`Ctrl/Cmd + Z` macht eine Änderung des Agenten genauso rückgängig wie eine manuelle.
-
-Der Eintrag **Smart cuts** (mit *With AI* markiert) im Menü **Auto-enhance** der Zeitleiste ist derselbe Agent mit einer einmaligen Anweisung. (Der andere Eintrag, **Automatic zooms**, liest die aufgezeichneten Klicks und braucht überhaupt keinen Anbieter.)
-
-## Was deinen Anbieter sonst noch nutzt {#what-else-uses-your-provider}
-
-Die [Untertitelübersetzung](./captions.md#translation) ist ein einzelner Aufruf zur Textumwandlung an dasselbe Modell. Sie startet keine Agentenschleife und kann dein Dokument nicht verändern. Bittest du im Chat darum, übersetzt der Agent die Untertitel stattdessen selbst, in dieselbe Übersetzungsebene. Transkription und Untertitel-Rendering bleiben in jedem Fall vollständig auf deinem Gerät.
-
-## Claude Code, Codex oder einen anderen MCP-Client nutzen {#using-claude-code-codex-or-another-mcp-client}
-
-Wenn du bereits einen KI-Coding-Agenten wie Claude Code oder Codex nutzt, kann er dieselben Bearbeitungswerkzeuge steuern, angemeldet mit seinem eigenen Konto. Nichts von diesem Konto läuft über OpenScreen.
-
-1. **AI settings** → **MCP server** → einschalten. Er lauscht nur auf deinem eigenen Rechner (`127.0.0.1`), auf dem angezeigten Port.
-2. Kopiere den dort angezeigten Befehl für **Claude Code** oder **Codex** und führe ihn in einem Terminal aus. Der Befehl für Claude Code enthält das Zugriffstoken. Codex liest es stattdessen aus der Umgebungsvariable `OPENSCREEN_MCP_TOKEN`: Setze sie in der Shell, aus der du Codex startest.
-3. Bitte deinen Agenten um die Änderung, am im OpenScreen-Editor geöffneten Projekt oder an einem beliebigen anderen Projekt deiner Liste.
-
-Die Werkzeuge sind die, die der eingebaute Agent nutzt, dazu die, die ein Video aufnehmen, exportieren und ansehen ([unten](#letting-an-agent-make-the-whole-video)). Dazu kommt `transcribe`. Es lässt Whisper auf deinem Gerät über die Medien eines Projekts laufen, wie der Editor beim Öffnen eines Projekts. Ein Client übersetzt die Untertitel mit seinem eigenen Modell, daher braucht die Untertitelübersetzung keinen Anbieter in OpenScreen. Die Werkzeuge wirken auf das im Editor geöffnete Projekt, es sei denn, der Client nennt ein anderes: Er kann alle Projekte auflisten und jedes davon lesen oder bearbeiten. Er kann auch ein Projekt anlegen, leer oder aus einer Videodatei, eines umbenennen und den Medien eines Projekts eine Video-, Audio- oder Bilddatei hinzufügen oder eine daraus entfernen. Ein Bild wird als stummer Clip davon hinzugefügt, einige Sekunden lang. Ein Projekt löschen gehört nicht zu den Werkzeugen: Das bleibt dir in der App vorbehalten. MCP-Clients können nur **lesen**, bis du im Abschnitt MCP-Server auch **MCP-Änderungen** einschaltest: Bis dahin wird jede Bearbeitung, Aufnahme, jeder Export und jedes neue Projekt, das sie versuchen, abgelehnt. Dieser Schalter ist von **Agenten-Änderungen**, dem des eingebauten Agenten, getrennt und steht anfangs auf aus. Ist er an, wird jede Änderung gespeichert, sobald sie ankommt:
-
-- **Am im Editor geöffneten Projekt** wird eine Änderung mit `Ctrl/Cmd + Z` rückgängig gemacht. Clients werden angewiesen, vor einer Reihe von Änderungen einen Wiederherstellungspunkt zu speichern. So kannst du sie bitten, das Projekt in einem einzigen Schritt wiederherzustellen, wie es war, und auch diesen Schritt kann `Ctrl/Cmd + Z` rückgängig machen.
-- **An jedem anderen Projekt** wird eine Änderung in seiner Datei gespeichert, wo `Ctrl/Cmd + Z` sie nicht erreicht. Ein Client muss vor der ersten Änderung einen Wiederherstellungspunkt dieses Projekts speichern, und dorthin zurückzukehren ist der einzige Weg, sie rückgängig zu machen.
-
-Wiederherstellungspunkte liegen im Speicher von OpenScreen: Sie gehen verloren, wenn OpenScreen beendet wird oder der Server neu startet, was ein Wechsel des Ports oder ein neues Token bewirkt. Nur die 20 neuesten Wiederherstellungspunkte werden behalten, ein älterer kann also früher verschwinden. Wenn du das Token mit **Regenerate** ersetzt, werden alle Clients getrennt, die mit dem alten eingerichtet wurden.
-
-## Einen Agenten das ganze Video erstellen lassen {#letting-an-agent-make-the-whole-video}
-
-Ein Agent kann ein ganzes Video selbstständig erstellen, von der Aufnahme bis zum Export. Neben den Bearbeitungswerkzeugen geben ihm beide Wege, OpenScreen hinzuzufügen, `listSources`, `startRecording`, `stopRecording`, `setPointerTrack`, `exportVideo`, `exportAudio`, `exportCaptions`, `getFrames`, `getContactSheet`, `getBeforeAfter`, `getAudioReport` und `createProject`. Über den Server in der App wartet `waitForRecording` außerdem auf eine Aufnahme, die du selbst mit der Aufnahmeleiste machst, und gibt sie zurück wie `stopRecording`. Eine Aufnahme kann wie mit der Aufnahmeleiste auch deine Webcam und den eigenen Mauszeiger des Systems aufnehmen, und ein Export übernimmt die Optionen des Export-Dialogs: Qualität und Bildrate für ein MP4; Bildrate, Größe und Wiederholung für ein GIF. `exportAudio` schreibt den Ton des Projekts, oder eine einzelne importierte Spur (ein mit `importMedia` und `addAudio` hinzugefügtes Voiceover), in eine WAV- oder M4A-Datei, genau so, wie das MP4 ihn mischt. `exportCaptions` schreibt die Untertitel in eine SRT- oder WebVTT-Datei, getaktet auf das exportierte Video.
-
-Der Agent prüft auch seine eigene Arbeit. `getFrames` zeigt gewählte Momente eines Videos oder einen Abschnitt von `startSec` bis `endSec`, und mit einer `region` nur diesen Teil des Bildes, in der eigenen Auflösung des Videos, um kleinen Text zu lesen. `getContactSheet` legt viele Momente auf ein einziges Bild, jeden mit seiner Zeit: den Rhythmus des ganzen Films oder einen Zoom Bild für Bild. `getBeforeAfter` zeigt dieselben Momente vor und nach einer Reihe von Änderungen nebeneinander und sagt, wo sich das Bild geändert hat. `getAudioReport` misst Lautheit, True Peak und Stille im Ton eines Projekts. Unter den Bearbeitungswerkzeugen geben `listStylePresets` und `applyStylePreset` einem Projekt in einer einzigen Änderung den Look einer der **Vorgaben**.
-
-**Über den Server oben** nimmt OpenScreen eine Aufnahme selbst auf, wie mit seinem Aufnahme-Button: Der Editor schließt sich, die Aufnahmeleiste zählt herunter und nimmt auf, und die Aufnahme öffnet sich im Editor als neues Projekt, wo du jede Änderung ankommen siehst. Dafür muss **MCP-Änderungen** an sein, und die Aufnahmeleiste bekommt am Ende der Aufnahme deine eigenen Einstellungen zurück.
-
-**Als stdio-Server** braucht es gar keine Einstellung: Der Agent startet die eigene ausführbare Datei der App mit `mcp`.
-
-Am schnellsten fügst du Folgendes in deinen KI-Agenten ein (Claude Code, Codex, Cursor …):
+In der App gibt es nichts einzuschalten: kein Port, kein Token, keine Einstellung. Der Agent startet die eigene ausführbare Datei der App mit `mcp` und spricht mit ihr über stdin und stdout, mit deinen Rechten, so wie er `openscreen record` ausführen würde. Deshalb kann er deinen Bildschirm aufnehmen, bearbeiten und exportieren, ohne dass in der App etwas zu erlauben wäre. Am schnellsten fügst du Folgendes in deinen KI-Agenten ein (Claude Code, Codex, Cursor …):
 
 ```text
 Install the OpenScreen skills with `npx skills add getopenscreen/openscreen -y`, then follow openscreen-demo to make a demo video of this feature.
@@ -117,9 +58,35 @@ codex plugin add openscreen@openscreen
 
 OpenScreen erscheint dann mit seinen Skills unter den installierten Plugins der App. Dort wird der MCP-Server mit dem Befehl `codex mcp add` von oben hinzugefügt.
 
-- **Kein Port, kein Token, keine Einstellung.** Der Agent startet den Prozess selbst, mit deinen Rechten, so wie er `openscreen record` ausführen würde. Deshalb kann er deinen Bildschirm aufnehmen und bearbeiten, ohne den Schalter **MCP-Änderungen**.
-- **Jeder Take wird zu einem neuen Projekt** in deiner Projektliste, mit Zooms auf seine Klicks, wie eine in der App gemachte Aufnahme: Zeitlich und räumlich nah beieinanderliegende Klicks teilen sich einen Zoom, und die ersten Sekunden und das Ende bleiben auf dem ganzen Bildschirm. Jede Änderung des Agenten wird in der Projektdatei gespeichert. Rückgängig macht sie der Wiederherstellungspunkt, den der Agent anlegt und der bis zum Ende seiner Sitzung besteht. Nur die 20 neuesten Wiederherstellungspunkte werden behalten, ein älterer kann also früher verschwinden.
-- **Läuft OpenScreen, arbeitet der Agent über die App.** Eine Änderung am im Editor geöffneten Projekt erscheint dort sofort, und `Ctrl/Cmd + Z` macht sie rückgängig. Die Wiederherstellungspunkte des Agenten gelten dann, bis OpenScreen beendet wird. Antwortet die App nicht, werden Änderungen an diesem Projekt abgelehnt, denn der Editor würde seine eigene Kopie darüber speichern.
+## Was der Agent kann {#what-the-agent-can-do}
+
+Beschreibe die Änderung in Alltagssprache, etwa „schneide die Stille im Intro heraus“ oder „zoome hinein, wenn ich das Terminal öffne“. Der Agent arbeitet mit echten Operationen auf der Zeitleiste, nicht mit einem neuen Rendering: Er kann Schnitte, Zooms, Geschwindigkeitsbereiche, Annotationen (Text, Pfeile und Unschärfen, die private Details auf dem Bildschirm verbergen), importierte Audiospuren samt Ein- und Ausblendung und Full-Camera-Segmente hinzufügen und anpassen, automatische Zooms auf deine Klicks setzen, Start- und Endpunkte und den Zuschnitt eines Clips ändern, Material einer anderen Quelle platzieren, Clips duplizieren, umsortieren oder entfernen und das Transkript lesen, um herauszufinden, was du meinst. Außerdem stellt er das Aussehen des Videos ein: Hintergrund, Innenabstand, abgerundete Ecken, Schatten, Geräterahmen, Format, das Kamera-Layout, den Cursor und die Gesamtlautstärke. Und er kann einen visuellen Effekt schreiben, den die Einstellungen nicht bieten: siehe [Eigene Effekte](./effects.md).
+
+Um zwei Dinge kannst du ihn insbesondere bitten:
+
+- **Stille und Füllwörter herausschneiden.** Der Agent liest das Transkript und schneidet diese Abschnitte heraus, als Schnitte, die du wie deine eigenen ziehen oder löschen kannst. Von Hand schneidest du sie einzeln im [Transkript](./captions.md#transcript-editing).
+- **Die Untertitel übersetzen.** Der Editor hat keine Schaltfläche zum Übersetzen. Der Agent liest die Untertitelphrasen, übersetzt sie mit seinem eigenen Modell und speichert das Ergebnis als Sprachebene neben dem Transkript: siehe [Übersetzung](./captions.md#translation). Er kann außerdem die [Untertitel](./captions.md) einschalten, gestalten und platzieren.
+
+`transcribe` lässt Whisper auf deinem Gerät über die Medien eines Projekts laufen, wie der Editor beim Öffnen eines Projekts.
+
+Der Agent kann alle Projekte auflisten und jedes davon lesen oder bearbeiten. Solange OpenScreen geöffnet ist, wirken die Werkzeuge auf das im Editor geöffnete Projekt, es sei denn, der Agent nennt ein anderes. Er kann auch ein Projekt anlegen, leer oder aus einer Videodatei, eines umbenennen und den Medien eines Projekts eine Video-, Audio- oder Bilddatei hinzufügen oder eine daraus entfernen. Ein Bild wird als stummer Clip davon hinzugefügt, einige Sekunden lang. Ein Projekt löschen gehört nicht zu den Werkzeugen: Das bleibt dir in der App vorbehalten.
+
+## Live-Änderungen und Rückgängigmachen {#live-edits-and-undo}
+
+Jede Änderung wird gespeichert, sobald sie ankommt:
+
+- **Am im Editor geöffneten Projekt** arbeitet der Agent über die App, solange OpenScreen läuft. Eine Änderung erscheint sofort im Editor, und jede ist ein einzelner Schritt für `Ctrl/Cmd + Z`, wie eine eigene Änderung von dir. Agenten werden angewiesen, vor einer Reihe von Änderungen einen Wiederherstellungspunkt zu speichern. So kannst du sie bitten, das Projekt in einem einzigen Schritt wiederherzustellen, wie es war, und auch diesen Schritt kann `Ctrl/Cmd + Z` rückgängig machen. Antwortet die App nicht, werden Änderungen an diesem Projekt abgelehnt, denn der Editor würde seine eigene Kopie darüber speichern.
+- **An jedem anderen Projekt** wird eine Änderung in seiner Datei gespeichert, wo `Ctrl/Cmd + Z` sie nicht erreicht. Der Agent muss vor der ersten Änderung einen Wiederherstellungspunkt dieses Projekts speichern, und dorthin zurückzukehren ist der einzige Weg, sie rückgängig zu machen.
+
+Wiederherstellungspunkte liegen im Arbeitsspeicher. Läuft OpenScreen, gelten sie, bis es beendet wird; andernfalls gelten sie bis zum Ende der Sitzung des Agenten. Nur die 20 neuesten Wiederherstellungspunkte werden behalten, ein älterer kann also früher verschwinden.
+
+## Einen Agenten das ganze Video erstellen lassen {#letting-an-agent-make-the-whole-video}
+
+Ein Agent kann ein ganzes Video selbstständig erstellen, von der Aufnahme bis zum Export. Neben den Bearbeitungswerkzeugen gibt ihm `openscreen mcp` `listSources`, `startRecording`, `stopRecording`, `setPointerTrack`, `exportVideo`, `exportAudio`, `exportCaptions`, `getFrames`, `getContactSheet`, `getBeforeAfter`, `getAudioReport` und `createProject`. Eine Aufnahme kann wie mit der Aufnahmeleiste auch deine Webcam und den eigenen Mauszeiger des Systems aufnehmen, und ein Export übernimmt die Optionen des Export-Dialogs: Qualität und Bildrate für ein MP4; Bildrate, Größe und Wiederholung für ein GIF. `exportAudio` schreibt den Ton des Projekts, oder eine einzelne importierte Spur (ein mit `importMedia` und `addAudio` hinzugefügtes Voiceover), in eine WAV- oder M4A-Datei, genau so, wie das MP4 ihn mischt. `exportCaptions` schreibt die Untertitel in eine SRT- oder WebVTT-Datei, getaktet auf das exportierte Video.
+
+Der Agent prüft auch seine eigene Arbeit. `getFrames` zeigt gewählte Momente eines Videos oder einen Abschnitt von `startSec` bis `endSec`, und mit einer `region` nur diesen Teil des Bildes, in der eigenen Auflösung des Videos, um kleinen Text zu lesen. `getContactSheet` legt viele Momente auf ein einziges Bild, jeden mit seiner Zeit: den Rhythmus des ganzen Films oder einen Zoom Bild für Bild. `getBeforeAfter` zeigt dieselben Momente vor und nach einer Reihe von Änderungen nebeneinander und sagt, wo sich das Bild geändert hat. `getAudioReport` misst Lautheit, True Peak und Stille im Ton eines Projekts. Unter den Bearbeitungswerkzeugen geben `listStylePresets` und `applyStylePreset` einem Projekt in einer einzigen Änderung den Look einer der **Vorgaben**.
+
+- **Jeder Take wird zu einem neuen Projekt** in deiner Projektliste, mit Zooms auf seine Klicks, wie eine in der App gemachte Aufnahme: Zeitlich und räumlich nah beieinanderliegende Klicks teilen sich einen Zoom, und die ersten Sekunden und das Ende bleiben auf dem ganzen Bildschirm. Jede Änderung des Agenten wird in der Projektdatei gespeichert, und rückgängig macht sie der Wiederherstellungspunkt, den der Agent anlegt: siehe [Live-Änderungen und Rückgängigmachen](#live-edits-and-undo).
 - **Ein Take hat kein Transkript, bis der Agent eines anfordert.** Er ruft `transcribe` auf, bevor er Wörter schneidet oder die Untertitel einschaltet. Whisper läuft auf deinem Rechner, in OpenScreen, wenn die App geöffnet ist.
 - **Ein per Skript gesteuerter Take** (zum Beispiel mit Playwright) bewegt nie den Zeiger auf dem Bildschirm. Der Agent übergibt OpenScreen mit `setPointerTrack` sein eigenes Protokoll der Aktionen, und das Video bekommt trotzdem einen Cursor und dessen Zooms.
 - **Die Skills** bringen einem Agenten die Arbeit bei. `openscreen-demo` führt sie vom Storyboard bis zum fertigen Video, hängt das Video danach an einen Pull Request, damit die Reviewer die Änderung direkt dort sehen, oder entwirft einen Post auf X, den er erst veröffentlicht, wenn du Ja sagst. Sechs weitere gehen jeweils tiefer in einen Schritt: `openscreen-capture` (ein sauberer, wiederholbarer Take, auch eine Webseite, die ohne Fenster aufgenommen wird), `openscreen-motion` (Zooms, Einblendungen und Tempo), `openscreen-effects` (eigene Effekte), `openscreen-sound` (Sprecher, Musik und Lautheit), `openscreen-review` (die Prüfung, bevor das Video rausgeht) und `openscreen-deliver` (Format, Größe und die Übergabe des Videos). Füge sie alle mit `npx skills add getopenscreen/openscreen` hinzu. Sie liegen in [`plugin/skills/`](https://github.com/getopenscreen/openscreen/tree/main/plugin/skills).

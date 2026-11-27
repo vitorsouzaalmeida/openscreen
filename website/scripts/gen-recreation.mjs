@@ -124,7 +124,6 @@ const shortcutKey = (action) => ({ key: formatBinding(DEFAULT_SHORTCUTS[action],
 const locale = (ns) =>
 	JSON.parse(readFileSync(resolve(APP, `src/i18n/locales/en/${ns}.json`), "utf8"));
 const LOCALES = {
-	editor: locale("editor"),
 	settings: locale("settings"),
 	timeline: locale("timeline"),
 };
@@ -177,9 +176,6 @@ const TICK_STEPS_SEC = JSON.parse(
 );
 const MIN_LABEL_GAP_PX = Number(lift(/const MIN_LABEL_GAP_PX = (\d+)/, "MIN_LABEL_GAP_PX"));
 const MINOR_PER_MAJOR = Number(lift(/const MINOR_PER_MAJOR = (\d+)/, "MINOR_PER_MAJOR"));
-const AI_ENHANCE_PROMPT = JSON.parse(
-	lift(/const AI_ENHANCE_PROMPT =\s*\n?\s*("(?:[^"\\]|\\.)*")/, "AI_ENHANCE_PROMPT"),
-);
 
 /** The ruler's label formatter, run rather than paraphrased. */
 const fmtTick = new Function(
@@ -536,116 +532,7 @@ function buildWaveform() {
 
 const WAVEFORM = buildWaveform();
 
-// ── chat ────────────────────────────────────────────────────────────────
-/**
- * The agent's reply.
- *
- * THE WEAKEST PROVENANCE ON THIS PAGE, and it is labelled as such in
- * PROVENANCE. The conversation is not in the project document and there is no
- * conversations store on disk: its only existence is
- * `static/img/walkthrough/04-agent-a.jpg`, the plate this section was built
- * from. That photograph is no longer shipped — the four feature panels are drawn
- * in DOM now — so it survives only in this repository's history, which is the
- * same footing `editor-1560.jpg` below has always been on. This is a
- * transcription of the message body visible in it.
- *
- * What is NOT transcribed: every number and every quoted word. The two timecode
- * pairs, the two silence durations, the two quoted words and the cut total are
- * `{{placeholders}}` filled from `timeline.trimRanges` and `transcript.words`,
- * so a re-cut document moves them and a stale transcription cannot outlive the
- * edit it describes.
- *
- * What is transcribed and deliberately left alone: "40.0s → 33.0s" and
- * "1.8×/2.2×". Both are the model's own rounding of values this file computes
- * differently (32.93 s; 1.80×/2.20×). They stay as the model wrote them because
- * the page is quoting a message, not rendering a readout — see PROVENANCE.
- *
- * The photograph's scrollback also shows a fragment above this body
- * (`"think."). Cutting both:Both trims landed. …`) — the tail of the agent's
- * tool-call narration, cut off mid-sentence by the top of the pane. It is not
- * transcribed: half a sentence is not a source.
- */
-const AGENT_REPLY_MARKDOWN = `Here's what I found and cut:
-
-**Finding:** The speech itself is nearly gapless — every pause between spoken words is well under a second, so there were no internal silences to remove. The only silences over 1s were at the two ends:
-
-**Cuts applied (both on your single placed clip, which is untouched otherwise):**
-
-- **{{trim1}}** — the {{dur1}}s dead lead-in before "{{firstWord}}" (cut)
-- **{{trim2}}** — the ~{{dur2}}s dead tail after "{{lastWord}}" (cut)
-
-The video now runs from "{{firstWord}}" straight through to "{{lastWord}}" — about **{{cutSeconds}} seconds shorter** (40.0s → 33.0s of playable footage).
-
-Your zooms (incl. the manual 1.8×/2.2× punches) stay anchored to the same moments in the narration.
-
-One note: the cut starts the video right at the first word with no lead-in. If you'd rather keep a half-second of breathing room before "{{firstWord}}" say the word and I'll restore a short lead.`;
-
-/** `35.12`, `40.03`, `0` — the agent's own way of writing a source second. */
-const sourceSec = (n) => String(Number(n.toFixed(2)));
-
 const spokenWords = WORDS.filter((w) => w.kind === "word");
-const cutSec = trims.reduce((sum, r) => sum + (r.endSec - r.startSec), 0);
-
-const agentVars = {
-	trim1: `${sourceSec(trims[0].startSec)}–${sourceSec(trims[0].endSec)}s`,
-	trim2: `${sourceSec(trims[1].startSec)}–${sourceSec(trims[1].endSec)}s`,
-	dur1: (trims[0].endSec - trims[0].startSec).toFixed(1),
-	dur2: (trims[1].endSec - trims[1].startSec).toFixed(1),
-	firstWord: spokenWords[0].text,
-	lastWord: spokenWords[spokenWords.length - 1].text,
-	cutSeconds: String(Math.round(cutSec)),
-};
-
-const agentReplyText = AGENT_REPLY_MARKDOWN.replace(/\{\{(\w+)\}\}/g, (m, name) => {
-	if (!(name in agentVars)) throw new Error(`agent reply: no value for {{${name}}}`);
-	return agentVars[name];
-});
-if (/\{\{/.test(agentReplyText)) throw new Error("agent reply: unresolved interpolation");
-
-/**
- * Minimal block structure so the component does not need a markdown parser for
- * one message. `**bold**` becomes runs; `- ` becomes a list item.
- */
-function parseReply(md) {
-	return md
-		.split("\n")
-		.map((line) => line.trim())
-		.filter(Boolean)
-		.map((line) => {
-			const li = line.startsWith("- ");
-			const body = li ? line.slice(2) : line;
-			const runs = body
-				.split(/(\*\*[^*]+\*\*)/g)
-				.filter(Boolean)
-				.map((piece) =>
-					piece.startsWith("**")
-						? { text: piece.slice(2, -2), strong: true }
-						: { text: piece, strong: false },
-				);
-			return { kind: li ? "li" : "p", runs };
-		});
-}
-
-/**
- * `applied: added 2 trims`.
- *
- * The prefix is a locale string; the rest is the shape the bulk-add tool emits
- * (`electron/ai-edition/agent-tools.ts`: `added ${n} ${noun}${n === 1 ? "" : "s"}`)
- * with n counted off the document — the trims whose `origin` is `agent`.
- */
-const agentTrimCount = trims.filter((r) => r.origin === "agent").length;
-const CHAT = {
-	conversationTitle: `${t("editor:chat.untitledConversation")} 1`,
-	emptyState: t("editor:chat.emptyState"),
-	authorUser: t("editor:chat.authorUser"),
-	authorAssistant: t("editor:chat.authorAssistant"),
-	userPrompt: AI_ENHANCE_PROMPT,
-	agentReply: parseReply(agentReplyText),
-	agentReplyText,
-	applied: `${t("editor:chat.appliedPrefix")} added ${agentTrimCount} trim${agentTrimCount === 1 ? "" : "s"}`,
-	composerPlaceholder: t("editor:chat.composerPlaceholder"),
-	modelChip: "deepseek-v4-flash",
-};
 
 // ── stage, transport, toolbar ───────────────────────────────────────────
 // The recreation shows the loop that plays inside zoom region 2, so the picture
@@ -1017,10 +904,6 @@ const CONTRAST_PAIRS = [
 	[TOKENS.meta, TOKENS.surface, "ruler label on the floor"],
 	[TOKENS.accent, TOKENS.surface, "zoom pill label"],
 	[TOKENS.danger, TOKENS.surface, "trim pill label and struck silence"],
-	[TOKENS.fg, TOKENS.surface2, "chat message body"],
-	[TOKENS.muted, TOKENS.surface, "chat author label"],
-	[TOKENS.accent, TOKENS.surface, "applied line"],
-	[TOKENS.muted, TOKENS.surface1, "composer placeholder"],
 ];
 
 // ── provenance ──────────────────────────────────────────────────────────
@@ -1046,34 +929,6 @@ const PROVENANCE = [
 		shown: spokenWords.map((w) => w.text).join(" "),
 		source:
 			"fixture transcript.words, rejoined in start order; every entry is rendered as its own span",
-	},
-	{
-		shown: CHAT.conversationTitle,
-		source:
-			"computed: editor.json chat.untitledConversation + the session index, as LeftPanel.tsx:1184 renders it",
-	},
-	{ shown: CHAT.emptyState, source: "editor.json chat.emptyState" },
-	{ shown: CHAT.authorUser, source: "editor.json chat.authorUser" },
-	{ shown: CHAT.authorAssistant, source: "editor.json chat.authorAssistant" },
-	{
-		shown: CHAT.userPrompt,
-		source:
-			"src/components/ai-edition/v4/V4Timeline.tsx AI_ENHANCE_PROMPT, lifted verbatim as source text",
-	},
-	{
-		shown: CHAT.agentReplyText,
-		source:
-			'photograph: static/img/walkthrough/04-agent-a.jpg — hand-transcribed; the conversation is in no store on disk and this photograph is its only existence. THE WEAKEST PROVENANCE ON THE PAGE. Every timecode, duration, quoted word and cut total in it is regenerated from timeline.trimRanges and transcript.words, not transcribed. Two figures are transcribed as the model wrote them and disagree with this file\'s arithmetic on purpose: "33.0s" (recomputed: 32.93s) and "1.8×/2.2×" (the pills read 1.80×/2.20×). The page is quoting a message, not drawing a readout.',
-	},
-	{
-		shown: CHAT.applied,
-		source: `computed: editor.json chat.appliedPrefix + the bulk-add tool's own wording (electron/ai-edition/agent-tools.ts: added \${n} \${noun}s) with n = ${agentTrimCount}, the trimRanges whose origin is "agent"`,
-	},
-	{ shown: CHAT.composerPlaceholder, source: "editor.json chat.composerPlaceholder" },
-	{
-		shown: CHAT.modelChip,
-		source:
-			"photograph: static/img/walkthrough/editor-1560.jpg — what was on screen when the plate was shot. NOT in provider-registry.ts; it was typed into an OpenAI-compatible provider config. The one visible string whose referent cannot be verified in the source, kept because the photographs beside it already ship it.",
 	},
 	...zoomPills.map((p) => ({
 		shown: p.label,
@@ -1192,15 +1047,14 @@ const banner = `/**
  *
  * Every value below was read out of, or computed from, one of:
  *   · src/components/Recreation/fixture-slim.json (the project document, schemaVersion ${SCHEMA_VERSION})
- *   · ../src/i18n/locales/en/{editor,settings,timeline}.json
+ *   · ../src/i18n/locales/en/{settings,timeline}.json
  *   · ../src/lib/ai-edition/timeline/{format,zoom-scale,aggregated-transcript}.ts, imported and run
  *   · ../src/components/ai-edition/v4/V4Timeline.tsx, lifted as source text and evaluated
  *   · ../src/styles/design-tokens.css
- *   · static/img/walkthrough/04-agent-a.jpg and editor-1560.jpg (two strings; see PROVENANCE)
  *
  * PROVENANCE names the source of every string this file puts on screen. Nothing
- * that could not be sourced was invented to fill a gap: the chat's context pill
- * is absent for that reason, and so is the webcam bubble.
+ * that could not be sourced was invented to fill a gap: the webcam bubble is
+ * absent for that reason.
  */`;
 
 /**
@@ -1334,9 +1188,6 @@ export const RULER = ${litRuler(RULER)} as const;
 
 /** ${WAVEFORM.sampleCount} samples as one smooth area under a line, the clip card's two paths. */
 export const WAVEFORM = ${lit(WAVEFORM)} as const;
-
-/** The conversation. */
-export const CHAT = ${lit(CHAT)} as const;
 
 /** The preview frame's geometry, and the loop that plays inside it. */
 export const STAGE = ${lit(STAGE)} as const;

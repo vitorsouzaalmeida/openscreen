@@ -57,7 +57,7 @@ A few details matter in practice:
 - **It works from recorded clicks.** Clicks are recorded on Windows. On macOS they need the Accessibility permission, and on Linux your user needs read access to the mouse, through a udev rule (recommended) or the `input` group ([Mouse clicks on Wayland](/docs/installation/#mouse-clicks-on-wayland)).
 - **Pointing is not clicking.** A pointer held still while you talk over something gets no zoom. Add one by hand with `Z`.
 
-The same menu has a second item, **Smart cuts**, marked *With AI*. It is a different feature: it asks the optional chat agent to cut dead time. It waits for the recording's transcript, and it only works once you connect an AI provider with your own key. See [AI editing](/docs/ai-editing/).
+Cutting dead time is a different job, and the menu has no item for it. Cut silences by hand in the [transcript](/docs/captions/#transcript-editing), or ask your own AI agent to do it through OpenScreen's MCP server: see [AI editing](/docs/ai-editing/).
 
 ## Manual zooms and cursor-following focus
 

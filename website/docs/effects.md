@@ -14,7 +14,7 @@ keywords:
 
 When the settings don't have the look you want, ask an agent for it: a ripple from each click, a vignette that breathes, a fade to black over the last seconds. The agent writes the effect as a small GPU shader, and OpenScreen draws it in the preview and in every export, MP4 and GIF, on Windows, macOS and Linux.
 
-Effects come from an agent: the built-in chat or an MCP client such as Claude Code or Codex (see [AI editing](./ai-editing.md)). Once an effect is in the project, you adjust it yourself in the editor.
+Effects come from your own agent: an MCP client such as Claude Code or Codex (see [AI editing](./ai-editing.md)). Once an effect is in the project, you adjust it yourself in the editor.
 
 ## Asking for an effect
 

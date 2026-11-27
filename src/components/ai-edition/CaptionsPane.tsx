@@ -5,12 +5,13 @@
 // transcript, read through this panel's settings. So every control here changes
 // how the transcript is *shown* — never what it says.
 //
-// The one exception is the translation row, and even that is additive: a
-// translation is stored beside the transcript, keyed by segment id, and picking
-// "Original" goes straight back to the SSOT text.
+// The one exception is the language row, and even that is additive: a
+// translation is a layer an agent stores beside the transcript over
+// `openscreen mcp` (putCaptionTranslation), and picking "Original" goes
+// straight back to the SSOT text. The pane shows and deletes layers; it makes none.
 
-import { Captions as CaptionsIcon, Languages, Loader2, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Captions as CaptionsIcon, Loader2, Trash2, X } from "lucide-react";
+import { useMemo } from "react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { useScopedT } from "@/contexts/I18nContext";
 import type {
@@ -31,7 +32,6 @@ import {
 	captionPlatePatch,
 	captionStyleOf,
 	DEFAULT_CAPTION_SETTINGS,
-	untranslatedUnits,
 } from "@/lib/ai-edition/captions";
 import {
 	CAPTION_WORDS_PER_LINE_MAX,
@@ -45,31 +45,11 @@ import {
 import { useCaptions } from "@/lib/ai-edition/store/useCaptions";
 import { firstTimelineBusyView } from "@/lib/ai-edition/transcription/status";
 import { TEXT_FONT_FAMILIES } from "@/lib/textFonts";
-import { nativeBridgeClient } from "@/native";
 import styles from "./NewEditorShell.module.css";
 import { ChoiceRow, SliderCell, Toggle } from "./RightPanes";
 import { TextColorField } from "./TextColorField";
 import { useTranscriptionLabel } from "./TranscriptionStatus";
 import { transcriptionBusyLabel } from "./transcriptionBusyLabel";
-
-/** Offered as translation targets. Codes double as the storage key. */
-const TRANSLATION_LANGUAGES: ReadonlyArray<{ code: string; label: string }> = [
-	{ code: "en", label: "English" },
-	{ code: "fr", label: "Français" },
-	{ code: "es", label: "Español" },
-	{ code: "de", label: "Deutsch" },
-	{ code: "it", label: "Italiano" },
-	{ code: "pt", label: "Português" },
-	{ code: "nl", label: "Nederlands" },
-	{ code: "pl", label: "Polski" },
-	{ code: "tr", label: "Türkçe" },
-	{ code: "ru", label: "Русский" },
-	{ code: "ar", label: "العربية" },
-	{ code: "hi", label: "हिन्दी" },
-	{ code: "ja", label: "日本語" },
-	{ code: "ko", label: "한국어" },
-	{ code: "zh", label: "中文" },
-];
 
 const CAPTION_ANCHORS = (["top", "bottom"] as const).flatMap((v) =>
 	(["left", "center", "right"] as const).map((h) => [v, h] as const),
@@ -124,7 +104,6 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 		set,
 		setLive,
 		commit,
-		saveTranslation,
 		deleteTranslation,
 	} = useCaptions();
 	const document = useProjectStore((s) => s.document);
@@ -154,10 +133,6 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 	const silentMedia = gate.state === "blocked" && gate.reason === "no-audio";
 	const engineError = gate.state === "blocked" && gate.reason === "failed" ? gate.message : null;
 
-	const [target, setTarget] = useState<string>(TRANSLATION_LANGUAGES[1].code);
-	const [translating, setTranslating] = useState(false);
-	const [translateError, setTranslateError] = useState<string | null>(null);
-
 	// Documents made by the old "generate captions" flow carry caption text as
 	// real annotations. They'd now render *on top of* the derived layer, so the
 	// pane offers to clear them — explicitly, since they are the user's data.
@@ -169,56 +144,6 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 	const disabled = !hasDocument;
 	const plate = captionPlateOf(settings);
 	const languageOptions = useMemo(() => Object.values(translations), [translations]);
-
-	const handleTranslate = async () => {
-		const doc = useProjectStore.getState().document;
-		if (!doc) return;
-		const label = TRANSLATION_LANGUAGES.find((l) => l.code === target)?.label ?? target;
-		setTranslating(true);
-		setTranslateError(null);
-		try {
-			// Only the assets actually on the timeline, and only the units that aren't
-			// translated yet — a re-run after adding footage costs just the new
-			// material instead of the whole video. Units, not segments: a Whisper
-			// transcript is one segment per word, and translating single words gives
-			// nonsense in any language that reorders or agrees differently.
-			const assetIds = new Set(doc.timeline.clips.map((c) => c.assetId));
-			let translatedAny = false;
-			for (const transcript of doc.transcripts) {
-				if (!assetIds.has(transcript.assetId)) continue;
-				const pending = untranslatedUnits(transcript, translations, target);
-				if (pending.length === 0) {
-					translatedAny = true;
-					continue;
-				}
-				const result = await nativeBridgeClient.aiEdition.translateCaptions({
-					segments: pending.map((s) => ({ id: s.id, text: s.text })),
-					targetLanguage: label,
-					sourceLanguage: transcript.language,
-				});
-				if (Object.keys(result.segments).length > 0) {
-					await saveTranslation({
-						language: target,
-						label,
-						assetId: transcript.assetId,
-						segments: result.segments,
-						model: result.model,
-					});
-					translatedAny = true;
-				}
-				if (!result.success) {
-					setTranslateError(result.error ?? t("captions.translateFailed"));
-					return;
-				}
-			}
-			if (translatedAny) await set({ language: target, enabled: true });
-			else setTranslateError(t("captions.noTranscript"));
-		} catch (error) {
-			setTranslateError(error instanceof Error ? error.message : String(error));
-		} finally {
-			setTranslating(false);
-		}
-	};
 
 	const clearLegacyCaptionAnnotations = async () => {
 		const doc = useProjectStore.getState().document;
@@ -403,90 +328,51 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 				</div>
 
 				{/* ── Language ───────────────────────────────────────────── */}
-				<div className={styles.sectionLabel}>{t("captions.language")}</div>
 				{/* Only once there is a translation to switch to: alone, "Original" would be a
 				    button that changes nothing. */}
 				{languageOptions.length > 0 ? (
-					<div className={`${styles.field} ${styles.fieldStack}`}>
-						<span className={styles.fieldLabel}>{t("captions.displayLanguage")}</span>
-						<ChoiceRow<string>
-							label={t("captions.displayLanguage")}
-							columns={2}
-							options={[
-								{ value: "", label: t("captions.original") },
-								...languageOptions.map((entry) => ({ value: entry.language, label: entry.label })),
-							]}
-							value={settings.language ?? ""}
-							disabled={disabled}
-							onChange={(language) => void set({ language: language || null })}
-						/>
-					</div>
+					<>
+						<div className={styles.sectionLabel}>{t("captions.language")}</div>
+						<div className={`${styles.field} ${styles.fieldStack}`}>
+							<span className={styles.fieldLabel}>{t("captions.displayLanguage")}</span>
+							<ChoiceRow<string>
+								label={t("captions.displayLanguage")}
+								columns={2}
+								options={[
+									{ value: "", label: t("captions.original") },
+									...languageOptions.map((entry) => ({
+										value: entry.language,
+										label: entry.label,
+									})),
+								]}
+								value={settings.language ?? ""}
+								disabled={disabled}
+								onChange={(language) => void set({ language: language || null })}
+							/>
+						</div>
+						{settings.language ? (
+							<button
+								type="button"
+								className={`${styles.btn} ${styles.btnSecondary}`}
+								style={{ margin: "0 var(--sp-4) 12px" }}
+								disabled={disabled}
+								onClick={() => void deleteTranslation(settings.language as string)}
+							>
+								<Trash2 size={13} />
+								{t("captions.deleteTranslation")}
+							</button>
+						) : null}
+						<p
+							style={{
+								margin: "0 var(--sp-4) 14px",
+								font: "400 11px/1.5 var(--font-body)",
+								color: "var(--muted)",
+							}}
+						>
+							{t("captions.translationIsNonDestructive")}
+						</p>
+					</>
 				) : null}
-
-				<div
-					style={{
-						margin: "0 var(--sp-4) 12px",
-						display: "flex",
-						alignItems: "center",
-						gap: 8,
-					}}
-				>
-					<select
-						value={target}
-						disabled={disabled || translating}
-						onChange={(e) => setTarget(e.target.value)}
-						style={{ ...selectStyle, flex: 1, minWidth: 0 }}
-					>
-						{TRANSLATION_LANGUAGES.map((language) => (
-							<option key={language.code} value={language.code}>
-								{language.label}
-							</option>
-						))}
-					</select>
-					<button
-						type="button"
-						className={`${styles.btn} ${styles.btnSecondary}`}
-						style={{ flexShrink: 0 }}
-						disabled={disabled || translating || !hasTranscript}
-						onClick={() => void handleTranslate()}
-						title={t("captions.translateHint")}
-					>
-						{translating ? <Loader2 size={13} className="animate-spin" /> : <Languages size={13} />}
-						{translating ? t("captions.translating") : t("captions.translate")}
-					</button>
-				</div>
-				{settings.language ? (
-					<button
-						type="button"
-						className={`${styles.btn} ${styles.btnSecondary}`}
-						style={{ margin: "0 var(--sp-4) 12px" }}
-						disabled={disabled}
-						onClick={() => void deleteTranslation(settings.language as string)}
-					>
-						<Trash2 size={13} />
-						{t("captions.deleteTranslation")}
-					</button>
-				) : null}
-				{translateError ? (
-					<p
-						style={{
-							margin: "0 var(--sp-4) 12px",
-							font: "400 11.5px/1.5 var(--font-body)",
-							color: "var(--danger)",
-						}}
-					>
-						{translateError}
-					</p>
-				) : null}
-				<p
-					style={{
-						margin: "0 var(--sp-4) 14px",
-						font: "400 11px/1.5 var(--font-body)",
-						color: "var(--muted)",
-					}}
-				>
-					{t("captions.translationIsNonDestructive")}
-				</p>
 
 				{/* ── Customise ─────────────────────────────────────────── */}
 				{/* The detailed look controls, folded behind the named styles above: still one
@@ -692,15 +578,3 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 }
 
 const CAPTION_STYLE_IDS = Object.keys(CAPTION_STYLES) as CaptionStyleId[];
-
-const selectStyle: React.CSSProperties = {
-	height: 32,
-	padding: "0 10px",
-	borderRadius: 8,
-	border: "1px solid var(--border)",
-	background: "var(--surface-2)",
-	color: "var(--fg)",
-	font: "500 12.5px var(--font-body)",
-	minWidth: 120,
-	cursor: "pointer",
-};

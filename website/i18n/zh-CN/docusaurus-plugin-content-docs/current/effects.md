@@ -14,7 +14,7 @@ keywords:
 
 如果设置里没有你想要的效果，就让代理来做：每次点击时泛起的波纹、像呼吸一样明暗变化的暗角、最后几秒淡出到黑色。代理把效果写成一个小小的 GPU 着色器，OpenScreen 会在预览以及每次导出（MP4 和 GIF）中绘制它，Windows、macOS 和 Linux 上都是如此。
 
-效果来自代理：内置聊天，或者 Claude Code、Codex 等 MCP 客户端（参见 [AI 编辑](./ai-editing.md)）。效果进入项目后，你可以在编辑器里自己调整。
+效果来自你自己的代理：Claude Code、Codex 等 MCP 客户端（参见 [AI 编辑](./ai-editing.md)）。效果进入项目后，你可以在编辑器里自己调整。
 
 ## 请求一个效果 {#asking-for-an-effect}
 

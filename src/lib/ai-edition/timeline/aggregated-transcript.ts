@@ -9,10 +9,9 @@
 // retime math, not by the right pane).
 //
 // ponytail: no "filler" concept here. axcut does not classify words as
-// filler in the right-pane renderer — the LLM (via the deep-agent's
-// fillerLexicon + fillerOrHesitation reason) is the only place that
-// names a word a filler. The transcript view shows plain text for every
-// kept word; the user or the LLM decides what to mark as skipped.
+// filler in the right-pane renderer. The transcript view shows plain text
+// for every kept word; the user, or an agent over MCP, decides what to mark
+// as skipped.
 
 import { collapseTracksToPills } from "../document/audioTracks";
 import type { AxcutAsset, AxcutAudioTrack, AxcutClip, AxcutTranscript, AxcutWord } from "../schema";

@@ -11,8 +11,8 @@ import { useTranscriptionStore } from "./transcriptionStore";
 
 /**
  * The editor's side of the MCP server (electron/mcp/): hand it the live document
- * and apply what its tools return, through the same revision-guarded apply an
- * in-app chat turn uses — so an MCP edit is saved, is one undo step, and never
+ * and apply what its tools return, through a revision-guarded apply
+ * (`applyAgentDocumentIfCurrent`) — so an MCP edit is saved, is one undo step, and never
  * lands on top of a change the user made while the call was running.
  */
 export async function answerMcpHostRequest(

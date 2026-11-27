@@ -5,7 +5,7 @@ JSON object defined in `src/lib/ai-edition/schema/index.ts` and persisted as one
 per project on disk. The renderer holds one instance in a Zustand store
 (`src/lib/ai-edition/store/projectStore.ts`); the main process owns persistence
 (`electron/ai-edition/document-service.ts`); and every editor surface — timeline,
-preview, floating inspector, captions, LLM agent — reads and writes that one
+preview, floating inspector, captions, an agent over MCP — reads and writes that one
 document. The model is the contract the rest of the editor hangs off; this page is
 the contract.
 
@@ -32,7 +32,6 @@ and anything unknown is rejected by the `z.literal(axcutSchemaVersion)` check in
 | `shaderEffectRanges[]?` | `AxcutShaderEffectRange[]` | Where each effect applies: clip-anchored regions like the zooms, with the parameter `values` that differ from the defaults, a `target` (`image`, `text`, `both`). One effect at a time: regions do not overlap. Optional, like `shaderEffects`. |
 | `audioTracks[]` | `AxcutAudioTrack[]` | Imported audio (voiceover / BGM / SFX, issue #350) mixed over the programme. NOT clip-anchored — addressed in RAW/document timeline seconds (`timelineStartSec`), with `trimStartSec`/`trimEndSec` windowing the source and `gainDb` its level. Added from the timeline toolbar; the referenced asset has `kind: "audio"`. |
 | `legacyEditor` | OpenScreen v2 `ProjectEditorState` passthrough | Appearance/cursor settings not yet first-class in the AI-edition schema. |
-| `agent` | `{ baseIntent?, pendingQuestions[], suggestions[], lastAppliedOperations[], lastReasoningSummary? }` | LLM agent state. |
 | `preview` | `{ strategy: "seek" \| "mse-proxy", revision: number }` | `revision` is the bump used to invalidate cached frames after an edit. |
 | `export` | `{ preset, lastJobId }` | The last export run. |
 | `history` | `{ revisions: AxcutRevision[] }` | Append-only revision log; declared by the schema (line 506) and currently populated only by tests. Undo/redo in the editor uses the in-memory `pushHistory` snapshot stack in `src/lib/ai-edition/store/undo.ts` rather than the persisted revision list — see [Undo / history](#undo--history). |
@@ -204,7 +203,7 @@ as the current `AxcutDocument` shape; the renderer never holds a stale
 The schema declares a `history.revisions[]` field (`schema/index.ts:506-510`) for
 an append-only revision log, populated by tests today and reserved for future
 revision browsing. The interactive undo/redo in the editor uses a different,
-lighter mechanism so the user can undo any edit, including one made by the LLM,
+lighter mechanism so the user can undo any edit, including one an agent made over MCP,
 without growing the persisted document.
 
 The mechanism lives in `src/lib/ai-edition/store/undo.ts`:
@@ -224,33 +223,28 @@ The mechanism lives in `src/lib/ai-edition/store/undo.ts`:
   contenteditable so typing in the transcript or rename field does not get
   intercepted.
 
-A whole LLM agent batch undoes as one unit because every tool mutation goes
-through `setDocument`. The chat service applies each tool call by computing the
-next document and calling `saveDocument`; the snapshot is taken at the
-`setDocument` boundary of each call, so undoing a batch of N tool calls means N
-Cmd+Z presses, and each one unwinds one tool's effect in reverse order. The
-batch atomicity a single undo button would need lives in the chat UI's "undo last
-agent turn" affordance (not yet wired — see [Known gaps](#known-gaps)).
+An agent's edit to the open project goes through the same boundary. Each MCP tool
+call that changes the document is applied by `applyAgentDocumentIfCurrent`, which
+ends in `setDocument`, so each call is one undo step: undoing a series of N tool
+calls means N Cmd+Z presses, each unwinding one call in reverse order. What takes a
+whole series back in one step is the MCP server's `restoreCheckpoint`, which lands
+as one undo step itself — see [mcp-server.md](mcp-server.md#checkpoints).
 
 ## Known gaps
 
 - `history.revisions` is declared by the schema but only the renderer snapshot
   stack is populated today. A persisted revision log would let "undo" survive
   app restarts and give users a history view; both are deferred.
-- The chat-service undo of a full agent turn is not implemented. The undo button
-  undoes one tool call at a time; a per-turn undo would require checkpointing
-  the document at the start of each chat turn (one push per turn, not per tool
-  call).
-- The `agent.baseIntent` field is persisted but not yet populated by the chat
-  runtime; the LLM tool loop fills `lastReasoningSummary` only after the v6
-  compaction step lands.
+- The undo stack has no notion of an agent's turn. It undoes one MCP tool call at a
+  time; only a checkpoint the agent took (`createCheckpoint`, in memory) reverts a
+  series at once.
 
 ## Layout passages (v9)
 
 `layoutRegions` is an optional, typed partition anchored by clip ID and source time.
 An absent or empty array uses `legacyEditor.webcamLayoutPreset` for the whole video.
 `document/layout.ts` owns adding a change, changing a passage, moving a boundary and
-removing a change. UI, in-app agent and both MCP transports use these same operations.
+removing a change. The UI and the MCP tools use these same operations.
 A change lasts until the next one; removing it extends the preceding passage. The
 first passage cannot be removed. Equal neighbours merge, and a uniform partition
 collapses back to the global preset. Global settings writes also use this partition.

@@ -144,7 +144,7 @@
     "message": "Rien n'est mis en ligne"
   },
   "home.features.local.body": {
-    "message": "L'enregistrement, la transcription et le rendu se font sur votre machine, et votre vidéo n'en sort jamais. Du texte n'en sort que si vous le demandez : le panneau de discussion et la traduction des sous-titres, chacun avec une clé que vous fournissez. La transcription télécharge son modèle Whisper de 264 Mo une seule fois, lors de sa première exécution."
+    "message": "L'enregistrement, la transcription et le rendu se font sur votre machine, et votre vidéo n'en sort jamais. OpenScreen n'envoie rien à un modèle d'IA : un agent que vous connectez vous-même lit le projet sous votre propre compte chez lui. La transcription télécharge son modèle Whisper de 264 Mo une seule fois, lors de sa première exécution."
   },
   "home.features.platforms.title": {
     "message": "Windows, macOS, Linux"
@@ -314,10 +314,10 @@
     "message": "Décrivez la modification. L'agent s'en charge."
   },
   "showcase.agent.body": {
-    "message": "La baguette magique, plus haut sur cette page, place les zooms en observant où votre curseur est passé. L'agent va plus loin : il lit la vraie transcription et la vraie timeline, et répond donc avec des timecodes que vous pouvez aller vérifier, en indiquant quels passages il va couper et combien de temps cela fait gagner. Chaque modification qu'il fait est une modification ordinaire, annulable, et il a besoin d'une clé de fournisseur que vous apportez. Rien ne tourne tant que vous n'en avez pas connecté une."
+    "message": "La baguette magique, plus haut sur cette page, place les zooms en observant où votre curseur est passé. Votre propre agent va plus loin : il lit la vraie transcription et la vraie timeline, et répond donc avec des timecodes que vous pouvez aller vérifier, en indiquant quels passages il va couper et combien de temps cela fait gagner. Chaque modification qu'il fait est une modification ordinaire, annulable. C'est Claude Code, Codex ou tout client MCP, connecté avec son propre compte : OpenScreen n'a aucune clé à vous demander."
   },
   "showcase.agent.fact": {
-    "message": "votre propre clé · désactivé par défaut · chaque modification est annulable"
+    "message": "votre propre agent · aucune clé dans l'application · chaque modification est annulable"
   },
   "showcase.agent.link.docs": {
     "message": "Documentation du montage par IA"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "Une demande saisie dans le panneau de chat de l'éditeur, et les modifications de l'agent qui apparaissent sur la timeline.",
+    "message": "Une demande saisie auprès d'un agent, et ses modifications qui apparaissent sur la timeline.",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "Demander une modification à l'agent de l'éditeur",
+    "message": "Demander une modification à un agent",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

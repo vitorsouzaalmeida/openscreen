@@ -34,7 +34,7 @@ Une barre d'icônes flottante se superpose à l'aperçu. Elle donne accès à ci
 | **Disposition caméra** | La composition de la webcam : incrustation d'image, empilement vertical, double cadre ou sans webcam. Effet miroir et « réduire au zoom ». En incrustation : forme de la caméra (carrée, ou originale : les proportions de la caméra elle-même, une caméra en portrait reste en portrait), arrondi (tout à fait ronde, une caméra carrée devient un cercle), taille et position : l'un des huit emplacements le long du bord, toujours à la même distance de celui-ci. Faites glisser la webcam sur le canevas : elle se cale sur l'emplacement le plus proche. |
 | **Audio** | Le niveau de sortie, appliqué de la même façon dans l'aperçu et à l'export. |
 | **Curseur** | Utile uniquement pour les enregistrements faits en mode curseur éditable, sous Windows, macOS ou Linux. Afficher/masquer et le masquage automatique, le style du curseur avec son interrupteur **Curseur 3D**, les types de curseur (chaque type que montre la vidéo, dessiné tel qu'enregistré ou comme la flèche), des glissières pour la taille (jusqu'à huit fois le curseur système), le lissage et le flou de mouvement, le rebond au clic (Aucun, Léger, Marqué), et **Impact du clic**, qui repousse l'écran à chaque clic, avec toutes les caméras. |
-| **Transcription** | La transcription agrégée de tous les clips, modifiable : voir [Montage par la transcription](./captions.md#transcript-editing). Son bouton **Sous-titres** active les sous-titres, les met en forme et les traduit : voir [Sous-titres et transcription](./captions.md#captions). |
+| **Transcription** | La transcription agrégée de tous les clips, modifiable : voir [Montage par la transcription](./captions.md#transcript-editing). Son bouton **Sous-titres** active les sous-titres, les met en forme et choisit la langue qu'ils affichent : voir [Sous-titres et transcription](./captions.md#captions). |
 
 Le bouton **crayon** de la même barre ouvre la fenêtre **Modifier le clip** pour le clip sélectionné : un rectangle de recadrage déplaçable avec des champs numériques X/Y/L/H et des préréglages de proportions, plus les points d'entrée et de sortie du clip. Le recadrage se règle clip par clip, pas pour tout le projet.
 
@@ -42,9 +42,7 @@ Sélectionner une région sur la timeline (un bloc de zoom, de coupe, d'annotati
 
 ## Barre d'outils de la timeline {#timeline-toolbar}
 
-- **Amélioration auto** (icône baguette) : un menu qui propose deux traitements à lancer ponctuellement :
-  - **Zooms automatiques** : lit les clics enregistrés et zoome dessus. Pas de réseau, pas de modèle. [Zoom automatique](/features/auto-zoom/) explique comment les zooms sont placés.
-  - **Coupes intelligentes** (avec la mention *Avec l'IA*) : confie plutôt la tâche à l'agent IA, qui a besoin d'un [fournisseur connecté](./ai-editing.md).
+- **Amélioration auto** (icône baguette) : un menu qui propose un traitement à lancer ponctuellement, **Zooms automatiques** : il lit les clics enregistrés et zoome dessus. Pas de réseau, pas de modèle. [Zoom automatique](/features/auto-zoom/) explique comment les zooms sont placés.
 - **Vitesse** (`S`) : ajoute une région de changement de vitesse à la tête de lecture.
 - **Commentaire** (`A`) : ajoute une annotation à la tête de lecture.
 - **Couper** (`T`) : place une coupe de deux secondes (une « région de coupe ») à la tête de lecture. Faites glisser ses bords pour la redimensionner, comme toute autre région.

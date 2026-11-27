@@ -554,8 +554,8 @@ export function useAssetTranscriptions(): Record<string, AssetTranscriptionView>
 }
 
 /**
- * Gate for the transcript-dependent timeline actions (Smart cuts): resolved
- * over the assets the timeline actually plays.
+ * Gate for what depends on a transcript (the captions, the transcript pane):
+ * resolved over the assets the timeline actually plays.
  */
 export function useTimelineTranscriptGate(): TranscriptGate {
 	const document = useProjectStore((s) => s.document);

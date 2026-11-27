@@ -1,8 +1,7 @@
 // ponytail: tests for the renderer-side timeline-operation union + dispatcher
 // in `src/lib/ai-edition/document/operations.ts`. Mirrors the axcut chat UI
 // parity work — same operations, same summary shape, same document mutation
-// rules. The IPC + service layer is exercised separately in
-// `electron/ai-edition/chat-service.test.ts`.
+// rules.
 
 import { describe, expect, it } from "vitest";
 import { type AxcutClip, type AxcutDocument, createEmptyDocument } from "../schema";

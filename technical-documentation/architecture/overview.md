@@ -63,8 +63,8 @@ goes back through it.
 ```mermaid
 flowchart TD
     User(("User"))
-    Chat["ChatStripPanel<br/>(LeftPanel.tsx)"]
-    LLM["LLM provider<br/>electron/ai-edition/deep-agent/chat-model.ts<br/>provider-registry.ts"]
+    Agent["The user's MCP client<br/>(Claude Code, Codex, …)"]
+    MCP["openscreen mcp<br/>electron/mcp/stdio-server.ts<br/>app-channel.ts"]
     DSL[["AxcutDocument<br/>src/lib/ai-edition/schema/index.ts<br/>— SSOT —"]]
     Store["useProjectStore<br/>(Zustand, in renderer)"]
     Disk[(".openscreen JSON<br/>userData/projects/<id>.openscreen<br/>document-service.ts")]
@@ -76,9 +76,9 @@ flowchart TD
     VPreview["Preview<br/>Preview.tsx → PreviewCanvas.tsx<br/>→ NativeCompositorOverlay.tsx"]
     VTranscript["Transcript<br/>CaptionsPane.tsx + src/lib/ai-edition/captions/"]
 
-    User <--> Chat
-    Chat <--> LLM
-    LLM -- "tool calls<br/>agent-tools.ts:<br/>addZoom, setClipRange,<br/>replaceTimeline, …" --> DSL
+    User <--> Agent
+    Agent <--> MCP
+    MCP -- "tool calls<br/>agent-tools.ts:<br/>addZoom, setClipRange,<br/>replaceTimeline, …" --> DSL
 
     MT1 -- "ingest on<br/>transcribe/import" --> DSL
     MT2 -- "ingest on<br/>transcribe/import" --> DSL
@@ -97,9 +97,10 @@ flowchart TD
 Read this diagram as two loops:
 
 1. **Human loop.** The user edits the Timeline directly (clip reorder, region resize,
-   skip placement) or talks to the Chat panel, which drives the LLM, which edits the
-   document through the fixed tool schema — never raw JSON patches. Both paths
-   converge on the same `AxcutDocument`.
+   skip placement) or asks their own agent, which starts `openscreen mcp` and edits the
+   document through the fixed tool schema — never raw JSON patches. OpenScreen has no
+   model of its own: see [mcp-server.md](mcp-server.md). Both paths converge on the
+   same `AxcutDocument`.
 2. **Machine loop.** Media assets get transcribed locally (Whisper via the renderer
    worker) and merged into `document.transcripts[]`. Preview and Timeline are pure
    projections of the document at a given time/zoom — there is no independent

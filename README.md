@@ -44,8 +44,8 @@ A raw capture goes in and comes out ready to post — on X, Reddit, YouTube, a d
 - Webcam overlay with picture-in-picture, eight snap positions, adjustable roundness, mirroring, and shape options.
 - Auto or manual zooms with adjustable depth, duration, easing, and pixel-precise position; auto-zoom follows your cursor as you work.
 - Custom cursor size, smoothing, and click effects, with post-recording path smoothing.
-- Automatic captions for voiceovers, transcribed on-device with no upload (works offline), with an editable transcript you can cut from and optional subtitle translation.
-- AI editing assistant: describe the edit you want in chat and it applies to the timeline — cuts, zooms, speed ramps, annotations, camera framing. Bring your own key (Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax, or any OpenAI-compatible endpoint); nothing is enabled by default.
+- Automatic captions for voiceovers, transcribed on-device with no upload (works offline), with an editable transcript you can cut from.
+- AI editing through your own agent: Claude Code, Codex, Cursor or any other MCP client starts OpenScreen's MCP server (`openscreen mcp`) and applies the edit you describe to the timeline — cuts, zooms, speed ramps, annotations, camera framing, translated captions. It can record and export too. There is no chat panel in the app and no API key to give it; an edit to the project open in the editor appears there live and undoes with Ctrl/Cmd+Z. See [below](#let-your-ai-agent-ship-the-feature-with-its-video).
 - Wallpapers, solid colors, gradients, or your own background image.
 - Motion blur.
 - Crop, trim, and per-segment speed control on the timeline.

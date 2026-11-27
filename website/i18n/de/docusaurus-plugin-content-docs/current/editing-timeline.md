@@ -34,7 +34,7 @@ Alles Folgende beschreibt den Modus **Edit**: oben eine Vorschau mit anpassbarer
 | **Camera layout** | Webcam-Komposition: Bild-im-Bild, vertikal gestapelt, Doppelrahmen oder keine Webcam. Spiegeln und „Shrink on Zoom“. Für Bild-im-Bild: Kameraform (Quadrat, oder Original: die eigenen Proportionen der Kamera, eine Hochformat-Kamera bleibt also hochkant), Rundung (ganz rund wird eine quadratische Kamera zum Kreis), Größe und Position: einer von acht Plätzen am Rand, immer im gleichen Abstand dazu. Zieh die Webcam auf der Arbeitsfläche, und sie rastet am nächsten Platz ein. |
 | **Audio** | Der Ausgabepegel, in Vorschau und Export gleich angewendet. |
 | **Cursor** | Nur sinnvoll für Aufnahmen im bearbeitbaren Cursormodus, unter Windows, macOS oder Linux. Ein-/Ausblenden und automatisches Ausblenden, der Cursorstil mit seinem Schalter **3D cursor**, die Cursortypen (jeder Typ, den das Video zeigt, wie aufgezeichnet oder als Pfeil gezeichnet), Regler für Größe (bis zum Achtfachen des System-Cursors), Glättung und Bewegungsunschärfe, Klick-Bounce (None, Light, Strong) und **Click impact**, das den Bildschirm bei jedem Klick nach hinten drückt, unter jeder Kamera. |
-| **Transcript** | Das zusammengeführte Transkript aller Clips, bearbeitbar, siehe [Bearbeitung über das Transkript](./captions.md#transcript-editing). Die Schaltfläche **Captions** darin schaltet Untertitel ein, gestaltet und übersetzt sie, siehe [Untertitel & Transkript](./captions.md#captions). |
+| **Transcript** | Das zusammengeführte Transkript aller Clips, bearbeitbar, siehe [Bearbeitung über das Transkript](./captions.md#transcript-editing). Die Schaltfläche **Captions** darin schaltet Untertitel ein, gestaltet sie und wählt die Sprache, die sie zeigen, siehe [Untertitel & Transkript](./captions.md#captions). |
 
 Die **Stift**-Schaltfläche in derselben Leiste öffnet den Dialog **Edit clip** für den ausgewählten Clip: ein ziehbares Zuschnittrechteck mit Eingabefeldern für X/Y/W/H und Seitenverhältnis-Vorgaben, dazu Start- und Endpunkt des Clips. Der Zuschnitt gilt pro Clip, nicht pro Projekt.
 
@@ -42,9 +42,7 @@ Wählst du auf der Zeitleiste einen Bereich aus (einen Zoom-, Schnitt-, Annotati
 
 ## Werkzeugleiste der Zeitleiste {#timeline-toolbar}
 
-- **Auto-enhance** (Zauberstab-Symbol): ein Menü mit zwei einmaligen Durchläufen:
-  - **Automatic zooms**: liest die aufgezeichneten Klicks und zoomt auf sie. Kein Netzwerk, kein Modell. Wie die Zooms gesetzt werden, erklärt [Auto zoom](/features/auto-zoom/).
-  - **Smart cuts** (mit *With AI* markiert): übergibt die Aufgabe stattdessen dem KI-Agenten, der einen [verbundenen Anbieter](./ai-editing.md) braucht.
+- **Auto-enhance** (Zauberstab-Symbol): ein Menü mit einem einmaligen Durchlauf, **Automatic zooms**: Er liest die aufgezeichneten Klicks und zoomt auf sie. Kein Netzwerk, kein Modell. Wie die Zooms gesetzt werden, erklärt [Auto zoom](/features/auto-zoom/).
 - **Speed** (`S`): fügt am Abspielkopf einen Geschwindigkeitsbereich ein.
 - **Comment** (`A`): fügt am Abspielkopf eine Annotation ein.
 - **Trim** (`T`): setzt am Abspielkopf einen zwei Sekunden langen Schnitt („Schnittbereich“). Zieh an seinen Rändern, um die Größe zu ändern, wie bei jedem anderen Bereich.

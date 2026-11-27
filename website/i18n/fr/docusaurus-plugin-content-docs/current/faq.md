@@ -37,7 +37,7 @@ OpenScreen est un enregistreur d'écran et éditeur vidéo gratuit, sous licence
 - **github.com et api.github.com.** Les versions qui se mettent à jour d'elles-mêmes vérifient la présence d'une nouvelle version une minute après le lancement, puis toutes les six heures, et quand vous le demandez. Elles la téléchargent en arrière-plan et affichent un bouton de mise à jour ; rien n'est installé tant que vous n'avez pas cliqué dessus.
 - **fonts.googleapis.com, seulement pour une police ajoutée en 1.x.** Une police d'annotation personnalisée ajoutée dans une version précédente est encore téléchargée au lancement, bien que la 2.x ne l'affiche plus.
 - **PostHog, une fois par jour.** Un comptage anonyme des installations actives, envoyé aux serveurs de PostHog dans l'UE. Il contient la version de l'application, le système d'exploitation, l'architecture du processeur, le mode d'installation de l'application, si elle a servi directement ou à un agent IA via son serveur MCP, s'il s'agit du premier comptage de la semaine et du mois, la semaine d'installation de l'application, et le nombre d'appels de chaque outil du serveur MCP par un agent IA depuis le comptage précédent : le nom de l'outil et un nombre, jamais ce qui lui a été passé. C'est tout : aucun identifiant d'installation (chaque comptage reçoit un nouvel identifiant aléatoire), aucune adresse IP conservée, rien sur vos enregistrements. Décochez **Envoyer le comptage d'utilisation anonyme** dans le menu de l'icône de la zone de notification pour le désactiver, ou définissez `DO_NOT_TRACK=1`.
-- **Votre fournisseur d'IA, seulement si vous en connectez un.** Le montage par chat envoie vos messages et les données du projet qu'il lit, comme la timeline et la transcription. La traduction des sous-titres envoie le texte des sous-titres. Les deux restent désactivés tant que vous n'avez pas connecté de fournisseur. Voir [Montage par IA](./ai-editing.md).
+- **Le fournisseur de votre propre agent, seulement si vous en utilisez un.** OpenScreen lui-même n'envoie rien à un modèle d'IA. Un agent que vous ajoutez, comme Claude Code ou Codex, envoie ce qu'il lit par le serveur MCP d'OpenScreen (la timeline, la transcription, des images fixes) à son propre fournisseur, sous votre compte chez lui. Voir [Montage par IA](./ai-editing.md).
 
 ## OpenScreen collecte-t-il des statistiques d'usage ou des rapports de plantage ? {#does-openscreen-collect-analytics-or-crash-reports}
 
@@ -45,7 +45,6 @@ OpenScreen est un enregistreur d'écran et éditeur vidéo gratuit, sous licence
 
 - Une fois par jour, l'application signale qu'une installation a été active. [OpenScreen fonctionne-t-il hors ligne ?](#does-openscreen-work-offline) détaille exactement ce que contient ce comptage et comment le désactiver.
 - Le comptage ne porte aucun identifiant d'installation : chacun reçoit un nouvel identifiant aléatoire, et rien d'autre n'y est propre à votre ordinateur. La semaine d'installation qu'il porte, par exemple `2026-W44`, est la semaine où l'application a été installée, la même pour tous ceux qui l'ont installée cette semaine-là, et non un identifiant.
-- Les clés des fournisseurs d'IA sont stockées chiffrées avec `safeStorage` d'Electron. Si le chiffrement n'est pas disponible, la clé n'est pas enregistrée.
 
 ## Peut-on installer OpenScreen en toute sécurité ? {#is-openscreen-safe-to-install}
 

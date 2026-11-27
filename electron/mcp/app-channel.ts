@@ -1,7 +1,7 @@
 // How `openscreen mcp` reaches the running app, so the app stays the one writer of
 // its projects (#1174). The project open in the editor is then edited through the
-// editor, live and one Ctrl/Cmd+Z step per call, and both transports share the
-// app's one tool runner: its queue and its checkpoints.
+// editor, live and one Ctrl/Cmd+Z step per call, and every `openscreen mcp` session
+// shares the app's one tool runner: its queue and its checkpoints.
 //
 // The channel is MCP itself. The app serves the same `createOpenScreenMcpServer` on
 // a named pipe (Windows) or a Unix socket, and `openscreen mcp` is its client: each
@@ -20,8 +20,6 @@
 // user, as the file sits in their profile (0600 on Unix, the socket too). Admins and
 // SYSTEM can read it, but they can do anything the user can already. Any process of
 // this user may connect, which grants nothing new: it could run `openscreen mcp`.
-// So calls over this channel edit as `openscreen mcp` does, whatever the in-app
-// server's switches say: those guard the HTTP port, which is not ours to bypass.
 
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { chmodSync, rmSync, writeFileSync } from "node:fs";
@@ -96,8 +94,8 @@ export interface AppChannel {
 
 /**
  * The app's side: serve the document tools to `openscreen mcp` through `runTool`, the
- * runner the in-app server uses too. Started by the GUI only, under its single-instance
- * lock, so no other process serves this userData.
+ * app's one runner. Started by the GUI only, under its single-instance lock, so no other
+ * process serves this userData.
  */
 export async function serveAppChannel(options: {
 	userDataDir: string;
@@ -107,9 +105,7 @@ export async function serveAppChannel(options: {
 	const token = randomBytes(32).toString("hex");
 	const endpoint = newEndpoint(options.userDataDir);
 	// No tool-call count here: `openscreen mcp` counted each call where its client made it.
-	const deps: McpToolDeps = { ...options.deps, editsAllowed: () => true, onToolCall: undefined };
-	const runTool = (name: string, args: unknown) =>
-		options.runTool(name, args, { editsAllowed: true });
+	const deps: McpToolDeps = { ...options.deps, onToolCall: undefined };
 	const sockets = new Set<net.Socket>();
 
 	const server = net.createServer((socket) => {
@@ -136,7 +132,7 @@ export async function serveAppChannel(options: {
 			const input = new PassThrough();
 			input.write(head.subarray(end + 1));
 			socket.pipe(input);
-			const session = createOpenScreenMcpServer(deps, runTool);
+			const session = createOpenScreenMcpServer(deps, options.runTool);
 			// Not the media tools' own setPointerTrack: `openscreen mcp` records its takes itself,
 			// so the call carries their start times, and the client's own for a video it captured.
 			// The edit is computed in this process from them, then run like any edit.
@@ -147,15 +143,12 @@ export async function serveAppChannel(options: {
 					options.runTool(
 						POINTER_TRACK_TOOL,
 						{ projectId },
-						{
-							editsAllowed: true,
-							edit: (document) => pointerTrackEdit(document, events, takes, recordingStartedAt),
-						},
+						{ edit: (document) => pointerTrackEdit(document, events, takes, recordingStartedAt) },
 					),
 			);
 			// The checkpoints are this process's: `openscreen mcp` reads one here for getBeforeAfter.
 			session.registerTool(READ_CHECKPOINT_TOOL, { inputSchema: READ_CHECKPOINT_SCHEMA }, (args) =>
-				options.runTool(READ_CHECKPOINT_TOOL, args, { editsAllowed: true }),
+				options.runTool(READ_CHECKPOINT_TOOL, args),
 			);
 			socket.once("close", () => void session.close());
 			// A JSON-RPC-lines transport over any stream pair, despite its name.

@@ -2,7 +2,7 @@
 id: captions
 title: Captions & transcript
 sidebar_position: 7
-description: "Transcribe on-device with Whisper in 100 languages, burn in styled captions, translate them with your own LLM key, and cut a recording by deleting words."
+description: "Transcribe on-device with Whisper in 100 languages, burn in styled captions, have your own agent translate them, and cut a recording by deleting words."
 keywords:
   - automatic captions
   - subtitles
@@ -36,7 +36,7 @@ In the **Transcript** facet of the inspector, click **Captions**:
 | Section | Controls |
 |---|---|
 | **Show captions** | Master on/off for both preview and export. |
-| **Language** | *Original (transcript)*, or any translation layer you've generated. |
+| **Language** | *Original (transcript)*, or any translation layer the project has. |
 | **Text** | Font, size, bold, text color. |
 | **Background** | **None**, **Dark**, or **Light** plate behind the text, and its opacity. |
 | **Position** | **Bottom** or **Top**, with the distance from that edge (0–50% of the frame); **Left**, **Center**, or **Right**, with the distance from that side (0–25%, none for Center). |
@@ -48,9 +48,9 @@ Size is expressed in pixels at a 1080-high frame and scales with the real output
 
 ### Translation
 
-Pick a target language and hit **Translate**. Fifteen targets ship in the dropdown: English, French, Spanish, German, Italian, Portuguese, Dutch, Polish, Turkish, Russian, Arabic, Hindi, Japanese, Korean, and Chinese.
+The editor has no translate button: captions are translated by your own agent, through OpenScreen's MCP server (see [AI editing](./ai-editing.md)). Ask it for the language you want, "add a French version of the captions": it reads the caption phrases, translates them with its own model, and stores the result in the project as a translation layer. The text it reads goes to that agent's provider, under your account with it. OpenScreen itself sends nothing.
 
-Translation goes through the LLM provider you've connected (see [AI editing](./ai-editing.md)) — it's the one caption feature that needs a network. It's stored **beside** the transcript, never in it: the original text and its timings stay untouched, you can switch back to *Original* at any time, and deleting a translation leaves the recording exactly as it was. Re-running after adding footage only costs the new material, and anything the model doesn't return falls back to the original words rather than being invented.
+A translation is stored **beside** the transcript, never in it: the original text and its timings stay untouched. The Captions pane lists the layers a project has: pick one under **Display**, switch back to *Original* at any time, or delete a translation, which leaves the recording exactly as it was. After you add footage, the agent only has the new phrases to translate, and a phrase with no translation shows its original words rather than invented ones.
 
 :::note
 Projects made with the older "generate captions" flow carry caption text as real annotations, which would draw on top of the live layer. The Captions pane detects them and offers to remove them — it asks first, since it deletes data.

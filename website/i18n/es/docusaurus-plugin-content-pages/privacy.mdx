@@ -5,9 +5,9 @@ description: "Qué envían fuera de tu equipo la app de escritorio, el sitio web
 
 # Política de privacidad
 
-Última actualización: 22 de noviembre de 2026.
+Última actualización: 27 de noviembre de 2026.
 
-OpenScreen es un grabador de pantalla y editor de vídeo gratuito y de código abierto. No tiene cuenta ni servidores propios: tus grabaciones, proyectos y transcripciones se guardan en tu equipo, y ninguna función sube una grabación. Esta página enumera todo lo que sí sale de tu equipo, desde la app de escritorio, este sitio web, el servidor MCP y el plugin para agentes, incluidos los datos del proyecto que las funciones de IA envían al proveedor que elijas.
+OpenScreen es un grabador de pantalla y editor de vídeo gratuito y de código abierto. No tiene cuenta ni servidores propios: tus grabaciones, proyectos y transcripciones se guardan en tu equipo, y ninguna función sube una grabación. Esta página enumera todo lo que sí sale de tu equipo, desde la app de escritorio, este sitio web, el servidor MCP y el plugin para agentes, incluidos los datos del proyecto que recibe un agente de IA que conectes.
 
 ## Quién es el responsable {#who-is-responsible}
 
@@ -35,13 +35,12 @@ Para desactivarlo, desmarca **Enviar recuento de uso anónimo** en el menú de l
 - **GitHub.** Las compilaciones que se actualizan solas buscan una nueva versión cada 24 horas, y cuando tú lo pides. GitHub recibe la solicitud, incluida tu dirección IP, conforme a [su declaración de privacidad](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
 - **Hugging Face y GitHub, una vez.** La primera transcripción descarga el modelo de voz Whisper desde huggingface.co y, en un equipo con GPU, un modelo de sincronización de palabras desde github.com. La transcripción en sí se ejecuta en tu equipo.
 - **Google Fonts, solo para una fuente añadida en la versión 1.x.** Una fuente personalizada añadida en una versión anterior se sigue descargando al iniciar.
-- **Tu proveedor de IA, solo si conectas uno.** La edición por chat envía tus mensajes y los datos del proyecto que lee el agente, como la línea de tiempo y la transcripción. La traducción de subtítulos envía el texto de los subtítulos. No se envía nada hasta que eliges un proveedor y le das tu propia clave de API. El proveedor (Anthropic, OpenAI, Google, Mistral, OpenRouter, MiniMax o un servidor que configures) trata esos datos según sus propias condiciones. Las claves se guardan cifradas en tu equipo.
 
-La app no contiene ningún sistema de informes de fallos. **Save Diagnostics** escribe un archivo en tu disco y no envía nada.
+La app por sí misma no envía nada a ningún proveedor de modelos de IA, y no guarda ninguna clave para uno: lo que recibe un agente que conectes se describe en la sección siguiente. La app no contiene ningún sistema de informes de fallos. **Save Diagnostics** escribe un archivo en tu disco y no envía nada.
 
 ## El servidor MCP y el plugin para agentes {#the-mcp-server-and-the-agent-plugin}
 
-El servidor MCP de OpenScreen se ejecuta en tu equipo: `openscreen mcp` se comunica con el agente que lo inició, y el servidor integrado en la app solo escucha en 127.0.0.1, protegido por un token. Lo que intercambian con el agente se queda en tu equipo. Lo único que cualquiera de los dos envía fuera de él es el recuento diario anónimo descrito arriba, que `openscreen mcp` envía igual que la app. El agente que conectas, como Claude Code o Codex, recibe de ellos datos del proyecto e imágenes fijas, y puede pasarlos a su propio proveedor de modelos según las condiciones de ese agente.
+El servidor MCP de OpenScreen se ejecuta en tu equipo: `openscreen mcp` lo inicia tu agente y se comunica con él por stdin y stdout, sin ningún puerto de red. Lo que intercambia con el agente se queda en tu equipo. Lo único que envía fuera de él es el recuento diario anónimo descrito arriba, que `openscreen mcp` envía igual que la app. El agente que conectas, como Claude Code o Codex, inicia sesión con su propia cuenta, que OpenScreen nunca ve. Recibe los datos del proyecto que pide, como la línea de tiempo, la transcripción, el texto de los subtítulos e imágenes fijas, y puede pasarlos a su propio proveedor de modelos según las condiciones de ese agente.
 
 La skill `openscreen-demo` y el plugin de OpenScreen para agentes de programación solo envían datos cuando tú lo pides:
 

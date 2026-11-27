@@ -5,9 +5,9 @@ description: "Ce que l'application de bureau, le site web, le serveur MCP et le 
 
 # Politique de confidentialité
 
-Dernière mise à jour : 22 novembre 2026.
+Dernière mise à jour : 27 novembre 2026.
 
-OpenScreen est un enregistreur d'écran et éditeur vidéo gratuit et open source. Il n'a ni compte ni serveur à lui : vos enregistrements, projets et transcriptions sont stockés sur votre ordinateur, et aucune fonction ne met un enregistrement en ligne. Cette page liste tout ce qui quitte bel et bien votre machine, depuis l'application de bureau, ce site web, le serveur MCP et le plugin pour agents, y compris les données de projet que les fonctions d'IA envoient au fournisseur que vous choisissez.
+OpenScreen est un enregistreur d'écran et éditeur vidéo gratuit et open source. Il n'a ni compte ni serveur à lui : vos enregistrements, projets et transcriptions sont stockés sur votre ordinateur, et aucune fonction ne met un enregistrement en ligne. Cette page liste tout ce qui quitte bel et bien votre machine, depuis l'application de bureau, ce site web, le serveur MCP et le plugin pour agents, y compris les données de projet que reçoit un agent IA que vous connectez.
 
 ## Qui est responsable {#who-is-responsible}
 
@@ -35,13 +35,12 @@ Pour le désactiver, décochez **Envoyer le comptage d'utilisation anonyme** dan
 - **GitHub.** Les versions qui se mettent à jour d'elles-mêmes vérifient la présence d'une nouvelle version toutes les 24 heures, et quand vous le demandez. GitHub reçoit la requête, y compris votre adresse IP, selon [sa déclaration de confidentialité](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
 - **Hugging Face et GitHub, une fois.** La première transcription télécharge le modèle de reconnaissance vocale Whisper depuis huggingface.co et, sur une machine dotée d'un GPU, un modèle de recalage des mots dans le temps depuis github.com. La transcription elle-même s'exécute sur votre ordinateur.
 - **Google Fonts, seulement pour une police ajoutée en 1.x.** Une police personnalisée ajoutée dans une version précédente est encore téléchargée au lancement.
-- **Votre fournisseur d'IA, seulement si vous en connectez un.** Le montage par chat envoie vos messages et les données du projet que l'agent lit, comme la timeline et la transcription. La traduction des sous-titres envoie le texte des sous-titres. Rien n'est envoyé tant que vous n'avez pas choisi de fournisseur et fourni votre propre clé d'API. Le fournisseur (Anthropic, OpenAI, Google, Mistral, OpenRouter, MiniMax ou un serveur que vous définissez) traite ces données selon ses propres conditions. Les clés sont stockées chiffrées sur votre ordinateur.
 
-L'application ne contient aucun rapport de plantage. **Enregistrer les diagnostics** écrit un fichier sur votre disque et n'envoie rien.
+L'application elle-même n'envoie rien à un fournisseur de modèle d'IA, et ne stocke aucune clé pour un tel fournisseur : ce que reçoit un agent que vous connectez est décrit dans la section suivante. L'application ne contient aucun rapport de plantage. **Enregistrer les diagnostics** écrit un fichier sur votre disque et n'envoie rien.
 
 ## Le serveur MCP et le plugin pour agents {#the-mcp-server-and-the-agent-plugin}
 
-Le serveur MCP d'OpenScreen s'exécute sur votre ordinateur : `openscreen mcp` communique avec l'agent qui l'a lancé, et le serveur intégré à l'application n'écoute que sur 127.0.0.1, derrière un jeton. Ce qu'ils échangent avec l'agent reste sur votre machine. La seule chose que l'un ou l'autre en fait sortir est le comptage quotidien anonyme décrit plus haut, que `openscreen mcp` envoie comme l'application. L'agent que vous connectez, comme Claude Code ou Codex, en reçoit des données de projet et des images fixes, et peut les transmettre à son propre fournisseur de modèle selon les conditions de cet agent.
+Le serveur MCP d'OpenScreen s'exécute sur votre ordinateur : `openscreen mcp` est lancé par votre agent et communique avec lui par stdin et stdout, sans port réseau. Ce qu'il échange avec l'agent reste sur votre machine. La seule chose qu'il en fait sortir est le comptage quotidien anonyme décrit plus haut, que `openscreen mcp` envoie comme l'application. L'agent que vous connectez, comme Claude Code ou Codex, se connecte avec son propre compte, qu'OpenScreen ne voit jamais. Il reçoit les données de projet qu'il demande, comme la timeline, la transcription, le texte des sous-titres et des images fixes, et peut les transmettre à son propre fournisseur de modèle selon les conditions de cet agent.
 
 Le skill `openscreen-demo` et le plugin OpenScreen pour agents de code n'envoient des données que lorsque vous le demandez :
 

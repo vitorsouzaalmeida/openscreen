@@ -56,12 +56,12 @@ The two overlap more than the "streamer versus editor" split suggests. None of t
 
 - **Captions without a plugin, on all three systems.** whisper.cpp ships inside the app. One Whisper Small model of about 264 MB is downloaded once, and captions are burned into the video. OBS's own captions tool is built only for Windows. More on [captions](/features/captions/).
 - **Editing by text.** Select words in the transcript and delete them to cut that passage from the video. Silences are marked and can be cut the same way. See [Transcript editing](/docs/captions/#transcript-editing).
-- **Caption translation** into 15 languages, through an AI provider you connect.
+- **Caption translation** by your own AI agent, through OpenScreen's MCP server.
 
-### Export and chat editing
+### Export and agent editing
 
 - **An export step with choices.** MP4 at 720p, 1080p or source size, at 24, 30 or 60 fps, in H.264, or a GIF. No watermark. In OBS, the output resolution, frame rate and encoder are set in Settings before you record. See [Export](/docs/export/).
-- **Optional chat editing with your own key.** Describe cuts, zooms, speed changes or annotations in plain language. Each change lands as an ordinary undoable edit. It is off until you connect a provider. See [AI editing](/docs/ai-editing/).
+- **Optional editing with your own agent.** Claude Code, Codex or any other MCP client starts OpenScreen's MCP server, and you describe cuts, zooms, speed changes or annotations in plain language. Each change lands as an ordinary undoable edit. See [AI editing](/docs/ai-editing/).
 
 ## When OBS Studio is the better choice
 

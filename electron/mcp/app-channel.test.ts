@@ -8,8 +8,6 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -22,13 +20,10 @@ import { type AppChannel, discoveryFilePath, routeToApp, serveAppChannel } from 
 import {
 	createToolRunner,
 	LIST_PROJECTS_TOOL,
-	MCP_ENDPOINT_PATH,
 	type McpApplyResult,
 	type McpDocumentHost,
 	type McpToolDeps,
 	type McpToolRunner,
-	type RunningMcpServer,
-	startMcpHttpServer,
 } from "./openscreen-mcp-server";
 
 function fixtureDocument(projectId: string, video = "/tmp/rec.mp4"): AxcutDocument {
@@ -109,7 +104,6 @@ let editor: FakeEditor;
 let appDeps: McpToolDeps;
 let appRunTool: McpToolRunner;
 let channel: AppChannel | null;
-let http: RunningMcpServer | null;
 let localCalls: string[];
 /** The tool calls the app counted for its usage ping. */
 let countedCalls: string[];
@@ -119,7 +113,6 @@ function cliRouter() {
 		transport: "stdio",
 		host: { snapshot: async () => null, apply: async () => "no-editor" },
 		projects: cliProjects,
-		editsAllowed: () => true,
 		version: "0.0.0",
 	});
 	return routeToApp({
@@ -146,25 +139,21 @@ beforeEach(async () => {
 	await appProjects.saveProject(fixtureDocument("proj_open"));
 	await appProjects.saveProject(fixtureDocument("proj_closed", path.join(dir, "take.mp4")));
 	editor = new FakeEditor();
-	// The in-app server's own switch is off: the channel must not depend on it.
 	appDeps = {
-		transport: "http",
+		transport: "app",
 		host: editor,
 		projects: appProjects,
-		editsAllowed: () => false,
 		version: "0.0.0",
 		onToolCall: (name) => countedCalls.push(name),
 	};
 	appRunTool = createToolRunner(appDeps);
 	channel = null;
-	http = null;
 	localCalls = [];
 	countedCalls = [];
 });
 
 afterEach(async () => {
 	channel?.close();
-	await http?.close();
 	appProjects.markOpenInEditor(null);
 	rmSync(dir, { recursive: true, force: true });
 });
@@ -320,46 +309,31 @@ describe("forwarding to the app", () => {
 });
 
 describe("checkpoints", () => {
-	it("are one store for the in-app server and forwarded sessions", async () => {
+	it("are one store for every forwarded session", async () => {
 		await startApp();
-		http = await startMcpHttpServer({ port: 0, token: "t", deps: appDeps, runTool: appRunTool });
-		const client = new Client({ name: "test", version: "0.0.0" });
-		await client.connect(
-			new StreamableHTTPClientTransport(
-				new URL(`http://127.0.0.1:${http.port}${MCP_ENDPOINT_PATH}`),
-				{ requestInit: { headers: { Authorization: "Bearer t" } } },
-			),
-		);
-		try {
-			const created = (await client.callTool({
-				name: "createCheckpoint",
-				arguments: { projectId: "proj_closed" },
-			})) as CallToolResult;
-			const { checkpointId } = JSON.parse(text(created));
+		// Two `openscreen mcp` processes, each with its own route to the one app.
+		const first = cliRouter();
+		const second = cliRouter();
+		const created = await first("createCheckpoint", { projectId: "proj_closed" });
+		const { checkpointId } = JSON.parse(text(created));
 
-			// The closed project needs a checkpoint before an edit: the HTTP one counts.
-			const route = cliRouter();
-			expect((await route("addTrim", trimArgs("proj_closed"))).isError).toBeFalsy();
-			const edited = await appProjects.getProject("proj_closed");
-			expect(edited.timeline.trimRanges).toHaveLength(1);
+		// The closed project needs a checkpoint before an edit: the other session's counts.
+		expect((await second("addTrim", trimArgs("proj_closed"))).isError).toBeFalsy();
+		const edited = await appProjects.getProject("proj_closed");
+		expect(edited.timeline.trimRanges).toHaveLength(1);
 
-			// getBeforeAfter's read of it comes here too, and is no tool a client is served.
-			const read = await route("readCheckpoint", { projectId: "proj_closed", checkpointId });
-			expect(read.isError).toBeFalsy();
-			expect(JSON.parse(text(read)).timeline.trimRanges).toHaveLength(0);
-			const served = (await client.listTools()).tools.map((tool) => tool.name);
-			expect(served).not.toContain("readCheckpoint");
+		// getBeforeAfter's read of it comes here too.
+		const read = await second("readCheckpoint", { projectId: "proj_closed", checkpointId });
+		expect(read.isError).toBeFalsy();
+		expect(JSON.parse(text(read)).timeline.trimRanges).toHaveLength(0);
 
-			const restored = await route("restoreCheckpoint", { projectId: "proj_closed", checkpointId });
-			expect(restored.isError).toBeFalsy();
-			expect((await appProjects.getProject("proj_closed")).timeline.trimRanges).toHaveLength(0);
-			expect(localCalls).toEqual([]);
-			// The app counts the call its own client made. What `openscreen mcp` forwards was
-			// counted there, where its client made it: never a second time here.
-			expect(countedCalls).toEqual(["createCheckpoint"]);
-		} finally {
-			await client.close();
-		}
+		const restored = await second("restoreCheckpoint", { projectId: "proj_closed", checkpointId });
+		expect(restored.isError).toBeFalsy();
+		expect((await appProjects.getProject("proj_closed")).timeline.trimRanges).toHaveLength(0);
+		expect(localCalls).toEqual([]);
+		// What `openscreen mcp` forwards was counted there, where its client made it: never
+		// a second time here.
+		expect(countedCalls).toEqual([]);
 	});
 });
 

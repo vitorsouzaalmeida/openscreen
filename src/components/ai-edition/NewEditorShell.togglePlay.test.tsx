@@ -80,7 +80,6 @@ vi.mock("./Preview", () => ({
 }));
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { EditorDialogsProvider } from "@/contexts/EditorDialogsContext";
 import type { AxcutAsset, AxcutClip, AxcutDocument } from "@/lib/ai-edition/schema";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -134,9 +133,7 @@ function makeCrossAssetDocument(): AxcutDocument {
 function renderShell() {
 	return render(
 		<TooltipProvider>
-			<EditorDialogsProvider>
-				<NewEditorShell />
-			</EditorDialogsProvider>
+			<NewEditorShell />
 		</TooltipProvider>,
 	);
 }
@@ -148,7 +145,6 @@ describe("NewEditorShell togglePlay cross-asset replay", () => {
 		mocks.previewPause.mockClear();
 		mocks.latestSeekTarget = null;
 		(window as unknown as { electronAPI?: unknown }).electronAPI = {
-			onAiEditionChatEvent: () => () => {},
 			setTitleBarOverlay: () => {},
 			setHasUnsavedChanges: () => {},
 			onRequestCloseConfirm: () => () => {},

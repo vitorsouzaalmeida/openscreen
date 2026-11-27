@@ -157,7 +157,7 @@
     "message": "不上传任何内容"
   },
   "home.features.local.body": {
-    "message": "录制、转录和渲染全部在你的电脑上完成，视频始终留在本机。只有在你主动使用时才会发送文字：聊天面板和字幕翻译，两者都使用你自己提供的密钥。转录功能会在首次运行时下载一次 264 MB 的 Whisper 模型。"
+    "message": "录制、转录和渲染全部在你的电脑上完成，视频始终留在本机。OpenScreen 不会向 AI 模型发送任何内容：你自己连接的 AI 代理会在你在该代理处的账号下读取项目。转录功能会在首次运行时下载一次 264 MB 的 Whisper 模型。"
   },
   "home.features.platforms.title": {
     "message": "Windows、macOS、Linux"
@@ -327,10 +327,10 @@
     "message": "描述你要的修改，代理来完成。"
   },
   "showcase.agent.body": {
-    "message": "本页上方的向导根据光标去过的位置放置缩放。AI 代理更进一步：它读取真实的转录文本和真实的时间轴，因此回答时会给出你可以去核对的时间码，说明要剪掉哪些片段、能省下多少时间。它做的每项编辑都是可撤销的普通编辑，并且需要你自己提供的提供方密钥。在你连接之前，什么都不会运行。"
+    "message": "本页上方的向导根据光标去过的位置放置缩放。你自己的 AI 代理更进一步：它读取真实的转录文本和真实的时间轴，因此回答时会给出你可以去核对的时间码，说明要剪掉哪些片段、能省下多少时间。它做的每项编辑都是可撤销的普通编辑。它可以是 Claude Code、Codex 或任何 MCP 客户端，用自己的账号登录：OpenScreen 没有需要向你索取的密钥。"
   },
   "showcase.agent.fact": {
-    "message": "自带密钥 · 默认关闭 · 每项编辑均可撤销"
+    "message": "你自己的 AI 代理 · 应用中没有密钥 · 每项编辑均可撤销"
   },
   "showcase.agent.link.docs": {
     "message": "AI 编辑文档"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "在编辑器聊天面板中输入的请求，以及代理所做的编辑出现在时间线上。",
+    "message": "向代理输入的请求，以及它所做的编辑出现在时间线上。",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "请编辑器的代理完成修改",
+    "message": "请代理完成修改",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

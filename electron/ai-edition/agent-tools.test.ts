@@ -188,8 +188,8 @@ describe("the mutating-tool table", () => {
 		// ponytail: this used to read the `name`/`mutating` pairs off
 		// AGENT_TOOL_SPECS, ~300 lines of JSON schema whose comment claimed it was
 		// "sent verbatim to the provider" and which had not reached a provider in a
-		// release. The names are now pinned where they are actually built — see
-		// deep-agent/service.test.ts, which ties TOOL_DESCRIPTIONS, buildTools and
+		// release. The names are now pinned where they are actually served — see
+		// document-tools.test.ts, which ties TOOL_DESCRIPTIONS, TOOL_ARG_SCHEMAS and
 		// this executor's switch to one another. What is left here is the one thing
 		// the specs carried that production still needs: which tools write.
 		expect([...MUTATING_TOOL_NAMES].sort()).toEqual(
@@ -1906,66 +1906,6 @@ describe("moveClip — the tool the prompt used to promise", () => {
 	});
 });
 
-// ── D-CONSENT ───────────────────────────────────────────────────────────────
-//
-// Settings offers "Agent edits — when off, the agent must ask before changing
-// the timeline". `chat-service.ts` computed `editsAllowed` and then did
-// `void editsAllowed;`. The flag reached nothing: not the tools, not the prompt.
-describe("allowAgentEdits=false refuses every write", () => {
-	it("refuses a write with a payload that tells the model what to do instead", () => {
-		const result = executeAgentTool(
-			fixtureDocument(),
-			"addTrim",
-			JSON.stringify({ startSec: 5, endSec: 8, reason: "silence" }),
-			{ editsAllowed: false },
-		);
-		expect(result.ok).toBe(false);
-		expect(result.document).toBeUndefined();
-		expect(result.summary).toBeUndefined();
-		const payload = JSON.parse(result.resultJson) as {
-			code: string;
-			tool: string;
-			requestedArgs: { startSec: number };
-			howToProceed: string;
-		};
-		expect(payload.code).toBe("consent_required");
-		expect(payload.tool).toBe("addTrim");
-		// The args come back so the model can quote the edit it is asking for.
-		expect(payload.requestedArgs.startSec).toBe(5);
-		// And it is told not to loop: there is no timeout on the product path.
-		expect(payload.howToProceed).toMatch(/do NOT retry/i);
-		expect(payload.howToProceed).toMatch(/ask the user/i);
-	});
-
-	it("refuses ALL of them — no write escapes by being added later", () => {
-		const document = fixtureDocument();
-		for (const name of MUTATING_TOOL_NAMES) {
-			const result = executeAgentTool(document, name, "{}", { editsAllowed: false });
-			expect(result.ok, `${name} was allowed through`).toBe(false);
-			expect(result.document, `${name} mutated`).toBeUndefined();
-			expect(JSON.parse(result.resultJson).code, `${name} failed for another reason`).toBe(
-				"consent_required",
-			);
-		}
-	});
-
-	it("leaves the read tools alone — the model must be able to describe the edit", () => {
-		for (const name of ["getCurrentDocument", "getTranscript"]) {
-			const result = executeAgentTool(fixtureDocument(), name, "{}", { editsAllowed: false });
-			expect(result.ok, name).toBe(true);
-		}
-	});
-
-	it("changes nothing when the flag is absent or true", () => {
-		const args = JSON.stringify({ startSec: 5, endSec: 8, reason: "silence" });
-		expect(executeAgentTool(fixtureDocument(), "addTrim", args).ok).toBe(true);
-		expect(executeAgentTool(fixtureDocument(), "addTrim", args, {}).ok).toBe(true);
-		expect(executeAgentTool(fixtureDocument(), "addTrim", args, { editsAllowed: true }).ok).toBe(
-			true,
-		);
-	});
-});
-
 // ─── D-TELEM: recorded cursor telemetry reaches the model ────────────────────
 //
 // The app records where the pointer went and the compositor loads the sidecar,
@@ -2134,12 +2074,8 @@ describe("getCursorTrack", () => {
 		expect(result.resultJson).toContain("Unknown asset");
 	});
 
-	it("is a read: it survives allowAgentEdits=false and mutates nothing", () => {
-		// Consent gates writes. A model that may not edit must still be able to
-		// describe the edit it is proposing, which means reading the telemetry it
-		// would base that proposal on.
+	it("is a read: it mutates nothing", () => {
 		const result = executeAgentTool(fixtureDocument(), "getCursorTrack", "{}", {
-			editsAllowed: false,
 			cursorTelemetry: {
 				load: { status: "ok", assetId: "asset_1", samples: samplesWithDwell(5, 1, 0.5, 0.5) },
 			},
@@ -2740,7 +2676,7 @@ function documentWithWords(): AxcutDocument {
 }
 
 function run(document: AxcutDocument, name: string, args: unknown) {
-	return executeAgentTool(document, name, JSON.stringify(args), { editsAllowed: true });
+	return executeAgentTool(document, name, JSON.stringify(args));
 }
 
 describe("getTranscriptWords", () => {
@@ -3008,17 +2944,6 @@ describe("removeWords", () => {
 		expect(result.document).toBeUndefined();
 		expect(result.resultJson).toContain("exactly one clip; found 2");
 	});
-
-	it("honours project edit consent", () => {
-		const result = executeAgentTool(
-			repeatedWordDocument(),
-			"removeWords",
-			JSON.stringify({ wordIds: ["filler"] }),
-			{ editsAllowed: false },
-		);
-		expect(result.document).toBeUndefined();
-		expect(JSON.parse(result.resultJson).code).toBe("consent_required");
-	});
 });
 
 describe("setWordText", () => {
@@ -3096,16 +3021,6 @@ describe("setWordText", () => {
 	it("refuses a write that would change nothing", () => {
 		const result = run(documentWithWords(), "setWordText", { wordId: "word_2", text: "use" });
 		expect(result.ok).toBe(false);
-		expect(result.document).toBeUndefined();
-	});
-
-	it("is a consented edit, not a read", () => {
-		const result = executeAgentTool(
-			documentWithWords(),
-			"setWordText",
-			JSON.stringify({ wordId: "word_3", text: "Kubernetes" }),
-			{ editsAllowed: false },
-		);
 		expect(result.document).toBeUndefined();
 	});
 });
@@ -3463,7 +3378,7 @@ describe("region tools reach the inspector's settings (#1180)", () => {
 	});
 
 	it("takes customScale alone wherever the arguments were parsed first", () => {
-		// The MCP server and the in-app agent hand the tool its arguments through the same schema,
+		// The MCP server hands the tool its arguments through the schema,
 		// and addZooms hands each region to addZoom parsed. A default depth filled in there read as
 		// "depth and customScale both passed", so a free level could never be set in one call.
 		const zoomOnly = { startSec: 2, endSec: 4, customScale: 1.6 };
@@ -4465,7 +4380,7 @@ describe("an effect's image", () => {
 				endSec: 3,
 				effect: { name: "Logo", description: "", ...effect },
 			}),
-			{ editsAllowed: true, ...options },
+			options,
 		);
 
 	it("is stored on the definition, checked as a module that has image(), and read back", () => {
@@ -4531,10 +4446,7 @@ describe("an effect's image", () => {
 		).document as AxcutDocument;
 		const effectId = base.shaderEffects?.[0].id as string;
 		const set = (args: Record<string, unknown>, options = {}) =>
-			executeAgentTool(base, "setEffectDefinition", JSON.stringify({ effectId, ...args }), {
-				editsAllowed: true,
-				...options,
-			});
+			executeAgentTool(base, "setEffectDefinition", JSON.stringify({ effectId, ...args }), options);
 
 		// Nothing said of the image: it stays, and nothing recompiles.
 		const renamed = set({ name: "Brand" });

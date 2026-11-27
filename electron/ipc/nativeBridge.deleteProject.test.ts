@@ -32,7 +32,6 @@ beforeEach(() => {
 	registerNativeBridgeHandlers({
 		getPlatform: () => "linux",
 		getAiEditionDocuments: () => ({}),
-		getAiEditionLlmConfig: () => ({}),
 	} as unknown as NativeBridgeContext);
 	const handler = electron.handle.mock.calls[0]?.[1] as (
 		event: unknown,

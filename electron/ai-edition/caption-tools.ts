@@ -4,8 +4,8 @@
 //
 // The writes are the Captions pane's own (`useCaptions`): `patchCaptionSettings` at the
 // document's output aspect, `putCaptionTranslation`, `removeCaptionTranslation`. The
-// caller translates by itself: an MCP client and the in-app agent are both language
-// models, so neither needs the app's own provider for it. The transcript is never touched.
+// caller translates by itself: an MCP client is a language model, and OpenScreen has
+// none of its own. The transcript is never touched.
 
 import { z } from "zod";
 import {

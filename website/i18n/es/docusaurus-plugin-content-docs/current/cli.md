@@ -167,14 +167,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` y `--max-words` definen las palabras por subtítulo. Cada uno admite de 1 a 12, el rango del editor. Valores predeterminados: 2 y 7.
-- Los subtítulos son la transcripción dibujada sobre el video, así que en el editor les cambias el estilo, los corriges y los traduces como cualquier otro. Volver a ejecutarlo conserva la transcripción y solo define las palabras por subtítulo.
+- Los subtítulos son la transcripción dibujada sobre el video, así que en el editor les cambias el estilo y los corriges como cualquier otro. Volver a ejecutarlo conserva la transcripción y solo define las palabras por subtítulo.
 - El proyecto se guarda en el formato propio del editor. Un script que edita el JSON del proyecto como se muestra [más abajo](#example-an-automated-product-demo) lo hace antes de `captions`, y `pack` todavía no lee ese formato.
 - El video de pantalla del proyecto debe tener una pista de audio, por ejemplo de `record --mic`.
 - Los subtítulos se incrustan en la exportación. No se genera ningún archivo de subtítulos. Consulta [Subtítulos](./captions.md).
 
 ### `openscreen mcp` {#openscreen-mcp}
 
-Expone las herramientas MCP de OpenScreen por stdin y stdout, para un agente de código que lo inicia: las herramientas de edición, además de la grabación, la exportación y los fotogramas fijos. No lo ejecutas tú; lo hace tu agente, una vez configurado como muestra [Dejar que un agente haga todo el video](./ai-editing.md#letting-an-agent-make-the-whole-video).
+Expone las herramientas MCP de OpenScreen por stdin y stdout, para un agente de código que lo inicia: las herramientas de edición, además de la grabación, la exportación y los fotogramas fijos. No lo ejecutas tú; lo hace tu agente, una vez configurado como muestra [Edición con IA](./ai-editing.md#setting-it-up).
 
 ### `openscreen pack` {#openscreen-pack}
 

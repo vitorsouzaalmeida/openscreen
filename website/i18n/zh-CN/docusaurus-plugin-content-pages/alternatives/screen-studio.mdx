@@ -51,7 +51,7 @@ OpenScreen 免费，支持 Windows、macOS 和 Linux。Screen Studio 4 仍然只
 | 录制内容 | 一个显示器或一个窗口，之后可在编辑器中裁剪 | 一个显示器、一个窗口，或选定区域 |
 | 自动缩放 | 是，在录制的点击处放置 | 是 |
 | 字幕 | 本机 Whisper，一个约 264 MB 的模型，仅下载一次，烧录进视频 | 本机 Whisper（Base、Small 或 Medium），或 macOS 26 及以上系统使用 Apple 语音识别。转录文本可导出为文件 |
-| 字幕翻译 | 15 种语言，通过你连接的 AI 提供方 | 其字幕指南中没有翻译步骤 |
+| 字幕翻译 | 由你自己的 AI 代理通过 OpenScreen 的 MCP 服务器完成 | 其字幕指南中没有翻译步骤 |
 | 多片段时间轴 | 是 | “多片段录制”列在其路线图中，属于计划功能 |
 | 文字、箭头和图片标注 | 是 | “标注”功能在其路线图中标记为暂停 |
 | 导出 | MP4（H.264）或 GIF，最高 60 fps，无水印 | MP4 或 GIF，可设置帧率、输出尺寸和画质 |
@@ -97,7 +97,7 @@ OpenScreen 免费，支持 Windows、macOS 和 Linux。Screen Studio 4 仍然只
 ### 导出与自动化 {#export-and-automation}
 
 - **命令行界面。** 脚本、CI 和编程代理都可以通过[命令行](/docs/cli/)驱动 OpenScreen。Screen Studio 的指南中没有命令行相关条目。
-- **可选的聊天式编辑，使用你自己的密钥。** 连接 Claude、OpenAI、Gemini、Mistral、OpenRouter、MiniMax 或任意 OpenAI 兼容端点，用日常语言描述剪切、缩放、变速或标注。每次修改都是一次可撤销的普通编辑。在你连接提供方之前，此功能处于关闭状态；同一个提供方也用于将字幕翻译成 15 种语言。参见 [AI 编辑](/docs/ai-editing/)。
+- **可选的编辑方式：使用你自己的 AI 代理。** Claude Code、Codex 或任何其他 MCP 客户端启动 OpenScreen 的 MCP 服务器，你用日常语言描述剪切、缩放、变速或标注。每次修改都是一次可撤销的普通编辑，并实时出现在打开的编辑器中。AI 代理用自己的账号登录，OpenScreen 永远看不到这个账号；它还可以翻译字幕。参见 [AI 编辑](/docs/ai-editing/)。
 
 ## 何时 Screen Studio 是更好的选择 {#when-screen-studio-is-the-better-choice}
 

@@ -1,6 +1,6 @@
 // Pure status logic for the transcription pipeline: what state one asset's
-// transcript is in, and whether a transcript-dependent action (Smart cuts,
-// captions…) may run right now.
+// transcript is in, and whether what depends on a transcript (the captions,
+// the transcript pane) may run right now.
 //
 // Kept free of React and of both stores so the rules can be unit-tested on
 // plain data — `store/transcriptionStore.ts` owns the queue and the side
@@ -289,8 +289,8 @@ export function transcriptHasSpeech(transcript: AxcutTranscript | null): boolean
  *   2. A stored transcript — it OUTRANKS a failed job on purpose. A regenerate
  *      that fails (whisper restart, decode hiccup) leaves the previous
  *      transcript untouched on the document, and it is still perfectly usable:
- *      the pane renders it, captions read it, the agent can cut on it. Reading
- *      that asset as "failed" would have disabled Smart cuts for the rest of the
+ *      the pane renders it, captions read it, an agent can cut on it. Reading
+ *      that asset as "failed" would have gated the captions for the rest of the
  *      session over a transcript that is right there. The failure still travels
  *      on the view (tooltips surface it), it just doesn't veto the content.
  *   3. Only then a failure — nothing was ever produced for this asset.

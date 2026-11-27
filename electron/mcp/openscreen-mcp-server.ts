@@ -1,16 +1,12 @@
-// The OpenScreen MCP server: the in-app agent's tools, offered to any MCP client
-// (Claude Code, Codex, Cursor…) that the user runs themselves, on any of the
-// user's projects — not only the one open in the editor.
+// The OpenScreen MCP server: the document tools, offered to the MCP client (Claude Code,
+// Codex, Cursor…) that the user runs themselves, on any of the user's projects, not only
+// the one open in the editor.
 //
-// Nothing here is a second implementation. The tool list, argument schemas,
-// descriptions and guidance are the in-app agent's own (`TOOL_ARG_SCHEMAS`,
-// `TOOL_DESCRIPTIONS`, `buildSystemPrompt`), and every call runs through
-// `runDocumentTool` — the same executor, consent gate and cursor read the
-// in-app agent uses. The one difference is where the document comes from: the
-// in-app agent is handed a snapshot per chat turn, while here each call reads
-// the live document from the editor window and writes the result back through
-// the same revision-guarded apply, so a user edit landing mid-call is never
-// overwritten and every edit is one undo step.
+// The tool list, argument schemas, descriptions and guidance live in
+// `ai-edition/document-tools.ts`, and every call runs through its `runDocumentTool`: the
+// shared executor and cursor read. Each call reads the live document from the editor
+// window and writes the result back through the same revision-guarded apply, so a user
+// edit landing mid-call is never overwritten and every edit is one undo step.
 //
 // A call can name another project with `projectId` (see `listProjects`). The
 // project open in the editor is still only ever edited through the editor; any
@@ -22,31 +18,20 @@
 // Two tools exist only here: `createCheckpoint` / `restoreCheckpoint`. A client
 // chains several edits per turn, and undo is per call, so they give it one step
 // back to where the turn started. For a project that is not open they are the
-// only way back, so an edit to one is refused until it has a checkpoint. The
-// in-app agent has no need for them: its whole turn is already a single apply.
-// Nor for the project's own edits (project-tools.ts: its name, its media), which
-// reach a file on disk the in-app agent has no way to name.
+// only way back, so an edit to one is refused until it has a checkpoint. So do the
+// project's own edits (project-tools.ts: its name, its media).
 //
-// Two transports serve these tools: the in-app server over HTTP (below) and
-// `openscreen mcp` over stdio (`stdio-server.ts`), both with the media tools around
-// them (media-tools.ts: record, export, look). The
-// runner and the tools are the same; the texts a client reads are composed per
-// transport (`mcpInstructions`, the `*_MESSAGES` tables), so each says what is true
-// on the server that serves it. While the app runs, `openscreen mcp` forwards its document
-// calls to it (`app-channel.ts`), so the app's one runner serves both. A media tool that edits a project
-// (setPointerTrack) hands its change to the runner too, so it meets the same
-// refusals and checkpoints, sidecar included.
-//
-// The HTTP layer is local-only: bound to 127.0.0.1, a bearer token on every
-// request, and a Host/Origin check so a web page cannot reach it by DNS
-// rebinding.
+// One transport serves a client: `openscreen mcp` over stdio (`stdio-server.ts`), with the
+// media tools around these (media-tools.ts: record, export, look). While the app runs,
+// `openscreen mcp` forwards its document calls to it (`app-channel.ts`), so the app's one
+// runner serves every session. The texts a client reads are composed per side
+// (`mcpInstructions`, the `*_MESSAGES` tables), so each says what is true where the call
+// ran. A media tool that edits a project (setPointerTrack) hands its change to the runner
+// too, so it meets the same refusals and checkpoints, sidecar included.
 
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import {
@@ -68,32 +53,27 @@ import {
 	withTranscriptionFailure,
 } from "../../src/lib/ai-edition/transcription/status";
 import type { AiEditionMcpTranscription, SegmentationSupport } from "../../src/native/contracts";
-import {
-	type AgentToolExecution,
-	consentRequired,
-	isMutatingTool,
-} from "../ai-edition/agent-tools";
-import {
-	buildSystemPrompt,
-	type CursorTelemetryReader,
-	probeCursorTelemetry,
-	runDocumentTool,
-	TOOL_ARG_SCHEMAS,
-	TOOL_DESCRIPTIONS,
-} from "../ai-edition/deep-agent/service";
+import { type AgentToolExecution, isMutatingTool } from "../ai-edition/agent-tools";
 import {
 	DocumentNotFoundError,
 	ProjectOpenInEditorError,
 	type ProjectSummary,
 	type ProjectVersion,
 } from "../ai-edition/document-service";
+import {
+	type CursorTelemetryReader,
+	editingGuidance,
+	probeCursorTelemetry,
+	runDocumentTool,
+	TOOL_ARG_SCHEMAS,
+	TOOL_DESCRIPTIONS,
+} from "../ai-edition/document-tools";
 import type { SttTranscribeRequest, SttTranscribeResponse } from "../stt/transcriptionContract";
 import { EFFECTS_CONTRACT, EFFECTS_CONTRACT_URI, EFFECTS_NOTE } from "./effects-contract";
 import type { MediaTools } from "./media-tools";
 import {
 	IMPORT_MEDIA_TOOL,
 	type ImportMediaDeps,
-	PROJECT_EDIT_TOOLS,
 	PROJECT_TOOLS,
 	prepareImportMedia,
 	REMOVE_MEDIA_TOOL,
@@ -103,7 +83,6 @@ import {
 } from "./project-tools";
 
 export const MCP_SERVER_NAME = "openscreen";
-export const MCP_ENDPOINT_PATH = "/mcp";
 
 export interface McpDocumentSnapshot {
 	document: unknown;
@@ -159,20 +138,17 @@ export interface McpProjectStore {
 type ProjectRead = Awaited<ReturnType<McpProjectStore["getProjectForUpdate"]>>;
 
 /**
- * Which server this is. The tools are the same; what differs is what a call can reach:
- * the in-app server (`http`) has the editor, its undo stack, the app's recording bar and
- * a switch for edits; `openscreen mcp` (`stdio`) is a process of its own, with no editor
- * and no switch, recording in a hidden runner.
- * Every text the client reads says what is true on the one it is connected to.
+ * Where a call runs. The tools are the same; what differs is what a call can reach: the
+ * app (`app`), answering `openscreen mcp` on its channel, has the editor and its undo
+ * stack; `openscreen mcp` on its own (`stdio`), with no app to forward to, has only the
+ * project files. Every result text says what is true where the call ran.
  */
-export type McpTransport = "http" | "stdio";
+export type McpTransport = "app" | "stdio";
 
 export interface McpToolDeps extends ImportMediaDeps {
 	transport: McpTransport;
 	host: McpDocumentHost;
 	projects: McpProjectStore;
-	/** The MCP server's own edit switch ("MCP edits"), separate from the in-app agent's. */
-	editsAllowed(): boolean;
 	cursor?: CursorTelemetryReader;
 	/** Whether this machine can cut out the camera background; absent where nothing can ask. */
 	cameraSegmentation?: () => SegmentationSupport;
@@ -221,21 +197,15 @@ const TRANSCRIBE_DESCRIPTION =
 const TRANSCRIBE_NOTE =
 	"Speech: transcribe makes an asset's transcript with OpenScreen's on-device Whisper. Everything that reads speech needs it (getTranscript, getTranscriptWords, removeWords, the captions); a fresh take has none until you call it.";
 
-/** The in-app server's edit switch, as AI settings label it (`mcpServer.editsLabel`). */
-export const MCP_EDITS_SETTING = "'MCP edits' under MCP server in AI settings";
-
 const LIST_PROJECTS_DESCRIPTION =
 	"List every OpenScreen project: id, title, last update, asset count, and `open`: whether the OpenScreen editor has it open, in which case an edit to it goes through the editor, shows there live and the user can undo it with Ctrl/Cmd+Z. Pass a project's id as `projectId` to any other tool to read or edit that project.";
 
-const PROJECT_ID_DESCRIPTIONS: Record<McpTransport, string> = {
-	http: "The project to act on, from listProjects. Omit it for the project open in the editor.",
-	stdio:
-		"The project to act on, from listProjects. Omit it only for the project open in the OpenScreen editor, which works only while the app runs.",
-};
+const PROJECT_ID_DESCRIPTION =
+	"The project to act on, from listProjects. Omit it only for the project open in the OpenScreen editor, which works only while the app runs.";
 
 // stdio's are only met on its own, with no app to forward to (app-channel.ts).
 const NO_PROJECT_MESSAGES: Record<McpTransport, string> = {
-	http: "No project is open in the OpenScreen editor. Call listProjects and pass a projectId, or ask the user to open one in OpenScreen.",
+	app: "No project is open in the OpenScreen editor. Call listProjects and pass a projectId, or ask the user to open one in OpenScreen.",
 	stdio:
 		"Pass a projectId: OpenScreen is not running (or not answering), so there is no project open in its editor to act on. Call listProjects for the ids.",
 };
@@ -246,18 +216,18 @@ const PROJECT_CHANGED_MESSAGE =
 	"The edit was NOT applied: the project was opened in the editor or saved elsewhere while this call ran. Call getCurrentDocument with the same projectId to re-read it, then retry.";
 
 const CHECKPOINT_REQUIRED_MESSAGES: Record<McpTransport, string> = {
-	http: "The edit was NOT applied: this project is not open in the editor, so the user cannot undo an edit to it with Ctrl/Cmd+Z. Call createCheckpoint with this projectId first, so restoreCheckpoint can take your edits back in one step, then retry.",
+	app: "The edit was NOT applied: this project is not open in the editor, so the user cannot undo an edit to it with Ctrl/Cmd+Z. Call createCheckpoint with this projectId first, so restoreCheckpoint can take your edits back in one step, then retry.",
 	stdio:
 		"The edit was NOT applied: OpenScreen is not running (or not answering), so this server saves each edit straight to the project's file, where Ctrl/Cmd+Z cannot reach it. Call createCheckpoint with this projectId first, so restoreCheckpoint can take your edits back in one step, then retry.",
 };
 
-// ponytail: kept in memory, last 20 only. In the app one store serves the in-app server
-// and every `openscreen mcp` session it answers; persist them per project if agents need
-// them across sessions.
+// ponytail: kept in memory, last 20 only. In the app one store serves every
+// `openscreen mcp` session it answers; persist them per project if agents need them
+// across sessions.
 const MAX_CHECKPOINTS = 20;
 
 const CHECKPOINT_LIFETIMES: Record<McpTransport, string> = {
-	http: `Checkpoints live in OpenScreen's memory: only the ${MAX_CHECKPOINTS} most recent are kept, and all of them are lost when OpenScreen quits.`,
+	app: `Checkpoints live in OpenScreen's memory: only the ${MAX_CHECKPOINTS} most recent are kept, and all of them are lost when OpenScreen quits.`,
 	stdio: `Checkpoints live in OpenScreen's memory while the app runs, and in this server's when it does not: only the ${MAX_CHECKPOINTS} most recent are kept, they are lost when the one holding them exits (OpenScreen quitting, or this server when the client disconnects), and neither knows the other's.`,
 };
 
@@ -265,9 +235,9 @@ const APPLY_FAILURE_MESSAGES: Record<Exclude<McpApplyResult, "applied">, string>
 	conflict:
 		"The edit was NOT applied: the project changed in the editor while this call ran. Call getCurrentDocument to re-read it, then retry.",
 	"save-failed": "The edit was NOT applied: OpenScreen could not save the project.",
-	// Only the in-app server has an editor to apply through.
-	"no-live-document": NO_PROJECT_MESSAGES.http,
-	"no-editor": NO_PROJECT_MESSAGES.http,
+	// Only the app has an editor to apply through.
+	"no-live-document": NO_PROJECT_MESSAGES.app,
+	"no-editor": NO_PROJECT_MESSAGES.app,
 	// Not "NOT applied": the editor may have saved it and only the answer was lost.
 	timeout:
 		"OpenScreen did not confirm this edit in time. Call getCurrentDocument to see whether it landed before retrying.",
@@ -280,28 +250,19 @@ const DESTRUCTIVE_TOOLS: ReadonlySet<string> = new Set([
 	"removeClip",
 ]);
 
-/** What both servers say about projects and checkpoints, each in its own terms. */
-const CORE_PREAMBLES: Record<McpTransport, readonly string[]> = {
-	http: [
-		"These tools act on the user's OpenScreen projects. Without a projectId they act on the project open in the editor; call listProjects to find any other project and pass its id as projectId. Every edit is saved straight away. An edit to the open project appears in the editor, where the user can undo it with Ctrl/Cmd+Z; an edit to any other project is saved to its file and is not on the editor's undo stack.",
-		"Before a series of edits, call createCheckpoint with the same projectId. Undo is one step per call, so if the result is not what the user wanted, restoreCheckpoint takes the project back in one step instead of many. A project that is not open in the editor cannot be edited until it has a checkpoint, since restoreCheckpoint is its only undo.",
-	],
-	stdio: [
-		"These tools act on the user's OpenScreen projects: call listProjects for their ids, and pass one as projectId. Every edit is saved straight away. While the OpenScreen app runs, this server hands each call to it: an edit to the project open in its editor appears there, where the user can undo it with Ctrl/Cmd+Z, and any other project is saved to its file. When the app is not running, every project is read from and saved to its file, and Ctrl/Cmd+Z cannot reach the edit.",
-		"Before a series of edits, call createCheckpoint with the same projectId. Undo is one step per call, so if the result is not what the user wanted, restoreCheckpoint takes the project back in one step instead of many. A project that is not open in the editor cannot be edited until it has a checkpoint, since restoreCheckpoint is its only undo.",
-	],
-};
+/** What a client is told about projects and checkpoints. */
+const CORE_PREAMBLE: readonly string[] = [
+	"These tools act on the user's OpenScreen projects: call listProjects for their ids, and pass one as projectId. Every edit is saved straight away. While the OpenScreen app runs, this server hands each call to it: an edit to the project open in its editor appears there, where the user can undo it with Ctrl/Cmd+Z, and any other project is saved to its file. When the app is not running, every project is read from and saved to its file, and Ctrl/Cmd+Z cannot reach the edit.",
+	"Before a series of edits, call createCheckpoint with the same projectId. Undo is one step per call, so if the result is not what the user wanted, restoreCheckpoint takes the project back in one step instead of many. A project that is not open in the editor cannot be edited until it has a checkpoint, since restoreCheckpoint is its only undo.",
+];
 
 /**
- * The server's instructions: the capability block of the media tools, the
- * projects-and-checkpoints rules of this transport, then the in-app agent's editing
- * guidance, naming this server's edit switch, which holds back recording and export too.
+ * The server's instructions, as the client of `openscreen mcp` reads them: the capability
+ * block of the media tools, the projects-and-checkpoints rules, then the editing guidance.
  */
 export function mcpInstructions(options: {
-	transport: McpTransport;
-	editsAllowed: boolean;
-	/** The media tools' preamble. Both servers register them; only the app's channel for
-	 *  `openscreen mcp` (app-channel.ts), which no agent reads, goes without. */
+	/** The media tools' preamble. `openscreen mcp` registers them; the app's channel
+	 *  (app-channel.ts), whose instructions no agent reads, goes without. */
 	media?: string;
 	/** The transcribe tool is served. */
 	transcribe?: boolean;
@@ -309,25 +270,17 @@ export function mcpInstructions(options: {
 	 *  under the editing guidance. */
 	updateNotice?: string;
 }): string {
-	const { transport, editsAllowed, media } = options;
+	const { media } = options;
 	const preamble = [
 		...(options.updateNotice ? [options.updateNotice] : []),
 		...(media ? [media] : []),
-		...CORE_PREAMBLES[transport],
-		CHECKPOINT_LIFETIMES[transport],
-		...(media && !editsAllowed
-			? [
-					`startRecording, exportVideo, exportAudio, exportCaptions and createProject are refused too while ${MCP_EDITS_SETTING} is off.`,
-				]
-			: []),
+		...CORE_PREAMBLE,
+		CHECKPOINT_LIFETIMES.stdio,
 		...(options.transcribe ? [TRANSCRIBE_NOTE] : []),
 		EFFECTS_NOTE,
 		"",
 	].join("\n");
-	return (
-		preamble +
-		buildSystemPrompt({ editsAllowed, editsSetting: MCP_EDITS_SETTING, canExport: !!media })
-	);
+	return preamble + editingGuidance({ canExport: !!media });
 }
 
 function checkpointTools(media: boolean) {
@@ -377,17 +330,13 @@ export type RunnerEdit = (
 export interface CallOptions {
 	/** Computes the call's change in place of the executor. */
 	edit?: RunnerEdit;
-	editsAllowed: boolean;
 }
 
-/**
- * Runs one tool call. `editsAllowed` overrides `deps.editsAllowed()` for this call: the
- * app's channel for `openscreen mcp` edits whatever the in-app server's switch says.
- */
+/** Runs one tool call. */
 export type McpToolRunner = (
 	name: string,
 	args: unknown,
-	options?: Partial<CallOptions>,
+	options?: CallOptions,
 ) => Promise<CallToolResult>;
 
 async function readSidecar(file: string): Promise<string | null> {
@@ -419,7 +368,7 @@ function splitProjectId(rawArgs: unknown): { projectId: string | undefined; args
  * Runs tool calls one at a time. Each call is snapshot → execute → apply, and
  * two of those interleaving would make the second apply against a revision the
  * first just moved — a spurious conflict at best. The app builds one and shares
- * it, queue and checkpoints, between the in-app server and `openscreen mcp`.
+ * it, queue and checkpoints, between every `openscreen mcp` it answers.
  */
 export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 	let queue: Promise<unknown> = Promise.resolve();
@@ -448,14 +397,7 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 	function restoreCheckpoint(
 		document: AxcutDocument,
 		args: unknown,
-		editsAllowed: boolean,
 	): AgentToolExecution & { sidecars?: SidecarWrite[] } {
-		if (!editsAllowed) {
-			return {
-				ok: false,
-				resultJson: `Edits by MCP clients are turned off in OpenScreen, so the checkpoint was NOT restored. Ask the user to turn on ${MCP_EDITS_SETTING}, or to undo the edits themselves.`,
-			};
-		}
 		const id = (args as { checkpointId?: unknown } | null)?.checkpointId;
 		const checkpoint = typeof id === "string" ? checkpoints.get(id) : undefined;
 		if (!checkpoint) {
@@ -604,20 +546,16 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 		document: AxcutDocument,
 		name: string,
 		args: unknown,
-		{ edit, editsAllowed }: CallOptions,
+		{ edit }: CallOptions,
 	): Promise<AgentToolExecution & { sidecars?: SidecarWrite[] }> {
 		if (name === "createCheckpoint") return createCheckpoint(document);
-		if (name === "restoreCheckpoint") return restoreCheckpoint(document, args, editsAllowed);
+		if (name === "restoreCheckpoint") return restoreCheckpoint(document, args);
 		if (name === READ_CHECKPOINT_TOOL) return readCheckpoint(document, args);
-		// This server's own switch, so the refusal names it rather than the in-app agent's.
-		if ((edit || isMutatingTool(name) || PROJECT_EDIT_TOOLS.has(name)) && !editsAllowed) {
-			return consentRequired(name, args, MCP_EDITS_SETTING);
-		}
 		if (edit) return edit(document);
 		if (name === SET_PROJECT_INFO_TOOL) return setProjectInfo(document, args);
 		if (name === REMOVE_MEDIA_TOOL) return removeMedia(document, args);
 		const availableByAssetId = await probeCursorTelemetry(document, deps.cursor);
-		return runDocumentTool(document, name, args, editsAllowed, {
+		return runDocumentTool(document, name, args, {
 			cursor: deps.cursor,
 			availableByAssetId,
 			cameraSegmentation: deps.cameraSegmentation,
@@ -661,8 +599,8 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 	let whisperQueue: Promise<unknown> = Promise.resolve();
 
 	/** Lands a change computed outside the queue, as an edit of the project as it is by then. */
-	function landEdit(projectId: string, editsAllowed: boolean, edit: RunnerEdit) {
-		return runner(TRANSCRIBE_TOOL, { projectId }, { editsAllowed, edit });
+	function landEdit(projectId: string, edit: RunnerEdit) {
+		return runner(TRANSCRIBE_TOOL, { projectId }, { edit });
 	}
 
 	/**
@@ -671,13 +609,10 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 	 * project as it is by then. The project open in the editor is transcribed by the editor's
 	 * own job instead, so the two never run the same transcription side by side.
 	 */
-	async function transcribe(rawArgs: unknown, editsAllowed: boolean): Promise<CallToolResult> {
+	async function transcribe(rawArgs: unknown): Promise<CallToolResult> {
 		const { projectId, args } = splitProjectId(rawArgs);
 		const parsed = transcribeArgs.safeParse(args ?? {});
 		if (!parsed.success) return textResult(JSON.stringify({ error: parsed.error.message }), true);
-		if (!editsAllowed) {
-			return textResult(consentRequired(TRANSCRIBE_TOOL, args, MCP_EDITS_SETTING).resultJson, true);
-		}
 		const { language } = parsed.data;
 		const snapshot = await deps.host.snapshot();
 		const openId = openProjectId(snapshot);
@@ -763,7 +698,7 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 			}
 			const failure = classifyTranscriptionError(error);
 			// Remembered on the asset as the editor remembers it: best effort, the answer stands.
-			await landEdit(targetId, editsAllowed, async (current) => {
+			await landEdit(targetId, async (current) => {
 				const next = withTranscriptionFailure(current, asset.id, failure);
 				return { ok: true, resultJson: "", ...(next === current ? {} : { document: next }) };
 			});
@@ -780,7 +715,7 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 			segmentsFromStt(response).segments,
 			response.detectedLanguage ?? language,
 		);
-		return landEdit(targetId, editsAllowed, async (current) => {
+		return landEdit(targetId, async (current) => {
 			if (!current.assets.some((a) => a.id === asset.id)) {
 				return {
 					ok: false,
@@ -803,21 +738,19 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 
 	const runner: McpToolRunner = (name, args, options = {}) => {
 		if (name === TRANSCRIBE_TOOL && !options.edit) {
-			return transcribe(args, options.editsAllowed ?? deps.editsAllowed()).catch((error) =>
+			return transcribe(args).catch((error) =>
 				textResult(`Tool failed: ${errorMessage(error)}`, true),
 			);
 		}
-		// The setting is read when the call's turn comes: it may change while it waits.
 		const runNow = async () => {
-			const editsAllowed = options.editsAllowed ?? deps.editsAllowed();
 			let edit = options.edit;
 			// The file is checked and probed before the project is read: see prepareImportMedia.
-			if (name === IMPORT_MEDIA_TOOL && !edit && editsAllowed) {
+			if (name === IMPORT_MEDIA_TOOL && !edit) {
 				const prepared = await prepareImportMedia(splitProjectId(args).args, deps);
 				if (typeof prepared === "string") return textResult(prepared, true);
 				edit = prepared;
 			}
-			return run(name, args, { edit, editsAllowed });
+			return run(name, args, { edit });
 		};
 		const next = queue.then(runNow, runNow);
 		queue = next.catch(() => undefined);
@@ -917,15 +850,13 @@ function countingToolCalls(server: McpServer, onToolCall: (name: string) => void
 export function createOpenScreenMcpServer(
 	deps: McpToolDeps,
 	runTool: McpToolRunner,
-	/** The media tools (media-tools.ts), served by both servers but not the app's channel. */
+	/** The media tools (media-tools.ts), served by `openscreen mcp` but not the app's channel. */
 	media?: MediaTools,
 ): McpServer {
 	const mcpServer = new McpServer(
 		{ name: MCP_SERVER_NAME, version: deps.version },
 		{
 			instructions: mcpInstructions({
-				transport: deps.transport,
-				editsAllowed: deps.editsAllowed(),
 				media: media?.preamble,
 				transcribe: deps.transcribe !== undefined,
 				updateNotice: deps.updateNotice,
@@ -933,7 +864,7 @@ export function createOpenScreenMcpServer(
 		},
 	);
 	const server = deps.onToolCall ? countingToolCalls(mcpServer, deps.onToolCall) : mcpServer;
-	const projectIdArg = z.string().optional().describe(PROJECT_ID_DESCRIPTIONS[deps.transport]);
+	const projectIdArg = z.string().optional().describe(PROJECT_ID_DESCRIPTION);
 	server.registerTool(
 		LIST_PROJECTS_TOOL,
 		{
@@ -1016,100 +947,4 @@ export function createOpenScreenMcpServer(
 		}),
 	);
 	return mcpServer;
-}
-
-function isAllowedHost(hostHeader: string | undefined, port: number): boolean {
-	return hostHeader === `127.0.0.1:${port}` || hostHeader === `localhost:${port}`;
-}
-
-function isAllowedOrigin(origin: string | undefined, port: number): boolean {
-	// MCP clients are not browsers and send no Origin; a browser always does.
-	if (origin === undefined) return true;
-	return origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
-}
-
-function hasValidToken(authorization: string | undefined, token: string): boolean {
-	const presented = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
-	const a = Buffer.from(presented);
-	const b = Buffer.from(token);
-	return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function reject(res: ServerResponse, status: number, message: string, headers = {}): void {
-	res.writeHead(status, { "Content-Type": "application/json", ...headers });
-	res.end(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message }, id: null }));
-}
-
-export interface RunningMcpServer {
-	port: number;
-	close(): Promise<void>;
-}
-
-export async function startMcpHttpServer(options: {
-	port: number;
-	token: string;
-	deps: McpToolDeps;
-	/** The app's shared runner (see createToolRunner); a fresh one when omitted. */
-	runTool?: McpToolRunner;
-	/** The media tools, built once: the take and the exports outlive each request. */
-	media?: MediaTools;
-}): Promise<RunningMcpServer> {
-	const { token, deps } = options;
-	const shared = options.runTool ?? createToolRunner(deps);
-	// This server obeys its own switch: never pass an override through.
-	const runTool = (name: string, args: unknown) => shared(name, args);
-	let boundPort = options.port;
-
-	const handle = async (req: IncomingMessage, res: ServerResponse) => {
-		const pathname = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
-		if (pathname !== MCP_ENDPOINT_PATH) return reject(res, 404, "Not found");
-		if (!isAllowedHost(req.headers.host, boundPort)) return reject(res, 403, "Forbidden host");
-		if (!isAllowedOrigin(req.headers.origin, boundPort)) {
-			return reject(res, 403, "Forbidden origin");
-		}
-		if (!hasValidToken(req.headers.authorization, token)) {
-			return reject(res, 401, "Unauthorized", { "WWW-Authenticate": "Bearer" });
-		}
-
-		// Stateless: one server + transport per request, the SDK's documented shape
-		// for a server that keeps no per-session state. Tools read the live editor
-		// on every call, and what the media tools hold (the take, the exports) lives in
-		// `media`, built once, so there is nothing a session would need to remember.
-		const server = createOpenScreenMcpServer(deps, runTool, options.media);
-		const transport = new StreamableHTTPServerTransport({
-			sessionIdGenerator: undefined,
-			enableJsonResponse: true,
-		});
-		res.on("close", () => {
-			void transport.close();
-			void server.close();
-		});
-		try {
-			await server.connect(transport);
-			await transport.handleRequest(req, res);
-		} catch (error) {
-			if (!res.headersSent) reject(res, 500, errorMessage(error));
-		}
-	};
-
-	const httpServer: Server = createServer((req, res) => {
-		void handle(req, res);
-	});
-	await new Promise<void>((resolve, reject) => {
-		httpServer.once("error", reject);
-		httpServer.listen(options.port, "127.0.0.1", () => {
-			httpServer.off("error", reject);
-			resolve();
-		});
-	});
-	boundPort = (httpServer.address() as AddressInfo).port;
-
-	return {
-		port: boundPort,
-		close: () =>
-			new Promise<void>((resolve) => {
-				httpServer.closeAllConnections();
-				httpServer.close(() => resolve());
-			}),
-	};
 }

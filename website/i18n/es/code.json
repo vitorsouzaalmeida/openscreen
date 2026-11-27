@@ -144,7 +144,7 @@
     "message": "No se sube nada"
   },
   "home.features.local.body": {
-    "message": "La grabación, la transcripción y el renderizado ocurren en tu equipo, y tu video nunca sale de él. El texto solo sale cuando tú lo pides: el panel de chat y la traducción de subtítulos, cada uno con una clave que tú proporcionas. La transcripción descarga su modelo Whisper de 264 MB una sola vez, en el primer uso."
+    "message": "La grabación, la transcripción y el renderizado ocurren en tu equipo, y tu video nunca sale de él. OpenScreen no envía nada a ningún modelo de IA: un agente que conectes tú mismo lee el proyecto con tu propia cuenta en él. La transcripción descarga su modelo Whisper de 264 MB una sola vez, en el primer uso."
   },
   "home.features.platforms.title": {
     "message": "Windows, macOS, Linux"
@@ -314,10 +314,10 @@
     "message": "Describe la edición. El agente la hace."
   },
   "showcase.agent.body": {
-    "message": "El asistente de más arriba en esta página coloca zooms observando por dónde pasó tu cursor. El agente va más allá: lee la transcripción real y la línea de tiempo real, así que responde con códigos de tiempo que puedes ir a comprobar (qué tramos va a cortar y cuánto tiempo ahorra eso). Cada edición que hace es una edición normal que se puede deshacer, y necesita una clave de proveedor que tú proporcionas. No se ejecuta nada hasta que conectes una."
+    "message": "El asistente de más arriba en esta página coloca zooms observando por dónde pasó tu cursor. Tu propio agente va más allá: lee la transcripción real y la línea de tiempo real, así que responde con códigos de tiempo que puedes ir a comprobar (qué tramos va a cortar y cuánto tiempo ahorra eso). Cada edición que hace es una edición normal que se puede deshacer. Es Claude Code, Codex o cualquier cliente MCP, con la sesión iniciada en su propia cuenta: OpenScreen no tiene ninguna clave que pedirte."
   },
   "showcase.agent.fact": {
-    "message": "usa tu propia clave · desactivado por defecto · todas las ediciones se pueden deshacer"
+    "message": "tu propio agente · sin clave en la app · todas las ediciones se pueden deshacer"
   },
   "showcase.agent.link.docs": {
     "message": "Documentación de edición con IA"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "Una petición escrita en el panel de chat del editor, y los cambios del agente apareciendo en la línea de tiempo.",
+    "message": "Una petición escrita a un agente, y los cambios que hace apareciendo en la línea de tiempo.",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "Pedir una edición al agente del editor",
+    "message": "Pedir una edición a un agente",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

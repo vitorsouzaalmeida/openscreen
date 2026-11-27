@@ -2,7 +2,7 @@
 // `isModalOpen` is only as good as the attribute it looks for, and that attribute lives in two
 // components rather than in this module. So the contract is asserted against the real ones:
 // `ModalShell` (every modal in the ai-edition tree — Export, Open project, New project, Edit
-// clip, the unsaved-changes prompt, the AI providers dialog) and `ui/dialog`'s Radix content
+// clip, the unsaved-changes prompt) and `ui/dialog`'s Radix content
 // (the shortcuts dialog and the drop-error dialog). Radix 1.1.15 emits `role="dialog"` and no
 // `aria-modal` of its own, which is why `dialog.tsx` states it.
 

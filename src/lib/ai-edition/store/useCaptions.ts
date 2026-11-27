@@ -14,7 +14,6 @@ import {
 	getCaptionSettings,
 	getCaptionTranslations,
 	patchCaptionSettings,
-	putCaptionTranslation,
 	removeCaptionTranslation,
 } from "../captions";
 import { resolveCaptionLane } from "../captions/settings";
@@ -36,13 +35,6 @@ export interface UseCaptionsResult {
 	set: (patch: CaptionSettingsPatch) => Promise<void>;
 	setLive: (patch: CaptionSettingsPatch) => void;
 	commit: () => Promise<void>;
-	saveTranslation: (input: {
-		language: string;
-		label: string;
-		assetId: string;
-		segments: Record<string, string>;
-		model?: string;
-	}) => Promise<void>;
 	deleteTranslation: (language: string) => Promise<void>;
 }
 
@@ -141,17 +133,6 @@ export function useCaptions(): UseCaptionsResult {
 		await saveDocument(doc, { history: true, historyBase: base });
 	}, [saveDocument]);
 
-	const saveTranslation = useCallback<UseCaptionsResult["saveTranslation"]>(
-		async (input) => {
-			const doc = useProjectStore.getState().document;
-			if (!doc) return;
-			const next = putCaptionTranslation(doc, input);
-			setDocument(next, { history: false });
-			await saveDocument(next, { history: true, historyBase: doc });
-		},
-		[setDocument, saveDocument],
-	);
-
 	const deleteTranslation = useCallback(
 		async (language: string) => {
 			const doc = useProjectStore.getState().document;
@@ -178,7 +159,6 @@ export function useCaptions(): UseCaptionsResult {
 		set,
 		setLive,
 		commit,
-		saveTranslation,
 		deleteTranslation,
 	};
 }

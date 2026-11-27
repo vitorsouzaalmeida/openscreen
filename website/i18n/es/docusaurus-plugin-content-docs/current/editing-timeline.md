@@ -34,7 +34,7 @@ Sobre la vista previa hay una barra flotante de íconos con cinco paneles:
 | **Disposición de cámara** | Composición de la cámara web: imagen en imagen, apilado vertical, marco dual o sin cámara. Reflejo y "reducir al ampliar". En imagen en imagen: forma de la cámara (cuadrada, u original: las proporciones propias de la cámara, así que una cámara vertical sigue vertical), redondez (del todo redonda, una cámara cuadrada es un círculo), tamaño y posición: uno de ocho puntos junto al borde, siempre a la misma distancia de él. Arrastra la cámara web sobre el lienzo y se ajusta al punto más cercano. |
 | **Audio** | El nivel de salida, que se aplica igual en la vista previa y en la exportación. |
 | **Cursor** | Solo tiene sentido en grabaciones hechas en el modo de cursor editable, en Windows, macOS o Linux. Mostrar/ocultar y ocultar automáticamente, el estilo del cursor con su interruptor **Cursor 3D**, los tipos de cursor (cada tipo que muestra el video, dibujado tal como se grabó o como la flecha), controles deslizantes de tamaño (hasta ocho veces el cursor del sistema), suavizado y desenfoque de movimiento, el rebote al clic (Ninguno, Suave, Marcado) e **Impacto del clic**, que empuja la pantalla hacia atrás en cada clic con cualquier cámara. |
-| **Transcripción** | La transcripción conjunta de todos los clips, editable: consulta [Edición de la transcripción](./captions.md#transcript-editing). Su botón **Subtítulos** activa los subtítulos, les da estilo y los traduce: consulta [Subtítulos y transcripción](./captions.md#captions). |
+| **Transcripción** | La transcripción conjunta de todos los clips, editable: consulta [Edición de la transcripción](./captions.md#transcript-editing). Su botón **Subtítulos** activa los subtítulos, les da estilo y elige el idioma en que se muestran: consulta [Subtítulos y transcripción](./captions.md#captions). |
 
 El botón del **lápiz** de la misma barra abre la ventana **Editar clip** del clip seleccionado: un rectángulo de recorte arrastrable con campos numéricos X/Y/A/Al y proporciones predefinidas, más los puntos de entrada y salida del clip. El recorte de imagen es por clip, no por proyecto.
 
@@ -42,9 +42,7 @@ Al seleccionar una región en la línea de tiempo (un bloque de zoom, recorte, a
 
 ## Barra de herramientas de la línea de tiempo {#timeline-toolbar}
 
-- **Mejora automática** (ícono de varita): un menú con dos pasadas que se ejecutan una sola vez:
-  - **Zooms automáticos**: lee los clics grabados y hace zoom en ellos. Sin red ni modelo. [Zoom automático](/features/auto-zoom/) explica cómo se colocan los zooms.
-  - **Cortes inteligentes** (marcado *Con IA*): en su lugar, le encarga el trabajo al agente de IA, que necesita un [proveedor conectado](./ai-editing.md).
+- **Mejora automática** (ícono de varita): un menú con una pasada que se ejecuta una sola vez, **Zooms automáticos**: lee los clics grabados y hace zoom en ellos. Sin red ni modelo. [Zoom automático](/features/auto-zoom/) explica cómo se colocan los zooms.
 - **Velocidad** (`S`): agrega una región de cambio de velocidad en el cabezal de reproducción.
 - **Comentario** (`A`): agrega una anotación en el cabezal de reproducción.
 - **Recortar** (`T`): coloca un corte de dos segundos ("región de recorte") en el cabezal de reproducción. Arrastra sus bordes para cambiar su tamaño, como con cualquier otra región.

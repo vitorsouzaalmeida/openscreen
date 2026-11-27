@@ -65,7 +65,6 @@ describe("updateNotice", () => {
 		// Only what building the server reads; no tool is called.
 		const deps = {
 			transport: "stdio",
-			editsAllowed: () => true,
 			version: "2.1.2",
 			updateNotice: "OpenScreen 2.2.0 is available.",
 		} as McpToolDeps;
@@ -81,16 +80,10 @@ describe("updateNotice", () => {
 		}
 	});
 
-	it("opens the stdio instructions, ahead of the editing guidance", () => {
-		const instructions = mcpInstructions({
-			transport: "stdio",
-			editsAllowed: true,
-			updateNotice: "OpenScreen 2.2.0 is available.",
-		});
+	it("opens the instructions, ahead of the editing guidance", () => {
+		const instructions = mcpInstructions({ updateNotice: "OpenScreen 2.2.0 is available." });
 		expect(instructions.startsWith("OpenScreen 2.2.0 is available.\n")).toBe(true);
-		expect(mcpInstructions({ transport: "stdio", editsAllowed: true })).not.toContain(
-			"is available",
-		);
+		expect(mcpInstructions({})).not.toContain("is available");
 	});
 });
 

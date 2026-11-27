@@ -144,7 +144,7 @@
     "message": "何もアップロードされません"
   },
   "home.features.local.body": {
-    "message": "録画、文字起こし、レンダリングはすべてお使いのパソコン上で行われ、動画が外に出ることはありません。テキストが送信されるのは、あなたが求めたときだけです。対象はチャットパネルと字幕の翻訳で、どちらもあなたが用意したキーを使います。文字起こしは初回実行時に、264 MB の Whisper モデルを一度だけダウンロードします。"
+    "message": "録画、文字起こし、レンダリングはすべてお使いのパソコン上で行われ、動画が外に出ることはありません。OpenScreen は AI モデルに何も送信しません。あなたが自分で接続したエージェントは、あなたがそこで持つアカウントのもとでプロジェクトを読み取ります。文字起こしは初回実行時に、264 MB の Whisper モデルを一度だけダウンロードします。"
   },
   "home.features.platforms.title": {
     "message": "Windows、macOS、Linux"
@@ -269,10 +269,10 @@
     "message": "編集内容を伝えるだけ。エージェントが実行します。"
   },
   "showcase.agent.body": {
-    "message": "このページの上にあるウィザードは、カーソルの動きを見てズームを配置します。エージェントはさらに踏み込み、実際の文字起こしと実際のタイムラインを読み取ります。そのため、どの区間をカットし、それでどれだけ短くなるかを、確認できるタイムコード付きで答えます。エージェントの編集はどれも通常どおり元に戻せる操作で、あなたが用意したプロバイダーのキーが必要です。キーを接続するまで、何も実行されません。"
+    "message": "このページの上にあるウィザードは、カーソルの動きを見てズームを配置します。あなた自身のエージェントはさらに踏み込み、実際の文字起こしと実際のタイムラインを読み取ります。そのため、どの区間をカットし、それでどれだけ短くなるかを、確認できるタイムコード付きで答えます。エージェントの編集はどれも通常どおり元に戻せる操作です。エージェントは Claude Code、Codex、または任意の MCP クライアントで、自身のアカウントでサインインします。OpenScreen があなたにキーを求めることはありません。"
   },
   "showcase.agent.fact": {
-    "message": "自分のキーを使用 · 既定でオフ · すべての編集を元に戻せる"
+    "message": "自分のエージェント · アプリにキー不要 · すべての編集を元に戻せる"
   },
   "showcase.agent.link.docs": {
     "message": "AI 編集のドキュメント"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "エディターのチャットパネルに入力した依頼と、エージェントによる編集がタイムラインに現れる様子。",
+    "message": "エージェントに向けて入力した依頼と、エージェントによる編集がタイムラインに現れる様子。",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "エディターのエージェントに編集を依頼",
+    "message": "エージェントに編集を依頼",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

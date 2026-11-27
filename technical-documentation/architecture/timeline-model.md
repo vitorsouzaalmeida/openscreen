@@ -5,7 +5,7 @@ to a clip in that clip's own source time**, not to an absolute timeline position
 single module that knows how the three coordinate frames relate —
 [`src/lib/ai-edition/timeline/timelineMap.ts`](../../src/lib/ai-edition/timeline/timelineMap.ts) —
 is the only place that translates between them. Every consumer — the timeline UI, the
-native preview, the export, the agent LLM, the captions layer — reads the modifier
+native preview, the export, the agent tools, the captions layer — reads the modifier
 through that module and never mixes the frames by hand. The v4→v5 migration that
 introduced the clip anchor is documented in
 [document-model.md](document-model.md); this file is about the model in force and the
@@ -43,7 +43,7 @@ ranges, so an anchored fragment is hidden/clipped by the same interval math with
 reprojection; reorder carries the fragment with its `clipId`, again with no
 reprojection. The schema field `startMs`/`endMs` is a **derived cache** of the
 fragment's current RAW ruler span — it is present so that un-migrated consumers and
-the agent LLM (which reasons in virtual seconds) keep reading the shape they always
+the agent tools (a model reasons in virtual seconds) keep reading the shape they always
 did, but the anchor is the source of truth. A structural op (move/duplicate/trim)
 re-derives `startMs`/`endMs` from the anchor; if the cache ever disagrees with the
 anchor, the anchor wins.
@@ -338,7 +338,7 @@ in the same commit, or the project round-trips into an inconsistent state:
 | **Native compositor overlay** | `src/components/ai-edition/NativeCompositorOverlay.tsx` (`:3, :70`) | Same — `resolveNativePosition(currentTimeSec, nativeClips, document.timeline.clips)` — to keep preview in sync with the timeline ruler. |
 | **Multi-clip export** | `src/components/ai-edition/ExportDialog.tsx` | MP4 and GIF consume the same scene builder and native geometry as preview. |
 | **Captions layer** | `src/lib/ai-edition/captions/cues.ts` (`:14-15` and `captionCuesToTextRegions`) | Caption cues are a derived view of the transcript; the projection to source at export goes through `projectRegionsToSourceTime` from `region-ventilation`, matching the multi-clip export path so preview and file agree. |
-| **Agent and MCP tools** | `electron/ai-edition/agent-tools.ts`, `deep-agent/service.ts` | Share document operations, schemas, descriptions and mutation consent; expose logical layout segments and use the same partition as the UI. |
+| **Agent tools, served over MCP** | `electron/ai-edition/agent-tools.ts`, `electron/ai-edition/document-tools.ts` | Share the document operations with the UI; expose logical layout segments and use the same partition. |
 
 
 ## Continuous layouts
@@ -372,7 +372,3 @@ scales; interpolating that fraction toward zero would square its corners before 
 vanishes. Changing a boolean crop policy at a boundary would expose enlarged footage
 abruptly; it must never substitute for interpolating the visible crop. Preview, MP4 and
 GIF share this planner.
-
-The deterministic workbench includes layout anchors and playability, counts a uniform
-global layout change even without stored fragments, and checks tool-returned segments
-against the document. The camera scenarios use the advertised layout tool names.

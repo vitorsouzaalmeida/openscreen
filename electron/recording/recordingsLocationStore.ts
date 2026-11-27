@@ -1,5 +1,5 @@
-// Persists the user's chosen recordings folder across restarts. Stored next to
-// llm-config.json in userData rather than inside the recordings folder itself,
+// Persists the user's chosen recordings folder across restarts. Stored in
+// userData rather than inside the recordings folder itself,
 // since the whole point is that folder can move.
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";

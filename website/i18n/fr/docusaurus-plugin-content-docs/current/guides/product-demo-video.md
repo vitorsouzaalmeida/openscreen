@@ -77,7 +77,7 @@ Pour en savoir plus sur le placement des zooms : [Zoom automatique](/features/a
 
 **Assemblez plusieurs prises.** Passez en mode **Médias**, utilisez **Importer un média** si une prise n'est pas encore listée, puis faites glisser sa carte sur la rangée de clips. Elle se place à la fin de la timeline, et vous la faites glisser à sa place. Voir [Médiathèque et clips](../media-library.md).
 
-Si vous avez connecté votre propre fournisseur de LLM, **Amélioration auto → Coupes intelligentes** confie les coupes à l'agent IA. C'est facultatif, et désactivé tant que vous n'avez pas ajouté de clé ([Montage par IA](../ai-editing.md)). L'historique d'annulation conserve les 50 dernières étapes, modifications de l'agent comprises.
+Si vous utilisez un agent IA comme Claude Code ou Codex, vous pouvez lui confier les coupes : il modifie le projet par le serveur MCP d'OpenScreen ([Montage par IA](../ai-editing.md)). C'est facultatif. L'historique d'annulation conserve les 50 dernières étapes, modifications de l'agent comprises.
 
 ## 6. Flouter les données privées, annoter, ajouter du son {#6-blur-private-data-annotate-add-sound}
 
@@ -96,7 +96,7 @@ L'onglet **Curseur** permet de changer le style du pointeur enregistré à l'ét
 
 Dans l'onglet **Transcription**, cliquez sur **Sous-titres** et activez **Afficher les sous-titres**. Ils sont dessinés en direct à partir de la transcription : les coupes de l'étape 5 s'y reportent donc sans étape supplémentaire. Réglez la police, la taille, le gras, la couleur, le bandeau de fond, la position, et de 1 à 12 mots par ligne. Vérifiez le placement dans l'aperçu après tout changement de format.
 
-Whisper détecte la langue parlée, mais vous pouvez aussi forcer l'une des 100 langues avec **Régénérer en** dans le mode Médias. Pour publier dans une autre langue, utilisez **Traduire** vers l'une des 15 langues cibles, puis sélectionnez cette langue sous **Affichage** avant d'exporter. La traduction passe par votre propre fournisseur de LLM : elle nécessite donc une clé.
+Whisper détecte la langue parlée, mais vous pouvez aussi forcer l'une des 100 langues avec **Régénérer en** dans le mode Médias. Pour publier dans une autre langue, demandez une traduction à votre propre agent ([Traduction](../captions.md#translation)), puis sélectionnez cette langue sous **Affichage** avant d'exporter. L'éditeur lui-même n'a pas de bouton de traduction.
 
 Les sous-titres sont incrustés dans la vidéo. L'éditeur et la CLI n'écrivent pas de fichier `.srt` ni `.vtt` : un lecteur ne peut donc pas les désactiver. Un agent peut en écrire un avec `exportCaptions`. Détails : [Sous-titres et transcription](../captions.md), et [fonctionnement des sous-titres](/features/captions/).
 

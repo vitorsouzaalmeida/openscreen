@@ -1,6 +1,6 @@
 ---
 title: Bildschirmrekorder mit lokalen Whisper-Untertiteln
-description: "OpenScreen ist ein kostenloser Bildschirmrekorder mit Untertiteln: Whisper transkribiert lokal, du gestaltest, übersetzt und brennst sie ins Video ein."
+description: "OpenScreen ist ein kostenloser Bildschirmrekorder mit Untertiteln: Whisper transkribiert lokal, du gestaltest die Untertitel und brennst sie ins Video ein."
 keywords:
   - bildschirmrekorder mit untertiteln
   - offline automatische untertitel bildschirmrekorder
@@ -32,7 +32,7 @@ Diese Seite wird vom OpenScreen-Projekt veröffentlicht. Die Angaben zu Cap, Cam
 | Gestaltung | Schriftart, Größe, Fett, Textfarbe, Hintergrund, Position, sowie 1 bis 12 Wörter pro Zeile |
 | Ausgabe | In das exportierte Video eingebrannt |
 | Transkriptbearbeitung | Wörter löschen, um sie aus dem Video zu schneiden. Stille wird markiert und kann ebenfalls geschnitten werden |
-| Übersetzung | 15 Sprachen, über einen von dir mit eigenem Schlüssel angebundenen KI-Anbieter |
+| Übersetzung | Durch deinen eigenen KI-Agenten, über den MCP-Server von OpenScreen. Keine Schaltfläche zum Übersetzen in der App |
 | Kommandozeile | Der Befehl `captions` fügt einem Projekt Untertitel hinzu |
 | Preis | Kostenlos, auch für kommerzielle Nutzung. Kein Konto |
 
@@ -70,9 +70,9 @@ Whisper meldet Wortzeiten etwas zu spät. OpenScreen zieht jede Wortgrenze zurü
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### Übersetzung mit eigenem Schlüssel {#translation-with-your-own-key}
+### Übersetzung durch deinen eigenen Agenten {#translation-by-your-own-agent}
 
-Die Übersetzung deckt 15 Sprachen ab: Englisch, Französisch, Spanisch, Deutsch, Italienisch, Portugiesisch, Niederländisch, Polnisch, Türkisch, Russisch, Arabisch, Hindi, Japanisch, Koreanisch und Chinesisch. Sie läuft über den KI-Anbieter, den du für die Chat-Bearbeitung mit eigenem Schlüssel verbindest. Bis du einen Anbieter verbindest, wird nichts gesendet. Die Übersetzung wird neben dem Transkript gespeichert, sodass die ursprünglichen Wörter und Zeiten unverändert bleiben und du jederzeit zurückwechseln kannst. Siehe [Übersetzung](/docs/captions/#translation) und [KI-Bearbeitung](/docs/ai-editing/).
+Die App hat keine Schaltfläche zum Übersetzen. Untertitel übersetzt ein KI-Agent, den du bereits nutzt, etwa Claude Code oder Codex, über den MCP-Server von OpenScreen: Er liest die Untertitelphrasen, übersetzt sie mit seinem eigenen Modell und speichert das Ergebnis im Projekt als Sprachebene. Die Übersetzung wird neben dem Transkript gespeichert, sodass die ursprünglichen Wörter und Zeiten unverändert bleiben. Im Bereich **Captions** wählst du die Sprache, die die Untertitel zeigen, wechselst jederzeit zurück oder löschst eine Ebene. Siehe [Übersetzung](/docs/captions/#translation) und [KI-Bearbeitung](/docs/ai-editing/).
 
 ### Über die Kommandozeile {#from-the-command-line}
 
@@ -80,7 +80,7 @@ Der Befehl `captions` der [CLI](/docs/cli/) transkribiert ein Projekt mit demsel
 
 ### Was über das Netzwerk geht {#what-goes-over-the-network}
 
-Das Audio bleibt auf deinem Computer. Abgesehen von einmaligen Modell-Downloads geht nur die Übersetzung ins Netzwerk: Sie sendet den Transkripttext an den von dir gewählten Anbieter. Für die App insgesamt gilt: OpenScreen hat kein Konto und keinen eigenen Server. Seine einzige Meldung ist eine anonyme tägliche Zählung aktiver Installationen, die du abschalten kannst. Die [FAQ](/docs/faq/#does-openscreen-work-offline) listet die wenigen Verbindungen, die es dennoch aufbaut.
+Das Audio bleibt auf deinem Computer. Abgesehen von einmaligen Modell-Downloads nutzen Untertitel kein Netzwerk. Die Übersetzung erledigt nicht OpenScreen: Der Agent, der übersetzt, sendet den Untertiteltext, den er liest, an seinen eigenen Anbieter, unter deinem Konto bei ihm. Für die App insgesamt gilt: OpenScreen hat kein Konto und keinen eigenen Server. Seine einzige Meldung ist eine anonyme tägliche Zählung aktiver Installationen, die du abschalten kannst. Die [FAQ](/docs/faq/#does-openscreen-work-offline) listet die wenigen Verbindungen, die es dennoch aufbaut.
 
 ## Andere Rekorder mit lokalen Untertiteln {#other-recorders-with-local-captions}
 
@@ -95,7 +95,7 @@ Lokales Whisper gibt es nicht nur bei OpenScreen. Stand September 2026:
 - **Kostenlos, auch für kommerzielle Nutzung.** Kein Tarif und kein Konto. Caps Preisseite sagt, seine kostenlose Version sei nur für den privaten Gebrauch. Screen Studio braucht einen aktiven Plan, um Videodateien zu exportieren. Camtasias Desktop-Editor versieht Exporte mit einem Wasserzeichen, bis du auf einen kostenpflichtigen Plan (Essentials, Create oder Pro) oder eine Business-Lizenz umsteigst. Alle drei Stand September 2026.
 - **Windows, macOS und Linux.** OpenScreen läuft unter Windows 10 (ab 1903) und 11, x64 und ARM64. macOS ab 13, Apple Silicon und Intel. Linux, x64. Stand September 2026 läuft Screen Studio nur unter macOS, Camtasias Desktop-Editor läuft unter Windows und macOS, und Cap bietet Apps für alle drei. Siehe [Linux](/screen-recorder-linux/), [Windows](/screen-recorder-windows/) und [macOS](/screen-recorder-mac/).
 - **Transkriptbearbeitung ohne Abo.** Schneiden durch Löschen von Wörtern ist Teil der kostenlosen App. Camtasia listet textbasierte Bearbeitung in seinen kostenpflichtigen Plänen (Stand September 2026). Cap hat das Schneiden über das Transkript im Juli 2026 zu seinem Web-Editor hinzugefügt. Sein Guide zum Desktop-Studio Mode deckt das Korrigieren von Untertiteltext und Timing ab, beschreibt aber kein Schneiden von Video aus dem Transkript.
-- **Übersetzung über einen selbst gewählten Anbieter.** Jeder von OpenScreen unterstützte Anbieter, mit eigenem Schlüssel, und kein Tarif, den du bei OpenScreen kaufen musst. Die Übersetzung selbst ist nicht einzigartig: Cap Pro listet ebenfalls Untertitelübersetzung (Stand September 2026).
+- **Übersetzung durch einen selbst gewählten Agenten.** Jeder Agent, der MCP spricht, angemeldet mit seinem eigenen Konto, und kein Tarif, den du bei OpenScreen kaufen musst. Dafür braucht es einen Agenten, während Cap Pro Untertitelübersetzung als Funktion des Produkts listet (Stand September 2026).
 
 ## Wann OpenScreen nicht das richtige Werkzeug ist {#when-openscreen-is-not-the-right-tool}
 

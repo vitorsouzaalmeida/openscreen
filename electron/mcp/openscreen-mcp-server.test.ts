@@ -1,15 +1,15 @@
-// End-to-end over real HTTP: the SDK's own client against the server on an
-// ephemeral port, with an in-memory stand-in for the editor window and a real
-// DocumentService on a temp directory for the projects that are not open.
+// End-to-end through MCP itself: the SDK's own client against the server the app serves
+// `openscreen mcp` with, over an in-memory transport, with an in-memory stand-in for the
+// editor window and a real DocumentService on a temp directory for the projects that are
+// not open.
 
 import { spawnSync } from "node:child_process";
-import { getEventListeners } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	addLayoutChange,
@@ -26,22 +26,18 @@ import {
 import { LAYOUT_PRESETS } from "../../src/lib/layoutTypes";
 import { buildSceneDescription } from "../../src/native/sceneDescription";
 import { OPENSCREEN_TOOL_NAMES } from "../ai-edition/agent-tools";
-import { TOOL_DESCRIPTIONS } from "../ai-edition/deep-agent/service";
 import { DocumentService } from "../ai-edition/document-service";
-import { createMediaTools, type MediaToolDeps } from "./media-tools";
+import { TOOL_DESCRIPTIONS } from "../ai-edition/document-tools";
+import { createMediaTools } from "./media-tools";
 import {
+	createOpenScreenMcpServer,
+	createToolRunner,
 	LIST_PROJECTS_TOOL,
-	MCP_ENDPOINT_PATH,
 	type McpApplyResult,
 	type McpDocumentHost,
 	type McpToolDeps,
 	mcpInstructions,
-	type RunningMcpServer,
-	startMcpHttpServer,
 } from "./openscreen-mcp-server";
-import { RecordingCompletion } from "./recording-completion";
-
-const TOKEN = "test-token-0123456789";
 
 function fixtureDocument(projectId = "proj_1"): AxcutDocument {
 	const base = createEmptyDocument({
@@ -133,7 +129,6 @@ function fillerEditor(): FakeEditor {
 	return editor;
 }
 
-let running: RunningMcpServer | null = null;
 let client: Client | null = null;
 let dir: string;
 let projects: DocumentService;
@@ -145,57 +140,41 @@ beforeEach(() => {
 
 afterEach(async () => {
 	await client?.close();
-	await running?.close();
 	client = null;
-	running = null;
 	rmSync(dir, { recursive: true, force: true });
 });
 
+/** A client of the server as the running app answers it: the editor is its host. */
 async function connect(
 	editor: FakeEditor,
-	options: {
-		editsAllowed?: boolean;
-		headers?: Record<string, string>;
-		media?: Pick<McpToolDeps, "openVideo" | "approveMedia" | "makeStill">;
-		waitForRecording?: MediaToolDeps["waitForRecording"];
-	} = {},
+	options: { media?: Pick<McpToolDeps, "openVideo" | "approveMedia" | "makeStill"> } = {},
 ) {
-	const editsAllowed = () => options.editsAllowed ?? true;
-	const deps = {
-		transport: "http" as const,
+	const deps: McpToolDeps = {
+		transport: "app",
 		host: editor,
 		projects,
-		editsAllowed,
 		version: "0.0.0",
 		...options.media,
 	};
 	const unused = () => {
 		throw new Error("not used by these tests");
 	};
-	running = await startMcpHttpServer({
-		port: 0,
-		token: TOKEN,
+	const server = createOpenScreenMcpServer(
 		deps,
-		// As the app serves them; media-tools.test.ts calls them.
-		media: createMediaTools({
-			waitForRecording: options.waitForRecording,
-			transport: "http",
-			editsAllowed,
-			recorder: { start: unused },
+		createToolRunner(deps),
+		// As `openscreen mcp` serves them; media-tools.test.ts calls them.
+		createMediaTools({
 			runners: { start: unused },
 			documents: projects,
 			openVideo: unused,
 			readCursor: unused,
 			runTool: unused,
 		}),
-	});
-	client = new Client({ name: "test", version: "0.0.0" });
-	const url = new URL(`http://127.0.0.1:${running.port}${MCP_ENDPOINT_PATH}`);
-	await client.connect(
-		new StreamableHTTPClientTransport(url, {
-			requestInit: { headers: options.headers ?? { Authorization: `Bearer ${TOKEN}` } },
-		}),
 	);
+	const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+	await server.connect(serverSide);
+	client = new Client({ name: "test", version: "0.0.0" });
+	await client.connect(clientSide);
 	return client;
 }
 
@@ -297,22 +276,7 @@ describe("the MCP tool surface", () => {
 		}
 	});
 
-	it.each([
-		{ name: "addLayoutChange", args: { timeSec: 5, preset: "no-webcam" } },
-		{ name: "setLayoutPreset", args: { layoutId: "layout", preset: "no-webcam" } },
-		{ name: "moveLayoutBoundary", args: { layoutId: "layout", timeSec: 8 } },
-	])("guards $name with MCP edit consent", async ({ name, args }) => {
-		const editor = new FakeEditor();
-		const before = editor.document;
-		const mcp = await connect(editor, { editsAllowed: false });
-		const result = await mcp.callTool({ name, arguments: args });
-		expect(result.isError).toBe(true);
-		expect(resultText(result)).toMatch(/consent_required/);
-		expect(editor.document).toBe(before);
-		expect(editor.applied).toHaveLength(0);
-	});
-
-	it("is listProjects, then exactly the in-app agent's tools with its descriptions, then the checkpoints and the media tools", async () => {
+	it("is listProjects, then exactly the document tools with their descriptions, then the checkpoints and the media tools", async () => {
 		const mcp = await connect(new FakeEditor());
 		const { tools } = await mcp.listTools();
 		expect(tools.map((t) => t.name)).toEqual([
@@ -323,11 +287,9 @@ describe("the MCP tool surface", () => {
 			"removeMedia",
 			"createCheckpoint",
 			"restoreCheckpoint",
-			// The same as `openscreen mcp` serves (#1174).
 			"listSources",
 			"startRecording",
 			"stopRecording",
-			"waitForRecording",
 			"setPointerTrack",
 			"exportVideo",
 			"exportAudio",
@@ -373,24 +335,13 @@ describe("the MCP tool surface", () => {
 		expect(byName.get("restoreCheckpoint")?.destructiveHint).toBe(true);
 	});
 
-	it("hands the client the in-app agent's guidance as server instructions", async () => {
+	it("hands the client the editing guidance as server instructions", async () => {
 		const mcp = await connect(new FakeEditor());
 		expect(mcp.getInstructions()).toContain("Time-bases (do not mix them up)");
 	});
 
-	it("tells the client what is true here: an editor, its undo, its recording bar, and its own switch", async () => {
-		const mcp = await connect(new FakeEditor(), { editsAllowed: false });
-		const instructions = mcp.getInstructions() ?? "";
-		expect(instructions).toContain(
-			"Without a projectId they act on the project open in the editor",
-		);
-		expect(instructions).toContain("startRecording hands over to OpenScreen's recording bar");
-		expect(instructions).toContain(
-			"startRecording, exportVideo, exportAudio, exportCaptions and createProject are refused too",
-		);
-		expect(instructions).toContain("all of them are lost when OpenScreen quits.");
-		expect(instructions).toContain("turn on 'MCP edits' under MCP server in AI settings");
-		expect(instructions).not.toContain("Agent edits");
+	it("says what restoreCheckpoint takes back", async () => {
+		const mcp = await connect(new FakeEditor());
 		const { tools } = await mcp.listTools();
 		const restore = tools.find((t) => t.name === "restoreCheckpoint");
 		expect(restore?.description).toContain("one undo step");
@@ -398,22 +349,22 @@ describe("the MCP tool surface", () => {
 	});
 });
 
-describe("the instructions, composed per transport", () => {
+describe("the instructions", () => {
 	const media = "MEDIA BLOCK";
-	it("puts the media block first, then the same checkpoint rule on both transports", () => {
-		const stdio = mcpInstructions({ transport: "stdio", editsAllowed: true, media });
-		const http = mcpInstructions({ transport: "http", editsAllowed: true, media });
-		for (const instructions of [stdio, http]) {
-			expect(instructions.startsWith(media)).toBe(true);
-			expect(instructions).toContain("Before a series of edits, call createCheckpoint");
-			expect(instructions).toContain("Time-bases (do not mix them up)");
-			// Both export, so exporting is no example of a request without a tool.
-			expect(instructions).not.toContain("exporting)");
-		}
-		// stdio reaches the editor only through the app.
-		expect(stdio).not.toContain("Without a projectId they act");
-		expect(stdio).toContain("While the OpenScreen app runs, this server hands each call to it");
-		expect(stdio).toContain("in OpenScreen's memory while the app runs");
+	it("put the media block first, then the checkpoint rule and the editing guidance", () => {
+		const instructions = mcpInstructions({ media });
+		expect(instructions.startsWith(media)).toBe(true);
+		expect(instructions).toContain("Before a series of edits, call createCheckpoint");
+		expect(instructions).toContain("Time-bases (do not mix them up)");
+		// It exports, so exporting is no example of a request without a tool.
+		expect(instructions).not.toContain("exporting)");
+		// `openscreen mcp` reaches the editor only through the app.
+		expect(instructions).toContain(
+			"While the OpenScreen app runs, this server hands each call to it",
+		);
+		expect(instructions).toContain("in OpenScreen's memory while the app runs");
+		// Nothing of the switches and the chat OpenScreen no longer has.
+		expect(instructions).not.toMatch(/MCP edits|Agent edits|chat panel|HTTP/);
 	});
 });
 
@@ -458,19 +409,6 @@ describe("calling a tool", () => {
 		});
 	});
 
-	it("refuses filler removal when MCP project edits are disabled", async () => {
-		const editor = fillerEditor();
-		const before = editor.document;
-		const mcp = await connect(editor, { editsAllowed: false });
-		const result = await mcp.callTool({
-			name: "removeWords",
-			arguments: { wordIds: ["filler"] },
-		});
-		expect(result.isError).toBe(true);
-		expect(resultText(result)).toMatch(/consent_required/);
-		expect(editor.document).toBe(before);
-		expect(editor.applied).toHaveLength(0);
-	});
 	it("reads the live editor document", async () => {
 		const mcp = await connect(new FakeEditor());
 		const result = await mcp.callTool({ name: "getCurrentDocument", arguments: {} });
@@ -495,20 +433,6 @@ describe("calling a tool", () => {
 		const editor = new FakeEditor();
 		const mcp = await connect(editor);
 		await mcp.callTool({ name: "getTranscript", arguments: {} });
-		expect(editor.applied).toHaveLength(0);
-	});
-
-	it("refuses a write when the user has turned project edits off", async () => {
-		const editor = new FakeEditor();
-		const mcp = await connect(editor, { editsAllowed: false });
-		const result = await mcp.callTool({
-			name: "addTrim",
-			arguments: { assetId: "asset_1", startSec: 5, endSec: 6 },
-		});
-		expect(result.isError).toBe(true);
-		// The MCP server's switch, not the in-app agent's.
-		expect(resultText(result)).toContain("'MCP edits' under MCP server in AI settings");
-		expect(resultText(result)).not.toContain("Agent edits");
 		expect(editor.applied).toHaveLength(0);
 	});
 
@@ -565,16 +489,6 @@ describe("checkpoints", () => {
 		expect(result.isError).toBeFalsy();
 		expect(editor.applied).toHaveLength(3);
 		expect(editor.document).toEqual(before);
-	});
-
-	it("refuses to restore when the user has turned project edits off", async () => {
-		const editor = new FakeEditor();
-		const mcp = await connect(editor, { editsAllowed: false });
-		const checkpointId = await checkpoint(mcp);
-		const result = await mcp.callTool({ name: "restoreCheckpoint", arguments: { checkpointId } });
-		expect(result.isError).toBe(true);
-		expect(resultText(result)).toContain("'MCP edits'");
-		expect(editor.applied).toHaveLength(0);
 	});
 
 	it("refuses an unknown checkpoint, saying when they are lost", async () => {
@@ -775,20 +689,6 @@ describe("the project's name and media", () => {
 		expect(editor.applied).toHaveLength(0);
 	});
 
-	it("imports nothing while MCP edits is off", async () => {
-		const editor = new FakeEditor();
-		const openVideo = probe();
-		const mcp = await connect(editor, { editsAllowed: false, media: { openVideo } });
-		const refused = await mcp.callTool({
-			name: "importMedia",
-			arguments: { path: mediaFile("ok.mp4") },
-		});
-		expect(refused.isError).toBe(true);
-		expect(resultText(refused)).toContain("'MCP edits'");
-		expect(openVideo).not.toHaveBeenCalled();
-		expect(editor.applied).toHaveLength(0);
-	});
-
 	it("removes media only once the timeline no longer uses it", async () => {
 		const editor = new FakeEditor();
 		const mcp = await connect(editor, { media: { openVideo: probe() } });
@@ -940,17 +840,6 @@ describe("projects other than the open one", () => {
 		});
 		expect(result.isError).toBe(true);
 		expect(resultText(result)).toContain("listProjects");
-	});
-
-	it("refuses a write when edits are off", async () => {
-		await projects.saveProject(fixtureDocument("proj_2"));
-		const mcp = await connect(new FakeEditor(), { editsAllowed: false });
-		const result = await mcp.callTool({
-			name: "addTrim",
-			arguments: { ...addTrimArgs, projectId: "proj_2" },
-		});
-		expect(result.isError).toBe(true);
-		expect((await projects.getProject("proj_2")).timeline.trimRanges).toHaveLength(0);
 	});
 
 	it("refuses an edit until the project has a checkpoint, its only undo", async () => {
@@ -1153,108 +1042,5 @@ describe("a project open in another process's editor", () => {
 		const result = await mcp.callTool({ name: "addTrim", arguments: addTrimArgs });
 		expect(result.isError).toBeFalsy();
 		expect((await projects.getProject("proj_2")).timeline.trimRanges).toHaveLength(1);
-	});
-});
-
-describe("the HTTP guard", () => {
-	async function post(headers: Record<string, string>, path = MCP_ENDPOINT_PATH) {
-		running = await startMcpHttpServer({
-			port: 0,
-			token: TOKEN,
-			deps: {
-				transport: "http",
-				host: new FakeEditor(),
-				projects,
-				editsAllowed: () => true,
-				version: "0.0.0",
-			},
-		});
-		return fetch(`http://127.0.0.1:${running.port}${path}`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Accept: "application/json, text/event-stream",
-				...headers,
-			},
-			body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-		});
-	}
-
-	it("rejects a request without the token", async () => {
-		expect((await post({})).status).toBe(401);
-	});
-
-	it("rejects a wrong token", async () => {
-		expect((await post({ Authorization: "Bearer nope" })).status).toBe(401);
-	});
-
-	it("rejects a browser origin", async () => {
-		const response = await post({
-			Authorization: `Bearer ${TOKEN}`,
-			Origin: "https://evil.example",
-		});
-		expect(response.status).toBe(403);
-	});
-
-	it("rejects any path but the endpoint", async () => {
-		expect((await post({ Authorization: `Bearer ${TOKEN}` }, "/other")).status).toBe(404);
-	});
-});
-
-describe("HTTP recording waits", () => {
-	it("drops the wait's listener when its HTTP request disconnects, leaving the take alive", async () => {
-		const completion = new RecordingCompletion();
-		completion.started(7);
-		let requestSignal: AbortSignal | undefined;
-		let subscribed: () => void = () => undefined;
-		const subscription = new Promise<void>((resolve) => {
-			subscribed = resolve;
-		});
-		await connect(new FakeEditor(), {
-			waitForRecording: (timeout, signal) => {
-				requestSignal = signal;
-				const waiting = completion.wait(timeout, signal);
-				subscribed();
-				return waiting;
-			},
-		});
-		const controller = new AbortController();
-		const request = fetch(`http://127.0.0.1:${running?.port}${MCP_ENDPOINT_PATH}`, {
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${TOKEN}`,
-				"Content-Type": "application/json",
-				Accept: "application/json, text/event-stream",
-			},
-			body: JSON.stringify({
-				jsonrpc: "2.0",
-				id: 77,
-				method: "tools/call",
-				params: { name: "waitForRecording", arguments: { timeoutSec: 3600 } },
-			}),
-			signal: controller.signal,
-		});
-		const rejected = expect(request).rejects.toThrow();
-		await subscription;
-		expect(getEventListeners(requestSignal as AbortSignal, "abort")).toHaveLength(1);
-		controller.abort();
-		await rejected;
-		await vi.waitFor(() => expect(requestSignal?.aborted).toBe(true));
-		expect(getEventListeners(requestSignal as AbortSignal, "abort")).toHaveLength(0);
-		expect(completion.isActive()).toBe(true);
-		completion.failed(7, "test cleanup");
-	});
-
-	it("returns a tool timeout over HTTP without ending the recording", async () => {
-		const completion = new RecordingCompletion();
-		completion.started(7);
-		const mcp = await connect(new FakeEditor(), {
-			waitForRecording: (timeout, signal) => completion.wait(timeout, signal),
-		});
-		const result = await mcp.callTool({ name: "waitForRecording", arguments: { timeoutSec: 1 } });
-		expect(result.isError).toBe(true);
-		expect(resultText(result)).toContain("Timed out");
-		expect(completion.isActive()).toBe(true);
-		completion.failed(7, "test cleanup");
 	});
 });

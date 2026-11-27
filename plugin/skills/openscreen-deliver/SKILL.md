@@ -25,7 +25,7 @@ The film is edited and has passed the `openscreen-review` skill. Here you export
 
 ## Export
 
-1. Resolve an absolute path first, such as `demo/demo.mp4` against the working directory: the server in the app refuses a relative path.
+1. Resolve an absolute path first, such as `demo/demo.mp4` against the working directory: the server resolves a relative path against its own working directory, which may not be yours.
 2. `exportVideo` with the `projectId`, the `path` and the settings above. One export runs at a time.
 3. Check the file's size on disk against the budget.
 4. Look at the exported file as the `openscreen-review` skill's last step says, with `path`.

@@ -21,14 +21,12 @@ import {
 	mediaPreamble,
 	NO_WEBCAM_PICTURE,
 	pointerSamples,
-	type TakeRecorder,
 } from "./media-tools";
 import {
 	createOpenScreenMcpServer,
 	createToolRunner,
 	type McpToolDeps,
 } from "./openscreen-mcp-server";
-import { RecordingCompletion } from "./recording-completion";
 
 /** The runner windows: records what was asked, answers like a runner would. */
 class FakeRunners {
@@ -135,7 +133,7 @@ let capturedWidths: number[];
 let openVideoFails: boolean;
 let client: Client;
 let media: ReturnType<typeof createMediaTools>;
-/** The stdio server's media deps: the in-app tests reuse its stand-ins. */
+/** The stdio server's media deps. */
 let stdioDeps: MediaToolDeps;
 /** The addon's frame renderer, when a test gives it one: none by default, as an older addon. */
 let renderFrames: MediaToolDeps["renderFrames"];
@@ -169,14 +167,11 @@ beforeEach(async () => {
 		transport: "stdio",
 		host: { snapshot: async () => null, apply: async () => "no-editor" },
 		projects: documents,
-		editsAllowed: () => true,
 		version: "test",
 		onToolCall: (name) => countedCalls.push(name),
 	};
 	const runTool = createToolRunner(toolDeps);
 	stdioDeps = {
-		transport: "stdio",
-		editsAllowed: () => true,
 		runners,
 		documents,
 		openVideo: async () => {
@@ -276,7 +271,7 @@ describe("the usage count", () => {
 describe("what `openscreen mcp` tells its client", () => {
 	it("composes the media block with the checkpoint rule, and nothing true only in the app", () => {
 		const instructions = client.getInstructions() ?? "";
-		expect(instructions.startsWith(mediaPreamble("stdio"))).toBe(true);
+		expect(instructions.startsWith(mediaPreamble())).toBe(true);
 		expect(instructions).toContain("Before a series of edits, call createCheckpoint");
 		expect(instructions).toContain("in OpenScreen's memory while the app runs");
 		expect(instructions).not.toMatch(
@@ -1751,386 +1746,5 @@ describe("getAudioReport", () => {
 		expect(during.isError).toBe(true);
 		expect(textOf(during)).toContain("A recording is running");
 		await call("stopRecording", { title: "Second" });
-	});
-});
-
-describe("the media tools in the app", () => {
-	let allowed: boolean;
-	let asked: Parameters<TakeRecorder["start"]>[0][];
-	const appClients: Client[] = [];
-
-	/** The in-app server, its takes made by the app's recorder (a stand-in here). */
-	async function connectApp(): Promise<Client> {
-		const toolDeps: McpToolDeps = {
-			transport: "http",
-			host: { snapshot: async () => null, apply: async () => "no-editor" },
-			projects: documents,
-			editsAllowed: () => allowed,
-			version: "test",
-		};
-		const runTool = createToolRunner(toolDeps);
-		const recorder: TakeRecorder = {
-			async start(request) {
-				asked.push(request);
-				return {
-					startedAt: 5_000,
-					async stop(title) {
-						const created = await documents.createProject(title ?? "Recording");
-						const added = await documents.addAsset(created.project.id, { path: videoPath });
-						// The editor has measured the take by the time the recorder hands it back.
-						await documents.saveProject({
-							...added,
-							assets: added.assets.map((asset) => ({ ...asset, durationSec: 12 })),
-						});
-						return { projectId: created.project.id, videoPath, durationSec: 12, autoZooms: 1 };
-					},
-				};
-			},
-		};
-		const media = createMediaTools({
-			...stdioDeps,
-			transport: "http",
-			editsAllowed: () => allowed,
-			recorder,
-			runTool,
-		});
-		const server = createOpenScreenMcpServer(toolDeps, runTool, media);
-		const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-		await server.connect(serverSide);
-		const appClient = new Client({ name: "test", version: "1" });
-		await appClient.connect(clientSide);
-		appClients.push(appClient);
-		return appClient;
-	}
-
-	beforeEach(() => {
-		allowed = true;
-		asked = [];
-	});
-	afterEach(async () => {
-		for (const appClient of appClients.splice(0)) await appClient.close();
-	});
-
-	const callOn = (on: Client, name: string, args: Record<string, unknown> = {}) =>
-		on.callTool({ name, arguments: args }) as Promise<CallToolResult>;
-
-	it("records through the app's recorder, never a runner, and hands back the project with its checkpoint", async () => {
-		const app = await connectApp();
-		const started = await callOn(app, "startRecording", { window: "My App", microphone: "USB" });
-		expect(started.isError).toBeFalsy();
-		expect(asked).toEqual([
-			{
-				displayIndex: 0,
-				windowTitle: "My App",
-				mic: true,
-				micDevice: "USB",
-				systemAudio: false,
-				camera: false,
-				cameraDevice: null,
-				cursorMode: "editable-overlay",
-			},
-		]);
-		const take = JSON.parse(textOf(await callOn(app, "stopRecording", { title: "Demo" })));
-		expect(take).toMatchObject({
-			videoPath,
-			durationSec: 12,
-			autoZooms: 1,
-			recordingStartedAt: 5_000,
-		});
-		expect(take.checkpointId).toMatch(/^cp_/);
-		expect(runners.started.filter((request) => request.kind === "record")).toEqual([]);
-		expect((await documents.getProject(take.projectId)).project.title).toBe("Demo");
-		// setPointerTrack knows the take's clock, as for a take of `openscreen mcp`.
-		const set = await callOn(app, "setPointerTrack", {
-			projectId: take.projectId,
-			events: [{ at: 5_000 + 4_000, x: 0.5, y: 0.5, click: true }],
-		});
-		expect(set.isError).toBeFalsy();
-	});
-
-	it("records and exports only while MCP edits is on, and says so in its instructions", async () => {
-		allowed = false;
-		const app = await connectApp();
-		expect(app.getInstructions()).toContain(
-			"startRecording, exportVideo, exportAudio, exportCaptions and createProject are refused too while 'MCP edits'",
-		);
-		const started = await callOn(app, "startRecording", {});
-		expect(started.isError).toBe(true);
-		expect(textOf(started)).toContain("'MCP edits'");
-		expect(asked).toEqual([]);
-		const exported = await callOn(app, "exportVideo", {
-			projectId: "proj_x",
-			path: path.join(dir, "out.mp4"),
-		});
-		expect(textOf(exported)).toContain("'MCP edits'");
-		expect(runners.started).toEqual([]);
-		const created = await callOn(app, "createProject", {});
-		expect(textOf(created)).toContain("'MCP edits'");
-		expect(await documents.listProjects()).toEqual([]);
-		// Reading stays open: listing what could be recorded changes nothing.
-		runners.results.sources = {
-			success: true,
-			sources: {
-				displays: [],
-				windows: [],
-				microphones: [],
-				microphoneLabelsUnavailable: false,
-				cameras: [],
-				cameraLabelsUnavailable: false,
-			},
-		};
-		expect((await callOn(app, "listSources")).isError).toBeFalsy();
-	});
-
-	it("takes only absolute paths: it has no working directory of the client's", async () => {
-		const app = await connectApp();
-		const exported = await callOn(app, "exportVideo", { projectId: "proj_x", path: "out.mp4" });
-		expect(textOf(exported)).toContain("must be absolute");
-		const frames = await callOn(app, "getFrames", { path: "take.mp4" });
-		expect(textOf(frames)).toContain("must be absolute");
-	});
-
-	it("tells its client what is true in the app, and nothing true only of `openscreen mcp`", async () => {
-		const app = await connectApp();
-		const instructions = app.getInstructions() ?? "";
-		expect(instructions.startsWith(mediaPreamble("http"))).toBe(true);
-		expect(instructions).toContain("recording bar");
-		expect(instructions).not.toContain("refused too");
-		const { tools } = await app.listTools();
-		const describeTool = (name: string) =>
-			tools.find((tool) => tool.name === name)?.description ?? "";
-		expect(describeTool("startRecording")).toContain("recording bar");
-		expect(describeTool("startRecording")).not.toContain("On Linux the desktop's own picker");
-		expect(describeTool("stopRecording")).toContain("editor opens the take");
-		expect(describeTool("restoreCheckpoint")).toContain("pointer track");
-		const exportPath = tools.find((tool) => tool.name === "exportVideo")?.inputSchema.properties
-			?.path as { description?: string };
-		expect(exportPath.description).toContain("absolute path ending in");
-		expect(exportPath.description).not.toContain("working directory, ending");
-	});
-});
-
-describe("waitForRecording through MCP", () => {
-	const clients: Client[] = [];
-	afterEach(async () => {
-		for (const client of clients.splice(0)) await client.close();
-	});
-	async function observing(
-		completion: RecordingCompletion,
-		overrides: Partial<MediaToolDeps> = {},
-	) {
-		const deps: McpToolDeps = {
-			transport: "http",
-			host: { snapshot: async () => null, apply: async () => "no-editor" },
-			projects: documents,
-			editsAllowed: () => false,
-			version: "test",
-		};
-		let subscribed: () => void = () => undefined;
-		const subscription = new Promise<void>((resolve) => {
-			subscribed = resolve;
-		});
-		const media = createMediaTools({
-			...stdioDeps,
-			transport: "http",
-			recordingActive: () => completion.isActive(),
-			editsAllowed: () => false,
-			waitForRecording: (timeout, signal) => {
-				const waiting = completion.wait(timeout, signal);
-				subscribed();
-				return waiting;
-			},
-			...overrides,
-		});
-		const server = createOpenScreenMcpServer(deps, createToolRunner(deps), media);
-		const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-		await server.connect(serverSide);
-		const observer = new Client({ name: "observer", version: "1" });
-		await observer.connect(clientSide);
-		clients.push(observer);
-		return { observer, subscription };
-	}
-
-	it("renders no sound while the user records from the HUD, and does once the take is saved", async () => {
-		const { projectId } = await recordTake();
-		const completion = new RecordingCompletion();
-		completion.started(7, 1_000);
-		const { observer } = await observing(completion);
-		const during = (await observer.callTool({
-			name: "getAudioReport",
-			arguments: { projectId },
-		})) as CallToolResult;
-		expect(during.isError).toBe(true);
-		expect(textOf(during)).toContain("A recording is running");
-		expect(runners.started.filter((request) => request.kind === "export")).toEqual([]);
-
-		completion.saved(7, videoPath);
-		completion.completed(7, { projectId, videoPath, durationSec: 12, autoZooms: 0 });
-		runners.wav = wavOf([[-20, 2]]);
-		const after = (await observer.callTool({
-			name: "getAudioReport",
-			arguments: { projectId },
-		})) as CallToolResult;
-		expect(after.isError).toBeFalsy();
-		expect(JSON.parse(textOf(after))).toMatchObject({ durationSec: 2, silences: [] });
-		expect(runners.started.filter((request) => request.kind === "export")).toHaveLength(1);
-	});
-
-	it("returns the stopRecording fields for a user take while MCP edits is off, without recording commands", async () => {
-		const project = await documents.createProject("User take");
-		const completion = new RecordingCompletion();
-		completion.started(42, 1_000);
-		const { observer, subscription } = await observing(completion);
-		const waiting = observer.callTool({ name: "waitForRecording", arguments: {} });
-		await subscription;
-		completion.saved(42, videoPath);
-		completion.completed(42, {
-			projectId: project.project.id,
-			videoPath,
-			durationSec: 12,
-			autoZooms: 2,
-		});
-		const result = await waiting;
-		expect(result.isError).toBeFalsy();
-		expect(JSON.parse(textOf(result as CallToolResult))).toEqual({
-			projectId: project.project.id,
-			videoPath,
-			durationSec: 12,
-			autoZooms: 2,
-			recordingStartedAt: 1_000,
-			checkpointId: expect.any(String),
-		});
-		expect(runners.started).toEqual([]);
-	});
-
-	it("gives setPointerTrack the waited-for take's start, as stopRecording does", async () => {
-		const project = await documents.createProject("User take");
-		const completion = new RecordingCompletion();
-		completion.started(42, 1_000);
-		const sent: unknown[] = [];
-		const { observer, subscription } = await observing(completion, {
-			runTool: async (_name, args) => {
-				sent.push(args);
-				return { content: [{ type: "text", text: "ok" }] };
-			},
-		});
-		const waiting = observer.callTool({ name: "waitForRecording", arguments: {} });
-		await subscription;
-		completion.saved(42, videoPath);
-		completion.completed(42, {
-			projectId: project.project.id,
-			videoPath,
-			durationSec: 12,
-			autoZooms: 0,
-		});
-		await waiting;
-		await observer.callTool({
-			name: "setPointerTrack",
-			arguments: { projectId: project.project.id, events: [{ at: 1, x: 0.5, y: 0.5 }] },
-		});
-		expect(sent).toContainEqual(expect.objectContaining({ takes: { [videoPath]: 1_000 } }));
-	});
-
-	it("releases a client take after the user finishes it, so startRecording can record again", async () => {
-		const completion = new RecordingCompletion();
-		let id = 0;
-		const recorder: TakeRecorder = {
-			start: async () => {
-				completion.started(++id);
-				return {
-					startedAt: id,
-					stop: async () => {
-						throw new Error("wait must never stop the take");
-					},
-				};
-			},
-		};
-		const { observer, subscription } = await observing(completion, {
-			recorder,
-			editsAllowed: () => true,
-		});
-		expect(
-			(await observer.callTool({ name: "startRecording", arguments: {} })).isError,
-		).toBeFalsy();
-		const waiting = observer.callTool({ name: "waitForRecording", arguments: {} });
-		await subscription;
-		completion.saved(1, videoPath);
-		completion.completed(1, { projectId: "proj_take", videoPath, durationSec: 12, autoZooms: 0 });
-		await waiting;
-		expect(
-			(await observer.callTool({ name: "startRecording", arguments: {} })).isError,
-		).toBeFalsy();
-		expect(id).toBe(2);
-	});
-
-	it("keeps a take that is still starting claimed when a wait finds nothing to observe", async () => {
-		const completion = new RecordingCompletion();
-		let begin: () => void = () => undefined;
-		const countdown = new Promise<void>((resolve) => {
-			begin = resolve;
-		});
-		let starts = 0;
-		const recorder: TakeRecorder = {
-			start: async () => {
-				starts++;
-				await countdown;
-				completion.started(1);
-				return {
-					startedAt: 1,
-					stop: async () => ({ projectId: "p", videoPath, durationSec: 1, autoZooms: 0 }),
-				};
-			},
-		};
-		const { observer } = await observing(completion, { recorder, editsAllowed: () => true });
-		const starting = observer.callTool({ name: "startRecording", arguments: {} });
-		const waited = await observer.callTool({ name: "waitForRecording", arguments: {} });
-		expect(textOf(waited as CallToolResult)).toContain("No recording");
-		const second = await observer.callTool({ name: "startRecording", arguments: {} });
-		expect(textOf(second as CallToolResult)).toContain("already running");
-		begin();
-		expect((await starting).isError).toBeFalsy();
-		expect(starts).toBe(1);
-	});
-
-	it.each([
-		0,
-		-1,
-		1.5,
-		3601,
-		"10",
-	])("validates timeoutSec=%s before observing", async (timeoutSec) => {
-		const completion = new RecordingCompletion();
-		const { observer } = await observing(completion);
-		const result = await observer.callTool({ name: "waitForRecording", arguments: { timeoutSec } });
-		expect(result.isError).toBe(true);
-		expect(textOf(result as CallToolResult)).toContain("validation");
-	});
-
-	it("reports no active recording as a tool error", async () => {
-		const { observer } = await observing(new RecordingCompletion());
-		const result = await observer.callTool({ name: "waitForRecording", arguments: {} });
-		expect(result.isError).toBe(true);
-		expect(textOf(result as CallToolResult)).toContain("No recording");
-	});
-
-	it("propagates MCP cancellation and leaves the user's take available", async () => {
-		const completion = new RecordingCompletion();
-		completion.started(42);
-		const { observer, subscription } = await observing(completion);
-		const abort = new AbortController();
-		const waiting = expect(
-			observer.callTool({ name: "waitForRecording", arguments: {} }, undefined, {
-				signal: abort.signal,
-			}),
-		).rejects.toThrow();
-		await subscription;
-		abort.abort();
-		await waiting;
-		// Flush the MCP cancellation notification, then the same take still completes.
-		await new Promise((resolve) => setTimeout(resolve, 0));
-		const retry = completion.wait(1000, new AbortController().signal);
-		completion.saved(42, videoPath);
-		completion.completed(42, { projectId: "proj_take", videoPath, durationSec: 12, autoZooms: 0 });
-		await expect(retry).resolves.toMatchObject({ projectId: "proj_take" });
 	});
 });

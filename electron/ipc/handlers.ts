@@ -9,16 +9,13 @@ import type { DesktopCapturerSource, Rectangle, WebContents } from "electron";
 import {
 	app,
 	BrowserWindow,
-	clipboard,
 	desktopCapturer,
 	dialog,
 	ipcMain,
-	safeStorage,
 	screen,
 	shell,
 	systemPreferences,
 } from "electron";
-import { z } from "zod";
 import { DEFAULT_WEBCAM_QUALITY, type WebcamQualityId } from "../../src/hooks/webcamCaptureTarget";
 import {
 	type AxcutDocument,
@@ -26,8 +23,6 @@ import {
 	parseDocumentFile,
 } from "../../src/lib/ai-edition/schema";
 import type { ShaderEffectImageStore } from "../../src/lib/ai-edition/shaderEffects";
-import type { CliSourcesResult } from "../../src/lib/cliContracts";
-import { pickRecordingSource } from "../../src/lib/cliSourcePick";
 import { desktopSourceTimeoutMessage } from "../../src/lib/desktopSourceTimeout";
 import { KEY_SOUND_SAMPLES, keySampleFile } from "../../src/lib/keystrokes/keySoundSamples";
 import {
@@ -58,27 +53,13 @@ import {
 	type ProjectPathResult,
 } from "../../src/native/contracts";
 import { PRODUCT_NAME } from "../about";
-import {
-	compactSessionNow,
-	configureChatPersistence,
-	createSession,
-	deleteSession,
-	getSessionContextUsage,
-	listSessions,
-	renameSession,
-	rewindToMessage,
-	runChat,
-	selectSession,
-} from "../ai-edition/chat-service";
-import type { CursorTelemetryReader } from "../ai-edition/deep-agent/service";
 import { DocumentService } from "../ai-edition/document-service";
-import { LlmConfigStore } from "../ai-edition/llm-config-store";
+import type { CursorTelemetryReader } from "../ai-edition/document-tools";
 import { StylePresetService } from "../ai-edition/style-preset-service";
 import { AppSettingsStore } from "../app-settings";
 import { writeFileReplacing } from "../atomic-rename";
 import { bringToFront } from "../bringToFront";
 import { CameraPreviewController } from "../cameraPreview";
-import { createRunnerHost } from "../cli/runnerHost";
 import { hideCountdownOverlay } from "../countdownOverlay";
 import { isDiagnosticModeEnabled, mainLogFile } from "../diagnostics/main-log-file";
 import { createZip } from "../diagnostics/zip";
@@ -92,16 +73,9 @@ import {
 	RECORDINGS_DIR,
 	setRecordingsDir,
 } from "../main";
-import { createAppRecorder, pickTakePrefs, takePrefs } from "../mcp/app-recorder";
 import { EditorDocumentHost } from "../mcp/editor-document-host";
-import { frameImages } from "../mcp/frame-images";
 import { openVideoInHiddenWindow } from "../mcp/hidden-video";
-import { NAMED_TAKE_NEEDS_SCREEN_ACCESS, namedTakeMayEnumerate } from "../mcp/macNamedTake";
-import { McpController } from "../mcp/mcp-controller";
-import { McpSettingsStore } from "../mcp/mcp-settings-store";
-import { createMediaTools, type MediaToolDeps, type RecordRequest } from "../mcp/media-tools";
 import { createToolRunner, type McpToolDeps } from "../mcp/openscreen-mcp-server";
-import { RecordingCompletion } from "../mcp/recording-completion";
 import { type AudioPeaksResult, getAudioPeaks, resolveFfmpeg } from "../media/audioPeaks";
 import {
 	readCursorRecordingFile as readCursorRecordingFileFrom,
@@ -141,7 +115,6 @@ import {
 	macSystemPickerEnabled,
 	markMacSystemPickerUnavailable,
 } from "../native-bridge/screen/macPickerSession";
-import { readMacScreenCaptureAccess } from "../native-bridge/screen/macScreenAccess";
 import { CompositorViewService } from "../native-bridge/services/compositorViewService";
 import { getMacPermissions, showPermissionsWindow } from "../permissions";
 import { scoreDeviceNameMatch } from "../recording/deviceNameMatching";
@@ -198,7 +171,6 @@ import { countToolCall } from "../usage-ping";
 import { usesWaylandBackend } from "../wayland";
 import {
 	createCameraPreviewWindow,
-	createRunnerWindow,
 	getCameraPreviewWindow,
 	parkCameraPreviewWindow,
 	resizeCameraPreviewWindow,
@@ -2077,29 +2049,16 @@ export function registerIpcHandlers(
 	getCountdownOverlayWindow?: () => BrowserWindow | null,
 	onRecordingStateChange?: (recording: boolean, sourceName: string, preparing?: boolean) => void,
 	_switchToHud?: () => void,
-	/** The editor holds changes it has not saved (main.ts): an MCP take would close it. */
-	editorHasUnsavedChanges?: () => boolean,
 ) {
-	/** The HUD is recording a take, the user's or an MCP client's. Set by `setAppRecording` only. */
+	/** The HUD is recording a take. Set by `setAppRecording` only. */
 	let appRecording = false;
-	const recordingCompletion = new RecordingCompletion();
 	/**
 	 * Every start and stop of a take goes through here: the browser path's `set-recording-state`
-	 * and the native paths, which start and stop in this process. The MCP recorder waits on it
-	 * for a client's take to start, and the tray shows it. A native path that called
-	 * `onRecordingStateChange` itself left the MCP recorder waiting on a take already running.
+	 * and the native paths, which start and stop in this process. The tray shows it.
 	 */
-	const setAppRecording = (
-		recording: boolean,
-		sourceName: string,
-		recordingId?: number,
-		preparing = false,
-	) => {
-		if (recording && !preparing && recordingId !== undefined)
-			recordingCompletion.started(recordingId);
+	const setAppRecording = (recording: boolean, sourceName: string, preparing = false) => {
 		appRecording = recording;
 		if (!recording && !preparing) cameraPreview.setCaptureAllowed(true);
-		if (!preparing) mcpAppRecorder.recordingChanged(recording, recordingId);
 		onRecordingStateChange?.(recording, sourceName, preparing);
 	};
 	const appSettings = new AppSettingsStore(app.getPath("userData"));
@@ -2113,21 +2072,7 @@ export function registerIpcHandlers(
 	const sameSelectedSource = (left: SelectedSource | null, right: SelectedSource | null) =>
 		left?.id === right?.id && left?.name === right?.name && left?.display_id === right?.display_id;
 
-	// Issue #738: the renderer's `navigator.clipboard.writeText` is always denied
-	// here (NotAllowedError: Write permission denied — Electron withholds the
-	// clipboard-sanitized-write permission from the renderer), so chat's
-	// "Copy message" fell to its error toast and the clipboard kept its old
-	// content. Main's `clipboard` module has no such permission gate; the
-	// preload exposes this as `copyToClipboard`.
-	ipcMain.handle("clipboard:write-text", (_event, text: unknown) => {
-		if (typeof text !== "string") {
-			throw new TypeError("clipboard:write-text expects a string");
-		}
-		clipboard.writeText(text);
-	});
-
-	/** The sources the pickers list, in their order: the in-app MCP server's startRecording
-	 *  picks from the same list its listSources shows. */
+	/** The sources the pickers list, in their order. */
 	async function getSourcesForPickers(opts: Electron.SourcesOptions) {
 		// desktopCapturer.getSources can never settle where the GL stack cannot be
 		// reached -- a container, a CI runner, a host whose ANGLE fails to
@@ -3032,7 +2977,7 @@ export function registerIpcHandlers(
 				// "Screen" }`, so the tray confidently displayed the name of a
 				// window the capture had never been told about.
 				linuxNativeCaptureSourceLabel = linuxSourceLabel(session.grantedSourceKind);
-				setAppRecording(true, linuxNativeCaptureSourceLabel, recordingId);
+				setAppRecording(true, linuxNativeCaptureSourceLabel);
 
 				return { success: true, recordingId, path: outputPath };
 			} catch (error) {
@@ -3336,7 +3281,7 @@ export function registerIpcHandlers(
 				}
 				// Reserve startup before cursor/helper awaits without reporting a started take.
 				startReserved = true;
-				setAppRecording(true, selectedSource?.name ?? "Screen", undefined, true);
+				setAppRecording(true, selectedSource?.name ?? "Screen", true);
 				await fs.mkdir(RECORDINGS_DIR, { recursive: true });
 				nativeWindowsCaptureOutput = "";
 				nativeWindowsCaptureTargetPath = outputPath;
@@ -3408,7 +3353,7 @@ export function registerIpcHandlers(
 				});
 
 				const source = selectedSource || { name: "Screen" };
-				setAppRecording(true, source.name, recordingId);
+				setAppRecording(true, source.name);
 
 				// Reported at start, not at stop: the helper decides the camera is a
 				// lost cause during its own init — before it announces "Recording
@@ -3699,7 +3644,7 @@ export function registerIpcHandlers(
 					: 0;
 
 			const source = selectedSource || { name: "Screen" };
-			setAppRecording(true, source.name, recordingId);
+			setAppRecording(true, source.name);
 
 			return {
 				success: true,
@@ -4519,7 +4464,7 @@ export function registerIpcHandlers(
 			const source = selectedSource || { name: "Screen" };
 			if (recording) {
 				// Claim the take synchronously, before cursor setup yields to an updater.
-				setAppRecording(recording, source.name, undefined, true);
+				setAppRecording(recording, source.name, true);
 				if (reserveOnly) return { success: true };
 			}
 			const normalizedCursorCaptureMode =
@@ -4530,7 +4475,7 @@ export function registerIpcHandlers(
 				await stopCursorRecording();
 			}
 
-			setAppRecording(recording, source.name, recordingId);
+			setAppRecording(recording, source.name);
 			return { success: true };
 		},
 	);
@@ -5314,46 +5259,7 @@ export function registerIpcHandlers(
 		setCurrentRecordingSessionState(normalizedSession);
 		currentVideoPath = normalizedSession?.screenVideoPath ?? null;
 		currentProjectPath = null;
-		if (normalizedSession) {
-			mcpAppRecorder.takeSaved(normalizedSession.screenVideoPath);
-			// Every capture path stamps the session's `createdAt` with its recordingId (the
-			// `Date.now()` it started at), so it names the take `recordingCompletion` tracks.
-			// Any other session (an opened file) carries a fresh `Date.now()` and matches none.
-			recordingCompletion.saved(normalizedSession.createdAt, normalizedSession.screenVideoPath);
-		}
 		return { success: true, session: currentRecordingSession };
-	});
-
-	// A renderer acknowledgement of the actual hand-off, after the duration and
-	// automatic zoom saves. An imported/opened project never emits this signal.
-	const recordingOutcomeSchema = z.discriminatedUnion("status", [
-		z.object({
-			recordingId: z.number().finite(),
-			status: z.literal("ready"),
-			projectId: z.string(),
-		}),
-		z.object({
-			recordingId: z.number().finite(),
-			status: z.enum(["failed", "cancelled"]),
-			message: z.string(),
-		}),
-	]);
-	ipcMain.handle("recording-outcome", async (event, input: unknown) => {
-		// Only the recording bar or the editor, whichever is the main window, ends a take.
-		if (event.sender !== getMainWindow()?.webContents) return { success: false };
-		const parsed = recordingOutcomeSchema.safeParse(input);
-		if (!parsed.success) return { success: false };
-		const outcome = parsed.data;
-		if (outcome.status !== "ready") {
-			recordingCompletion.failed(outcome.recordingId, outcome.message);
-			mcpAppRecorder.recordingFinished(outcome.recordingId);
-			return { success: true };
-		}
-		await recordingCompletion.projectReady(outcome.recordingId, outcome.projectId, (id) =>
-			aiEditionDocuments.getProject(id),
-		);
-		mcpAppRecorder.recordingFinished(outcome.recordingId);
-		return { success: true };
 	});
 
 	ipcMain.handle("get-current-recording-session", () => {
@@ -5493,47 +5399,23 @@ export function registerIpcHandlers(
 	// race destroyed two real project files), so a second instance means a second
 	// queue racing for the same path: temp+rename still keeps the file valid, but
 	// a save can land under a concurrent one and be silently lost.
-	const chatProjectsRoot = path.join(app.getPath("userData"), "projects");
-	configureChatPersistence(chatProjectsRoot);
 	const aiEditionDocuments = new DocumentService(
-		chatProjectsRoot,
+		path.join(app.getPath("userData"), "projects"),
 		DEFAULT_RECORDINGS_DIR,
 		approveDocumentMedia,
 		() => stylePresets.newProjectAppearance(),
 	);
 
-	// LlmConfigStore is single-instance for a duller reason — its constructor does
-	// two sync readFileSync plus a safeStorage decrypt, and it was running on every
-	// chat message. But it must also stay UNBUILT until something actually needs it:
-	// on macOS that decrypt is backed by a Keychain item, so constructing it at
-	// startup made every launch prompt for Keychain access, including for users who
-	// never open the AI layer at all. (The prompt repeats because an unsigned or
-	// ad-hoc-signed build has no stable code identity for the item's ACL to trust —
-	// signing is the other half of that fix, and is not this function's business.)
-	// Memoised, so the "one instance" guarantee above still holds.
-	let aiEditionLlmConfigInstance: LlmConfigStore | null = null;
-	const getAiEditionLlmConfig = (): LlmConfigStore => {
-		if (!aiEditionLlmConfigInstance) {
-			aiEditionLlmConfigInstance = new LlmConfigStore(app.getPath("userData"));
-		}
-		return aiEditionLlmConfigInstance;
-	};
-
-	// The local MCP server offers the agent's tools to MCP clients the user runs
-	// (Claude Code, Codex…), on any project: the open one through the editor, the
-	// rest through the same DocumentService instance as every other save (see
-	// above for why there is only one). Built here because this is where the agent's own
-	// dependencies live, but NOT started here: the headless CLI shares this
-	// function and must never bind the port a running app is listening on.
-	// `main.ts` starts it. Its writes have their own switch, off by default and
-	// read on every call: "MCP edits", separate from the in-app agent's "Agent edits",
-	// so turning the server on grants a client read access and nothing more.
-	const mcpSettings = new McpSettingsStore(app.getPath("userData"), safeStorage);
+	// What `openscreen mcp` serves to the MCP client the user runs (Claude Code, Codex…),
+	// on any project: the open one through the editor, the rest through the same
+	// DocumentService instance as every other save (see above for why there is only one).
+	// Built here because this is where the tools' dependencies live; the headless CLI
+	// shares this function and serves them on stdio, and `main.ts` answers its calls on
+	// the app's channel (app-channel.ts).
 	const mcpToolDeps: McpToolDeps = {
-		transport: "http",
+		transport: "app",
 		host: new EditorDocumentHost(ipcMain),
 		projects: aiEditionDocuments,
-		editsAllowed: () => mcpSettings.getSettings().allowEdits,
 		cursor: agentCursorTelemetryReader,
 		cameraSegmentation: () => loudnessService.probeSegmentation(),
 		checkShaderEffect: (code, params, image) =>
@@ -5554,114 +5436,9 @@ export function registerIpcHandlers(
 		// The tool's name and nothing of the call, for the daily count to carry.
 		onToolCall: (name) => countToolCall(app.getPath("userData"), getInstallChannel(), name),
 	};
-	// One runner, so one queue and one checkpoint store, for the in-app server and every
-	// `openscreen mcp` the app answers through its channel (app-channel.ts, started by main.ts).
+	// One runner, so one queue and one checkpoint store, for every `openscreen mcp` the
+	// app answers through its channel (app-channel.ts, started by main.ts).
 	const mcpRunTool = createToolRunner(mcpToolDeps);
-
-	// The in-app server's media tools. listSources and exportVideo run the CLI's hidden
-	// runners in this process, their IPC registered on first use: never in the headless
-	// CLI, which registers its own and never starts this server.
-	let mcpRunnerHost: ReturnType<typeof createRunnerHost<BrowserWindow>> | null = null;
-	const mcpRunners: MediaToolDeps["runners"] = {
-		start(request, handlers) {
-			mcpRunnerHost ??= createRunnerHost(ipcMain, createRunnerWindow);
-			return mcpRunnerHost.start(request, handlers);
-		},
-	};
-
-	/**
-	 * Points the HUD at a client's take, as Record mode does before it hands over, and
-	 * returns what puts back what the user had. Restored once the take is captured, so the
-	 * user's own source and settings are what their next take starts from.
-	 */
-	async function pointHudAtTake(request: RecordRequest): Promise<() => void> {
-		// The devices first: finding them changes nothing, so a miss leaves all as it was.
-		let listed: CliSourcesResult | null = null;
-		if ((request.mic && request.micDevice) || (request.camera && request.cameraDevice)) {
-			// Their ids as well as their names, both of which the HUD records with: a renderer's to read.
-			const run = mcpRunners.start({ kind: "sources" });
-			listed = (await run.done.finally(() => run.close())).sources ?? null;
-		}
-		const next = takePrefs(request, listed, recordingPrefs.get());
-
-		const before = { source: selectedSource, live: selectedDesktopSource };
-		const restoreSource = () => {
-			selectedSource = before.source;
-			selectedDesktopSource = before.live;
-			broadcastSelectedSource(before.source);
-		};
-		if (await linuxPortalOwnsSources(process.platform, findLinuxCaptureHelperPath(), process.env)) {
-			// The portal asks the user once the take starts: nothing here to select.
-		} else {
-			// Where Apple's picker owns the bar's sources, a named take still records what it
-			// names: the picker would wait for a person (#1232, see macNamedTake.ts).
-			if (macPickerOwnsSources()) {
-				const access = await readMacScreenCaptureAccess();
-				if (!namedTakeMayEnumerate(access.status)) {
-					throw new Error(NAMED_TAKE_NEEDS_SCREEN_ACCESS);
-				}
-			}
-			try {
-				// The list listSources shows, in its order: its display indexes are this list's.
-				const sources = await getSourcesForPickers({
-					types: ["screen", "window"],
-					thumbnailSize: { width: 0, height: 0 },
-				});
-				const picked = pickRecordingSource(sources, request);
-				if (!(await selectSource(picked, { persist: false }))) {
-					throw new Error(`"${picked.name}" can no longer be recorded. Call listSources again.`);
-				}
-			} catch (error) {
-				// A failed pick may have cleared the selection: the user's comes back.
-				restoreSource();
-				throw error;
-			}
-		}
-
-		// Read here, not above: a change the user makes while the source is picked is theirs to keep.
-		const userPrefs = pickTakePrefs(recordingPrefs.get());
-		recordingPrefs.set(next);
-		// The prefs are saved to disk: a quit mid-take must not leave the client's for the next
-		// launch. ponytail: a crash still does; keep them in memory only if that bites.
-		const restore = () => {
-			app.off("will-quit", restore);
-			recordingPrefs.set(userPrefs);
-			restoreSource();
-		};
-		app.once("will-quit", restore);
-		return restore;
-	}
-
-	const mcpAppRecorder = createAppRecorder({
-		isRecording: () => appRecording,
-		editorHasUnsavedChanges: () => editorHasUnsavedChanges?.() ?? false,
-		prepare: pointHudAtTake,
-		startTake: startNewRecording,
-		stopTake: () => {
-			const hudWindow = getMainWindow();
-			if (hudWindow && !hudWindow.isDestroyed()) {
-				hudWindow.webContents.send("stop-recording-from-tray");
-			}
-		},
-		host: mcpToolDeps.host,
-	});
-	const mcpMedia = createMediaTools({
-		recordingActive: () => recordingCompletion.isActive(),
-		waitForRecording: (timeoutMs, signal) => recordingCompletion.wait(timeoutMs, signal),
-		transport: "http",
-		// Recording and exporting change things too: the same switch as edits.
-		editsAllowed: mcpToolDeps.editsAllowed,
-		recorder: mcpAppRecorder,
-		runners: mcpRunners,
-		documents: aiEditionDocuments,
-		openVideo: openVideoInHiddenWindow,
-		renderFrames: (...args) => loudnessService.renderFrames(...args),
-		images: frameImages,
-		readCursor: async (videoPath) => (await readCursorTelemetryFile(videoPath)).samples,
-		// Never overriding the switch: setPointerTrack is refused while MCP edits is off.
-		runTool: mcpRunTool,
-	});
-	const mcpController = new McpController(mcpSettings, mcpToolDeps, mcpRunTool, mcpMedia);
 
 	// The editor says which project it holds, so `openscreen mcp`, a process of its own
 	// that cannot ask it, refuses to edit that project behind its back (#1138).
@@ -5722,38 +5499,10 @@ export function registerIpcHandlers(
 			registryDir: DEFAULT_RECORDINGS_DIR,
 		}),
 		getStylePresets: () => stylePresets,
-		getAiEditionLlmConfig,
-		runAiEditionChat: (projectId, sessionId, message, document, sink, signal) =>
-			runChat(projectId, sessionId, message, getAiEditionLlmConfig(), document, sink, {
-				signal,
-				cursor: agentCursorTelemetryReader,
-				cameraSegmentation: () => loudnessService.probeSegmentation(),
-				checkShaderEffect: (code, params, image) =>
-					loudnessService.checkShaderEffect(code, params, image),
-				storeEffectImage: keepEffectImage,
-				stylePresets: () => stylePresets.list(),
-			}),
-		undoAiEditionToolBatch: (_projectId, _sessionId) => ({
-			success: false,
-			error: "Per-tool-batch undo retired in favor of per-message rewind.",
-		}),
-		rewindToMessage: (projectId, sessionId, messageId) =>
-			rewindToMessage(projectId, sessionId, messageId),
-		compactNow: (projectId, sessionId) =>
-			compactSessionNow(projectId, sessionId, getAiEditionLlmConfig()),
-		getContextUsage: getSessionContextUsage,
-		listAiEditionChatSessions: (projectId) => listSessions(projectId),
-		createAiEditionChatSession: (projectId, title) => createSession(projectId, title),
-		selectAiEditionChatSession: (projectId, sessionId) => selectSession(projectId, sessionId),
-		renameAiEditionChatSession: (projectId, sessionId, title) =>
-			renameSession(projectId, sessionId, title),
-		deleteAiEditionChatSession: (projectId, sessionId) => deleteSession(projectId, sessionId),
-		getMcpController: () => mcpController,
 	});
 
 	// `openscreen mcp` serves the same tools on stdio, from the CLI process.
 	return {
-		mcpController,
 		mcpAppChannel: { deps: mcpToolDeps, runTool: mcpRunTool },
 		agentServices: {
 			mcpToolDeps,

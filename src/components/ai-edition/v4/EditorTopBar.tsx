@@ -9,11 +9,9 @@ import {
 	Languages,
 	LifeBuoy,
 	Moon,
-	PanelLeft,
 	Redo2,
 	RefreshCw,
 	Save,
-	Sparkles,
 	Star,
 	Sun,
 	Undo2,
@@ -40,8 +38,6 @@ export interface TopBarActions {
 	export: () => void;
 	openSettings: () => void;
 	renameProject: (title: string) => void;
-	toggleChat: () => void;
-	openProviderSettings: () => void;
 	showAbout: () => void;
 	checkForUpdates: () => void;
 	undo: () => void;
@@ -56,7 +52,6 @@ interface EditorTopBarProps {
 	canExport: boolean;
 	canUndo: boolean;
 	canRedo: boolean;
-	chatOpen: boolean;
 	actions: TopBarActions;
 }
 
@@ -82,7 +77,6 @@ export function EditorTopBar({
 	canExport,
 	canUndo,
 	canRedo,
-	chatOpen,
 	actions,
 }: EditorTopBarProps) {
 	const t = useScopedT("editor");
@@ -92,32 +86,8 @@ export function EditorTopBar({
 	const savedLabel = dirty ? t("topbar.unsaved") : t("topbar.saved");
 	const updateBadge = useUpdateBadge();
 
-	// ponytail: the left side panel only renders in "edit" mode (see
-	// NewEditorShell body), so its toggle is meaningless in Media/Rec —
-	// hide the button (and its separator) there to keep the topbar honest.
-	const showChatToggle = mode === "edit";
 	return (
 		<header className={styles.topbar}>
-			{/* Fixed-width slot: the toggle is Edit-only, and .topbarLead holds its
-			    space in the other modes so nothing to the right moves. */}
-			<span className={styles.topbarLead}>
-				{showChatToggle ? (
-					<>
-						<Tooltip content={t("topbar.toggleChatPanel")}>
-							<button
-								type="button"
-								className={`${styles.iconBtn}${chatOpen ? ` ${styles.on}` : ""}`}
-								aria-label={t("topbar.toggleChatPanel")}
-								aria-pressed={chatOpen}
-								onClick={actions.toggleChat}
-							>
-								<PanelLeft size={17} />
-							</button>
-						</Tooltip>
-						<span className={styles.sep} aria-hidden />
-					</>
-				) : null}
-			</span>
 			<AppMenu actions={actions} />
 			<span className={styles.sep} aria-hidden />
 			<span className={styles.projectSlot}>
@@ -287,8 +257,8 @@ function ProjectNameField({
  *
  *  No row invents a label. Each one reuses the key of the thing it opens: `common.actions.*`
  *  for the rows electron/main.ts also builds native menu items from (About, Check for
- *  Updates, Save Diagnostics), and the dialog's own title key for the rows that open a dialog (`shortcuts.title`,
- *  `editor.providerSettings.title`). That is what stops this menu from drifting away from the
+ *  Updates, Save Diagnostics), and the dialog's own title key for the row that opens a dialog
+ *  (`shortcuts.title`). That is what stops this menu from drifting away from the
  *  native menu on one side and from what its rows actually open on the other — and it is why
  *  this component adds no translation work. */
 /** Shared by the mount seed and the per-open refresh below. A rejection — no preload, browser
@@ -451,19 +421,6 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 					>
 						<Keyboard size={15} />
 						{tShortcuts("title")}
-					</button>
-					{/* Settings surfaces together, above the separator. Both rows are labelled with the
-					    title of the dialog they open, so neither can drift from it — and unlike the AI
-					    panel's own entry points, this one is reachable in Media and Rec too, which is
-					    the whole reason the dialog's open state was lifted out of LeftPanel (#420). */}
-					<button
-						type="button"
-						role="menuitem"
-						className={styles.appMenuRow}
-						onClick={run(actions.openProviderSettings)}
-					>
-						<Sparkles size={15} />
-						{tEditor("providerSettings.title")}
 					</button>
 					<button
 						type="button"

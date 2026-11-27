@@ -33,7 +33,7 @@ OpenScreen is not the same product as Open Screen at openscreen.io.
 - [Media library](https://getopenscreen.com/docs/media-library/): import videos, then trim, crop, split and reorder clips on one timeline
 - [Editing and timeline](https://getopenscreen.com/docs/editing-timeline/): zoom, trim and speed regions, annotations, cursor styling, shortcuts
 - [Captions and transcript](https://getopenscreen.com/docs/captions/): on-device Whisper transcription, burned-in captions, translation, editing by transcript
-- [AI editing](https://getopenscreen.com/docs/ai-editing/): optional chat editing with an LLM key you supply, off by default
+- [AI editing](https://getopenscreen.com/docs/ai-editing/): optional editing by your own agent (Claude Code, Codex or any MCP client) over `openscreen mcp`; no model provider or key in the app
 - [Custom effects](https://getopenscreen.com/docs/effects/): ask an AI agent for a visual effect the settings don't offer; it writes a GPU shader that OpenScreen draws in the preview and in every export
 - [Export](https://getopenscreen.com/docs/export/): MP4 and GIF settings and encoders
 - [CLI](https://getopenscreen.com/docs/cli/): record, caption and export from scripts, CI jobs and coding agents, with NDJSON output

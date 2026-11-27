@@ -167,14 +167,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` e `--max-words` definem a quantidade de palavras por legenda. Cada um aceita de 1 a 12, o intervalo do editor. Padrões: 2 e 7.
-- As legendas são a transcrição desenhada sobre o vídeo, então no editor você muda o estilo, corrige e traduz essas legendas como quaisquer outras. Rodar o comando de novo mantém a transcrição e só define a quantidade de palavras por legenda.
+- As legendas são a transcrição desenhada sobre o vídeo, então no editor você muda o estilo e corrige essas legendas como quaisquer outras. Rodar o comando de novo mantém a transcrição e só define a quantidade de palavras por legenda.
 - O projeto é salvo no formato próprio do editor. Um script que edita o JSON do projeto como mostrado [abaixo](#example-an-automated-product-demo) faz isso antes de `captions`, e o `pack` ainda não lê esse formato.
 - O vídeo de tela do projeto precisa ter uma faixa de áudio, por exemplo de `record --mic`.
 - As legendas são embutidas na exportação. Não há saída em arquivo de legenda. Veja [Legendas](./captions.md).
 
 ### `openscreen mcp` {#openscreen-mcp}
 
-Disponibiliza as ferramentas MCP do OpenScreen no stdin e no stdout, para um agente de código que o inicia: as ferramentas de edição, mais a gravação, a exportação e os quadros estáticos. Você não o executa por conta própria; quem executa é o seu agente, depois de configurado como mostra [Como deixar um agente fazer o vídeo inteiro](./ai-editing.md#letting-an-agent-make-the-whole-video).
+Disponibiliza as ferramentas MCP do OpenScreen no stdin e no stdout, para um agente de código que o inicia: as ferramentas de edição, mais a gravação, a exportação e os quadros estáticos. Você não o executa por conta própria; quem executa é o seu agente, depois de configurado como mostra [Edição com IA](./ai-editing.md#setting-it-up).
 
 ### `openscreen pack` {#openscreen-pack}
 

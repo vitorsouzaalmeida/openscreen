@@ -56,12 +56,12 @@ Les deux se recoupent plus que ne le suggère l'opposition « streaming contre 
 
 - **Des sous-titres sans plugin, sur les trois systèmes.** whisper.cpp est intégré à l'application. Un modèle Whisper Small d'environ 264 Mo est téléchargé une fois, et les sous-titres sont incrustés dans la vidéo. L'outil de sous-titres propre à OBS n'est compilé que pour Windows. Plus de détails sur les [sous-titres](/features/captions/).
 - **Montage par le texte.** Sélectionnez des mots dans la transcription et supprimez-les pour couper ce passage de la vidéo. Les silences sont marqués et peuvent être coupés de la même façon. Voir [Montage par la transcription](/docs/captions/#transcript-editing).
-- **Traduction des sous-titres** en 15 langues, via un fournisseur d'IA que vous connectez.
+- **Traduction des sous-titres** par votre propre agent IA, par le serveur MCP d'OpenScreen.
 
-### Export et montage par chat {#export-and-chat-editing}
+### Export et montage par agent {#export-and-agent-editing}
 
 - **Une étape d'export avec des choix.** MP4 en 720p, 1080p ou taille source, à 24, 30 ou 60 fps, en H.264, ou un GIF. Sans filigrane. Dans OBS, la résolution de sortie, la fréquence d'images et l'encodeur se règlent dans Paramètres avant l'enregistrement. Voir [Export](/docs/export/).
-- **Montage par chat en option, avec votre propre clé.** Décrivez des coupes, des zooms, des changements de vitesse ou des annotations en langage courant. Chaque modification s'applique comme une modification ordinaire, que vous pouvez annuler. C'est désactivé tant que vous n'avez pas connecté de fournisseur. Voir [Montage par IA](/docs/ai-editing/).
+- **Montage en option, avec votre propre agent.** Claude Code, Codex ou tout autre client MCP lance le serveur MCP d'OpenScreen, et vous décrivez des coupes, des zooms, des changements de vitesse ou des annotations en langage courant. Chaque modification s'applique comme une modification ordinaire, que vous pouvez annuler. Voir [Montage par IA](/docs/ai-editing/).
 
 ## Quand OBS Studio est le meilleur choix {#when-obs-studio-is-the-better-choice}
 

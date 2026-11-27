@@ -51,7 +51,7 @@ OpenScreen es gratis y funciona en Windows, macOS y Linux. Screen Studio 4 sigue
 | Qué graba | Una pantalla o una ventana. Recorte posterior en el editor | Una pantalla, una ventana o un área seleccionada |
 | Zooms automáticos | Sí, colocados en los clics grabados | Sí |
 | Subtítulos | Whisper en tu equipo, un modelo de unos 264 MB, descargado una vez. Incrustados en el video | Whisper en el equipo (Base, Small o Medium), o Apple Speech Recognition en macOS 26 o posterior. La transcripción se puede exportar como archivo |
-| Traducción de subtítulos | 15 idiomas, mediante un proveedor de IA que tú conectas | Sin paso de traducción en su guía de subtítulos |
+| Traducción de subtítulos | Por tu propio agente de IA, a través del servidor MCP de OpenScreen | Sin paso de traducción en su guía de subtítulos |
 | Línea de tiempo multiclip | Sí | "Grabaciones multiclip" en su hoja de ruta, marcadas como planeadas |
 | Anotaciones de texto, flecha e imagen | Sí | "Anotaciones" en su hoja de ruta, marcadas como en pausa |
 | Exportación | MP4 (H.264) o GIF, hasta 60 fps, sin marca de agua | MP4 o GIF, con ajustes de fps, tamaño de salida y calidad |
@@ -97,7 +97,7 @@ Ambas apps cubren lo siguiente. Nada de esto es exclusivo de una sola.
 ### Exportación y automatización {#export-and-automation}
 
 - **Una interfaz de línea de comandos.** Scripts, CI y agentes de código pueden manejar OpenScreen desde su [línea de comandos](/docs/cli/). La guía de Screen Studio no tiene entrada de línea de comandos.
-- **Edición por chat opcional con tu propia clave.** Conecta Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax o cualquier endpoint compatible con OpenAI, y describe cortes, zooms, cambios de velocidad o anotaciones en lenguaje natural. Cada cambio se aplica como una edición común que se puede deshacer. Está desactivado hasta que conectas un proveedor, y ese mismo proveedor traduce los subtítulos a 15 idiomas. Consulta [Edición con IA](/docs/ai-editing/).
+- **Edición opcional con tu propio agente.** Claude Code, Codex o cualquier otro cliente MCP inicia el servidor MCP de OpenScreen, y tú describes cortes, zooms, cambios de velocidad o anotaciones en lenguaje natural. Cada cambio se aplica como una edición común que se puede deshacer, en vivo en el editor abierto. El agente inicia sesión con su propia cuenta, que OpenScreen nunca ve, y también puede traducir los subtítulos. Consulta [Edición con IA](/docs/ai-editing/).
 
 ## Cuándo Screen Studio es la mejor opción {#when-screen-studio-is-the-better-choice}
 

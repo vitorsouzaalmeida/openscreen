@@ -4,7 +4,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { EditorDialogsProvider } from "@/contexts/EditorDialogsContext";
 import type { AxcutAsset, AxcutClip, AxcutDocument } from "@/lib/ai-edition/schema";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -176,9 +175,7 @@ function makeDocument(): AxcutDocument {
 function renderShell() {
 	return render(
 		<TooltipProvider>
-			<EditorDialogsProvider>
-				<NewEditorShell />
-			</EditorDialogsProvider>
+			<NewEditorShell />
 		</TooltipProvider>,
 	);
 }
@@ -187,8 +184,6 @@ function prepareShell() {
 	localStorage.clear();
 	vi.clearAllMocks();
 	(window as unknown as { electronAPI?: unknown }).electronAPI = {
-		onAiEditionChatEvent: () => () => undefined,
-		sendAiEditionChatPrompt: () => undefined,
 		setTitleBarOverlay: () => undefined,
 		setHasUnsavedChanges: () => undefined,
 		onRequestCloseConfirm: () => () => undefined,

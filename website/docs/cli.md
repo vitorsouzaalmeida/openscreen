@@ -172,14 +172,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` and `--max-words` set the words per caption. Each takes 1 to 12, the range the editor offers. Defaults: 2 and 7.
-- The captions are the transcript drawn on the video, so in the editor you restyle, correct and translate them like any others. Running it again keeps the transcript and only sets the words per caption.
+- The captions are the transcript drawn on the video, so in the editor you restyle and correct them like any others. Running it again keeps the transcript and only sets the words per caption.
 - The project is saved in the editor's own format. A script that edits the project JSON as shown [below](#example-an-automated-product-demo) does it before `captions`, and `pack` does not read that format yet.
 - The project's screen video must have an audio track, for example from `record --mic`.
 - Captions are burned into the export. There is no subtitle file output. See [Captions](./captions.md).
 
 ### `openscreen mcp`
 
-Serves OpenScreen's MCP tools on stdin and stdout, for a coding agent that starts it: the editing tools, plus recording, export and still frames. You do not run it yourself; your agent does, once it is set up as [Letting an agent make the whole video](./ai-editing.md#letting-an-agent-make-the-whole-video) shows.
+Serves OpenScreen's MCP tools on stdin and stdout, for a coding agent that starts it: the editing tools, plus recording, export and still frames. You do not run it yourself; your agent does, once it is set up as [AI editing](./ai-editing.md#setting-it-up) shows.
 
 ### `openscreen pack`
 

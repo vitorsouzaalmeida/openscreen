@@ -30,15 +30,15 @@ OpenScreen 發布頻繁。在兩個版本之間，`.openscreen` 專案格式與 
 - [錄製](./recording.md)特定視窗或整個螢幕，同時收錄系統音訊、麥克風與網路攝影機；可以從浮動的 HUD 開始，也可以直接在編輯器裡開始。
 - 用多個來源組成一個專案：在同一條時間軸上[匯入、修剪、裁切與重新排序片段](./media-library.md)。
 - 用縮放、修剪、分段變速、全螢幕攝影機片段、文字／圖片／箭頭／模糊標註、游標效果、網路攝影機版面，以及背景與效果來[剪輯](./editing-timeline.md)。
-- 用 Whisper 在本機轉錄，然後[把字幕燒錄進影片](./captions.md)：字幕樣式可以即時調整，也能透過你自己的 LLM 提供者翻譯成 15 種語言；你也可以從逐字稿刪除字詞來剪輯錄影。
-- 可選擇連接你自己的 LLM 金鑰，[用聊天來剪輯](./ai-editing.md)：此功能預設關閉，也絕非必要。
-- 讓你自己的程式設計代理透過 OpenScreen 的 MCP 伺服器[完成整部影片](./ai-editing.md#letting-an-agent-make-the-whole-video)：錄影、剪輯、匯出。
+- 用 Whisper 在本機轉錄，然後[把字幕燒錄進影片](./captions.md)：字幕樣式可以即時調整，也能由你自己的代理翻譯；你也可以從逐字稿刪除字詞來剪輯錄影。
+- 可選擇[用你自己的代理來剪輯](./ai-editing.md)：Claude Code、Codex 或任何 MCP 用戶端會啟動 `openscreen mcp`，即時編輯你開啟的專案。這絕非必要。
+- 讓這個代理[完成整部影片](./ai-editing.md#letting-an-agent-make-the-whole-video)：錄影、剪輯、匯出。
 - [匯出](./export.md)成 MP4（720p／1080p／Source，H.264）或 GIF 動畫。
 
 授權、浮水印，以及哪些資料會經過網路等問題，都在[常見問題](/docs/faq/)中解答。OpenScreen 與其他錄影軟體的比較，請見 [Screen Studio](/alternatives/screen-studio/)、[Cap](/compare/openscreen-vs-cap/) 與 [OBS Studio](/compare/openscreen-vs-obs/) 頁面。
 
 :::note
-錄影、剪輯、轉錄、字幕與匯出都不需要帳號，沒有網路連線也能繼續使用。轉錄需要先下載一次：第一次執行時會取得它的模型（Whisper 模型約 264 MB）。有網路連線時，從 GitHub Releases 安裝的版本會向 GitHub 檢查更新。AI 聊天剪輯與字幕翻譯，只有在你自行連接提供者之後才會連線，而且只會連到該提供者。
+錄影、剪輯、轉錄、字幕與匯出都不需要帳號，沒有網路連線也能繼續使用。轉錄需要先下載一次：第一次執行時會取得它的模型（Whisper 模型約 264 MB）。有網路連線時，從 GitHub Releases 安裝的版本會向 GitHub 檢查更新。OpenScreen 不會把任何內容送往任何 AI 模型：如果你加入自己的代理，它透過 OpenScreen 的 MCP 伺服器讀取的內容，會以你在該代理的帳號送往該代理的提供者。
 :::
 
 ## 專案概況 {#project-facts}

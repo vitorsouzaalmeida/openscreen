@@ -130,7 +130,7 @@ describe("long-tail tooltip strings", () => {
 });
 
 // The editor's own block: the timeline toolbar and transport, the top bar, the inspector rail,
-// Record mode and the chat. Kept apart from the list above so the two grow independently.
+// and Record mode. Kept apart from the list above so the two grow independently.
 const EDITOR_TOOLTIP_KEYS: Record<string, string[]> = {
 	timeline: [
 		"buttons.addZoom",
@@ -150,26 +150,12 @@ const EDITOR_TOOLTIP_KEYS: Record<string, string[]> = {
 	editor: [
 		"transport.play",
 		"transport.pause",
-		"topbar.toggleChatPanel",
 		"inspector.editClipTip",
 		"rec.systemAudioTip",
 		"rec.editableCursor",
 		"rec.editableCursorTip",
 		"rec.hideDesktopIconsHintMac",
 		"rec.hideDesktopIconsHintWindows",
-		"chat.contextTooltip",
-		"chat.compactContext",
-		"chat.aiSettings",
-		"chat.history",
-		"chat.newConversation",
-		"chat.clickToRename",
-		"chat.renameConversation",
-		"chat.deleteConversation",
-		"chat.rewindToMessage",
-		"chat.rewindTip",
-		"chat.copyMessage",
-		"chat.send",
-		"chat.composerDisabledNoProvider",
 		"mediaStage.regenerate",
 		"mediaStage.regenerateTip",
 		"mediaStage.cpuBackendHint",
@@ -194,7 +180,7 @@ const CHIP_KEYS: Record<string, string[]> = {
 		"buttons.addAnnotation",
 		"buttons.addCameraFullscreen",
 	],
-	editor: ["transport.play", "transport.pause", "chat.send"],
+	editor: ["transport.play", "transport.pause"],
 };
 const editorEntries = Object.entries(EDITOR_TOOLTIP_KEYS).flatMap(([namespace, keys]) =>
 	keys.map((key) => [namespace, key] as const),

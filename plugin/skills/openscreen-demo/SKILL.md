@@ -14,7 +14,7 @@ This skill carries the whole job on its own. Where this plugin's other skills ar
 
 ## 1. Set up OpenScreen
 
-You need the tools `startRecording`, `stopRecording`, `exportVideo` and `getFrames`. <!-- full-plugin -->Both of OpenScreen's MCP servers have them: the one the app serves (*AI settings* → *MCP server*), and `openscreen mcp`. With the OpenScreen plugin installed in Claude Code, `openscreen mcp` is already connected: the plugin starts it through a small launcher (Node) that finds the installed app. If you have the tools, go to step 2.
+You need the tools `startRecording`, `stopRecording`, `exportVideo` and `getFrames`. <!-- full-plugin -->They come from OpenScreen's MCP server, `openscreen mcp`: the app's own executable started with `mcp`, with nothing to turn on in the app. With the OpenScreen plugin installed in Claude Code, it is already connected: the plugin starts it through a small launcher (Node) that finds the installed app. If you have the tools, go to step 2.
 
 If you have only the tool `openscreenSetup`, the plugin's launcher is running but did not find a usable app: call it, and it says why and which locations it checked. Otherwise the tools are missing for one of these reasons, so do only what is missing:
 
@@ -91,7 +91,7 @@ For staging, choreography and a take recorded with no window at all, use the `op
 
 ## 4. Record
 
-1. `startRecording` with `window`. It returns once capture has started. Connected to the server in the app, the take goes through OpenScreen's recording bar: the editor closes, the bar counts down, and `stopRecording` opens the take in the editor. Pass `camera` only when the user wants to appear on screen: the webcam then shows as a picture-in-picture. Pass `microphone: true` when the user narrates: without it the take has no voice, and nothing to caption.
+1. `startRecording` with `window`. It returns once capture has started. The take is recorded with no recording bar and no countdown, and `stopRecording` makes it a new project in OpenScreen's project list. Pass `camera` only when the user wants to appear on screen: the webcam then shows as a picture-in-picture. Pass `microphone: true` when the user narrates: without it the take has no voice, and nothing to caption.
 2. Play the storyboard. Move deliberately, start the first action after 2.5 s, and pause about one second after each result has finished drawing.
 3. `stopRecording` with a `title`. Keep what it returns: `projectId`, `checkpointId`, `videoPath`, `recordingStartedAt`.
 
@@ -99,7 +99,7 @@ For staging, choreography and a take recorded with no window at all, use the `op
 - **Real mouse** (computer-use, or any tool that moves the actual pointer): OpenScreen records the pointer, draws a clean cursor and already zooms on the clicks. If your mouse tool cannot click in the app's window (some only read browsers, for one), drive it from a script instead.
 - **A script** (Playwright, CDP): the screen pointer never moves, so the take has no cursor and no zoom. In the script, log every action as it runs: `at` is `Date.now()`, `x` and `y` are the action's position as fractions of the window, `click` is true for a click. Hand the log to `setPointerTrack` after `stopRecording`; its description gives the formula from a page's coordinates. A script also gives the cleanest take: same timing on every run, no hesitation.
 
-**The user records the take themselves** from the recording bar: connected to the server in the app, call `waitForRecording` while it records. It never starts or stops anything; it returns once the user has stopped and the editor has saved the take, with the same fields as `stopRecording`. Set `timeoutSec` (default 300, at most 3600) and your client's tool-call timeout longer than the take. A timeout only ends the wait: call it again while the take runs. <!-- full-plugin -->`openscreen mcp` cannot see the recording bar.<!-- /full-plugin -->
+**The user records the take themselves** from OpenScreen's recording bar: you cannot start, stop or wait for that take. Ask them to tell you once they have stopped it and the editor shows it. Then `listProjects`: the take is the project with the latest `updatedAt`, `open` while the editor has it. Keep its `projectId`, call `createCheckpoint` with it before the first edit, and in step 5 pass the `projectId` in place of the `videoPath`.
 
 **A video you already have** needs no recording: `createProject` with its absolute `videoPath` lays it out as a project, and returns a `projectId` and a `checkpointId` as `stopRecording` does. Check it as a take in step 5, its `videoPath` included, then go on from step 6.
 
@@ -146,7 +146,7 @@ Keep the rest as it is: the background, padding, shadow and cursor style are cho
 
 ## 7. Export and review
 
-1. `exportVideo` with the `projectId` and an absolute path: resolve, say, `demo/demo.mp4` against your working directory first, since the server in the app refuses a relative path. For a pull request video, pass `quality: "medium"` (720p) to keep the file small. For a GIF (a README, say), end the path in `.gif` and pass `gifSize: "small"` (480p).
+1. `exportVideo` with the `projectId` and an absolute path: resolve, say, `demo/demo.mp4` against your working directory first, since the server resolves a relative path against its own working directory, which may not be yours. For a pull request video, pass `quality: "medium"` (720p) to keep the file small. For a GIF (a README, say), end the path in `.gif` and pass `gifSize: "small"` (480p).
 2. Review the film with the `openscreen-review` skill. Without it, run at least this pass:
    - `getContactSheet` with the `projectId` over the whole film, `count: 24`: every beat present, in order, no black frame, no leftover setup screen.
    - `getFrames` with the `projectId` at the ruler seconds of the title and each callout: the title readable before 2.5 s; each callout readable, clear of the action, and true to what is on screen; no text cut off.
@@ -170,7 +170,6 @@ Use the `openscreen-deliver` skill: shape and size per destination (10 MB for a 
 ## When it goes wrong
 
 - **`The recording did not start`:** the window title did not match, or capture is not permitted. Check `listSources` and the permissions in step 1.
-- **Recording, exporting or an edit refused, naming *MCP edits*:** you are connected to the server in the app, which records, exports and edits only once the user allows it. Ask them to turn on *MCP edits* under *AI settings* → *MCP server*.
 - **No cursor in the video:** the app was driven by a script. See step 4.
 - **`transcribe` fails with `no-audio`:** the take was recorded with neither `microphone` nor `systemAudio`. Record again with one of them.
 - **No zoom on an early click:** the first 2.5 s stay wide on purpose. Start the first action after that.

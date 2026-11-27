@@ -1,6 +1,6 @@
 ---
 title: 带本地 Whisper 字幕的录屏软件
-description: "OpenScreen 是一款带字幕功能的免费录屏软件：Whisper 在本机转录，之后你可以为字幕设置样式、翻译，并烧录进视频。"
+description: "OpenScreen 是一款带字幕功能的免费录屏软件：Whisper 在本机转录，之后你可以为字幕设置样式，并烧录进视频。"
 keywords:
   - 带字幕的录屏软件
   - 离线自动字幕录屏软件
@@ -32,7 +32,7 @@ OpenScreen 是一款面向 Windows、macOS 和 Linux 的免费录屏软件，采
 | 样式 | 字体、字号、粗体、文字颜色、背景、位置，以及每行 1 到 12 个词 |
 | 输出 | 烧录进导出的视频 |
 | 转录文本编辑 | 删除词语即可从视频中剪掉对应内容；静音会被标出，也可以剪切 |
-| 翻译 | 15 种语言，通过你用自己密钥连接的 AI 提供方 |
+| 翻译 | 由你自己的 AI 代理通过 OpenScreen 的 MCP 服务器完成。应用中没有翻译按钮 |
 | 命令行 | `captions` 命令可为项目添加字幕 |
 | 价格 | 免费，含商业用途，无需账号 |
 
@@ -70,9 +70,9 @@ Whisper 报告的词语时间点会略微偏晚。OpenScreen 会把每个词语�
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### 使用你自己密钥的翻译 {#translation-with-your-own-key}
+### 由你自己的 AI 代理翻译 {#translation-by-your-own-agent}
 
-翻译支持 15 种语言：英语、法语、西班牙语、德语、意大利语、葡萄牙语、荷兰语、波兰语、土耳其语、俄语、阿拉伯语、印地语、日语、韩语和中文。它通过你为聊天式编辑连接的 AI 提供方完成，使用你自己的密钥。在你连接提供方之前，不会发送任何内容。译文与转录文本分开保存，因此原文及其时间点保持不变，你可以随时切换回原文。参见[翻译](/docs/captions/#translation)和 [AI 编辑](/docs/ai-editing/)。
+应用中没有翻译按钮。字幕由你已经在用的 AI 代理（例如 Claude Code 或 Codex）通过 OpenScreen 的 MCP 服务器翻译：它读取字幕短语，用它自己的模型翻译，并把结果作为一个语言层保存在项目中。译文与转录文本分开保存，因此原文及其时间点保持不变。在字幕面板中，你可以选择字幕显示的语言，随时切换回原文，或者删除某个语言层。参见[翻译](/docs/captions/#translation)和 [AI 编辑](/docs/ai-editing/)。
 
 ### 通过命令行 {#from-the-command-line}
 
@@ -80,7 +80,7 @@ Whisper 报告的词语时间点会略微偏晚。OpenScreen 会把每个词语�
 
 ### 联网情形 {#what-goes-over-the-network}
 
-音频始终保留在你的电脑上。除了一次性的模型下载之外，只有翻译功能会联网：它会把转录文本发送给你选择的提供方。就整个应用而言，OpenScreen 没有账号体系，也没有自己的服务器。它唯一的上报是每天一次的活跃安装匿名计数，你可以将其关闭。[常见问题](/docs/faq/#does-openscreen-work-offline)列出了它仍会联网的少数情形。
+音频始终保留在你的电脑上。除了一次性的模型下载之外，字幕不使用网络。翻译不是由 OpenScreen 完成的：负责翻译的 AI 代理会把它读取的字幕文本，在你在该代理处的账号下，发送给它自己的提供方。就整个应用而言，OpenScreen 没有账号体系，也没有自己的服务器。它唯一的上报是每天一次的活跃安装匿名计数，你可以将其关闭。[常见问题](/docs/faq/#does-openscreen-work-offline)列出了它仍会联网的少数情形。
 
 ## 其他具备本地字幕功能的录制工具 {#other-recorders-with-local-captions}
 
@@ -95,7 +95,7 @@ Whisper 报告的词语时间点会略微偏晚。OpenScreen 会把每个词语�
 - **完全免费，含商业用途。** 没有付费方案，也无需账号。Cap 的定价页面表示其免费版本仅限个人使用。Screen Studio 需要有效方案才能导出视频文件。Camtasia 的桌面编辑器会为导出内容添加水印，直到升级至付费的 Essentials、Create、Pro 方案或商业许可证。以上三者的信息均截至 2026 年 9 月。
 - **支持 Windows、macOS 和 Linux。** OpenScreen 运行于 Windows 10（1903 及以上）和 11，x64 和 ARM64；macOS 13 及以上，Apple Silicon 和 Intel；以及 Linux，x64。截至 2026 年 9 月，Screen Studio 仅支持 macOS，Camtasia 的桌面编辑器支持 Windows 和 macOS，而 Cap 为三个平台都提供应用。参见 [Linux](/screen-recorder-linux/)、[Windows](/screen-recorder-windows/) 和 [macOS](/screen-recorder-mac/)。
 - **无需订阅即可编辑转录文本。** 通过删除词语进行剪切是免费应用自带的功能。Camtasia 将基于文本的编辑列在其付费方案中（截至 2026 年 9 月）。Cap 在 2026 年 7 月为其网页编辑器加入了按转录文本剪切的功能，其桌面版 Studio Mode 指南涵盖了修正字幕文字和时间点的内容，但没有描述从转录文本剪切视频的功能。
-- **可自由选择翻译提供方。** 使用 OpenScreen 支持的任意提供方，配合你自己的密钥，无需向 OpenScreen 购买任何方案。翻译功能本身并非独有：Cap Pro 同样提供字幕翻译（截至 2026 年 9 月）。
+- **由你选择的 AI 代理翻译。** 任何支持 MCP 的 AI 代理，用它自己的账号登录，无需向 OpenScreen 购买任何方案。这需要一个 AI 代理，而 Cap Pro 则把字幕翻译列为产品自身的一项功能（截至 2026 年 9 月）。
 
 ## 何时 OpenScreen 不是合适的工具 {#when-openscreen-is-not-the-right-tool}
 

@@ -22,11 +22,11 @@ OpenScreen は、Windows・macOS・Linux 向けの無料の MIT ライセンス�
 | | |
 | --- | --- |
 | Claude にできること | 録画、カット、速度アップ、ズーム、トリミング、クリップの並べ替え、テキスト・矢印・ぼかしの追加、音楽の追加、文字起こし、字幕の作成と翻訳、カスタムエフェクトの作成、エクスポート、結果の確認 |
-| 接続方法 | OpenScreen の MCP サーバー：`mcp` を付けて起動するアプリ自身の実行ファイル、またはアプリの AI設定にあるサーバー |
+| 接続方法 | OpenScreen の MCP サーバー：Claude Code が `mcp` を付けて起動する、アプリ自身の実行ファイル。ポートも、トークンも、設定も不要 |
 | クライアント | Claude Code、Claude Desktop、Codex、Cursor、そのほかの MCP クライアント |
 | OpenScreen の料金 | 無料。クレジット、アカウント、透かしはなし |
 | 編集が動く場所 | あなたのコンピューター上：録画、編集、Whisper による文字起こし、エクスポート |
-| 取り消し | すべての編集はプロジェクトに反映されます。開いているエディターでは `Ctrl/Cmd + Z` で取り消せます。閉じたプロジェクトでは、チェックポイントで 1 回の操作で元に戻せます |
+| 取り消し | すべての編集はプロジェクトに反映されます。開いているエディターでは、各編集が `Ctrl/Cmd + Z` 1 回分の操作になります。閉じたプロジェクトでは、チェックポイントで 1 回の操作で元に戻せます |
 | 対応プラットフォーム | Windows 10（1903 以降）と 11。macOS 13 以降。Linux、x64 |
 | ライセンス | MIT。商用利用も無料 |
 
@@ -46,7 +46,7 @@ Install the OpenScreen demo skill with `npx skills add getopenscreen/openscreen 
 claude mcp add openscreen -- "<executable>" mcp
 ```
 
-`<executable>` はアプリの実行ファイルで、システムごとに [CLI の実行](/docs/cli/#running-the-cli)に一覧があります。この方法で起動したサーバーには、ポートもトークンも設定も不要です。OpenScreen を開いたままにして、各編集がエディターに反映されるのを見たい場合は、**AI設定** → **MCP サーバー**でサーバーをオンにし、そこに表示されるコマンドをコピーしてください（[詳細](/docs/ai-editing/#using-claude-code-codex-or-another-mcp-client)）。
+`<executable>` はアプリの実行ファイルで、システムごとに [CLI の実行](/docs/cli/#running-the-cli)に一覧があります。サーバーには、ポートも、トークンも、アプリ側の設定も不要です。各編集が反映されるのを見たい場合は、OpenScreen でそのプロジェクトを開いたままにしてください。Claude の編集はすぐにエディターに反映されます（[詳細](/docs/ai-editing/#live-edits-and-undo)）。
 
 ## Claude で製品デモを編集する {#edit-a-product-demo-with-claude}
 
@@ -87,6 +87,6 @@ OpenScreen は、プレビューしたとおりにエクスポートされる、
 2. [2 分で設定する](#set-it-up-in-two-minutes)のプロンプトを Claude Code に貼り付けます。
 3. 最初の編集を頼みます。
 
-[AI 編集](/docs/ai-editing/)では、すべてのツールと、Anthropic、OpenAI、Google などの自分の API キーで使える内蔵チャットパネルを説明しています。OpenScreen には、エージェントを使わない[自動ズーム](/features/auto-zoom/)と[ローカル字幕](/features/captions/)もあります。または [OpenScreen のホームページ](/)に戻ってください。
+[AI 編集](/docs/ai-editing/)では、すべてのツールと、Codex、Cursor などの MCP クライアント向けのセットアップを説明しています。OpenScreen には、エージェントを使わない[自動ズーム](/features/auto-zoom/)と[ローカル字幕](/features/captions/)もあります。または [OpenScreen のホームページ](/)に戻ってください。
 
 Claude と Claude Code は Anthropic の商標です。OpenScreen は独立したプロジェクトであり、Anthropic と提携しておらず、Anthropic から承認を受けてもいません。

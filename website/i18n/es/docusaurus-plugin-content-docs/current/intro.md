@@ -30,15 +30,15 @@ OpenScreen publica versiones con frecuencia. De una versión a otra, el formato 
 - [Grabar](./recording.md) una ventana específica o toda la pantalla, con audio del sistema, micrófono y cámara web, desde un HUD flotante o desde el propio editor.
 - Armar un proyecto con varias fuentes: [importar, recortar, encuadrar y reordenar clips](./media-library.md) en una sola línea de tiempo.
 - [Editar](./editing-timeline.md) con zooms, recortes, velocidad por región, segmentos de cámara a pantalla completa, anotaciones de texto, imagen, flecha y desenfoque, efectos de cursor, disposiciones de la cámara web, y fondo y efectos.
-- Transcribir en tu equipo con Whisper y luego [incrustar subtítulos](./captions.md), con un estilo que se ajusta en vivo y traducibles a 15 idiomas mediante tu propio proveedor de LLM, o cortar tu grabación borrando palabras de la transcripción.
-- Conectar, si quieres, tu propia clave de LLM para [editar por chat](./ai-editing.md): desactivado por defecto y nunca obligatorio.
-- Dejar que tu propio agente de programación [haga el video completo](./ai-editing.md#letting-an-agent-make-the-whole-video) con el servidor MCP de OpenScreen: grabar, editar, exportar.
+- Transcribir en tu equipo con Whisper y luego [incrustar subtítulos](./captions.md), con un estilo que se ajusta en vivo y traducibles por tu propio agente, o cortar tu grabación borrando palabras de la transcripción.
+- [Editar con tu propio agente](./ai-editing.md), si quieres: Claude Code, Codex o cualquier cliente MCP inicia `openscreen mcp` y edita en vivo el proyecto que tienes abierto. Nunca obligatorio.
+- Dejar que ese agente [haga el video completo](./ai-editing.md#letting-an-agent-make-the-whole-video): grabar, editar, exportar.
 - [Exportar](./export.md) a MP4 (720p/1080p/Source, H.264) o a GIF animado.
 
 Las preguntas sobre la licencia, las marcas de agua o lo que pasa por la red se responden en las [preguntas frecuentes](/docs/faq/). Cómo se compara OpenScreen con otros grabadores se explica en las páginas sobre [Screen Studio](/alternatives/screen-studio/), [Cap](/compare/openscreen-vs-cap/) y [OBS Studio](/compare/openscreen-vs-obs/).
 
 :::note
-La grabación, la edición, la transcripción, los subtítulos y la exportación no necesitan cuenta y siguen funcionando sin conexión a la red. La transcripción requiere antes una descarga: sus modelos, que se obtienen la primera vez que la usas (el modelo Whisper ocupa ~264 MB). Cuando hay conexión, las compilaciones instaladas desde GitHub Releases consultan GitHub en busca de actualizaciones. La edición por chat con IA y la traducción de subtítulos solo se conectan a internet cuando tú mismo conectas un proveedor, y solo con ese proveedor.
+La grabación, la edición, la transcripción, los subtítulos y la exportación no necesitan cuenta y siguen funcionando sin conexión a la red. La transcripción requiere antes una descarga: sus modelos, que se obtienen la primera vez que la usas (el modelo Whisper ocupa ~264 MB). Cuando hay conexión, las compilaciones instaladas desde GitHub Releases consultan GitHub en busca de actualizaciones. OpenScreen no envía nada a ningún modelo de IA: si agregas tu propio agente, lo que lee a través del servidor MCP de OpenScreen va al proveedor de ese agente, con tu cuenta en él.
 :::
 
 ## Datos del proyecto {#project-facts}

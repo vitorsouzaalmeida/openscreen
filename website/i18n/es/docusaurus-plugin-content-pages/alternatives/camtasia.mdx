@@ -28,8 +28,8 @@ Esta página la publica el proyecto OpenScreen. Los datos sobre Camtasia vienen 
 | Zooms automáticos | Sí, colocados en los clics grabados | Sí, SmartFocus, en grabaciones de Camtasia Recorder y Camtasia Rev |
 | Efectos de cursor | Tamaño, suavizado, desenfoque de movimiento y rebote al clic | 14 efectos de cursor, más efectos de clic como onda, anillos y zoom al clic |
 | Subtítulos | Whisper en el equipo, un modelo de unos 264 MB, descargado una vez. Detección automática o 100 códigos de idioma. Incrustados en el video | Whisper en el equipo, con 57 idiomas listados. Subtítulos dinámicos, subtítulos cerrados e importación y exportación VTT básicas |
-| Traducción | Subtítulos a 15 idiomas, mediante un proveedor de IA que tú conectas | Audio y transcripción a 7 idiomas y 9 dialectos, en el plan Pro |
-| IA generativa | Edición por chat opcional, con tu propia clave | Integrada en los planes Create y Pro. Voces en ambos. Avatares, doblaje y traducción en Pro |
+| Traducción | Subtítulos, por tu propio agente de IA a través del servidor MCP de OpenScreen | Audio y transcripción a 7 idiomas y 9 dialectos, en el plan Pro |
+| IA generativa | Ninguna integrada. Edición opcional por tu propio agente, a través del servidor MCP de OpenScreen | Integrada en los planes Create y Pro. Voces en ambos. Avatares, doblaje y traducción en Pro |
 | Cuestionarios y SCORM | No | Sí. Cuatro tipos de pregunta, con resultados reportados a un LMS compatible con SCORM |
 | Exportación | MP4 (H.264) o GIF, hasta 60 fps, sin marca de agua | MP4, GIF, M4A, WebM con transparencia, o un video interactivo Smart Player |
 | Publicación | Un archivo en tu disco. Sin alojamiento | Alojamiento en Screencast y subida directa a YouTube |
@@ -63,7 +63,7 @@ El núcleo de un flujo de grabación de pantalla está en las dos. Nada de lo si
 ### Automatización e IA {#automation-and-ai}
 
 - **Una interfaz de línea de comandos en todas las plataformas.** El binario de la app acepta los comandos `record`, `sources`, `export`, `captions`, `pack` e `info`, los ejecuta sin ventana visible, e imprime NDJSON con `--json`, para scripts, CI y agentes de código. TechSmith documenta modificadores de línea de comandos para Camtasia Recorder en Windows, a partir de la versión 9. Consulta la [referencia de la CLI](/docs/cli/) y [lo que necesita en CI y servidores](/docs/cli/#displays-ci-and-servers).
-- **Edición por chat opcional con tu propia clave.** Conecta Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax o cualquier endpoint compatible con OpenAI, y describe cortes, zooms, cambios de velocidad o anotaciones en lenguaje natural. Cada cambio se aplica como una edición común que se puede deshacer. Está desactivado hasta que conectas un proveedor, y ese mismo proveedor traduce los subtítulos a 15 idiomas. Camtasia integra sus funciones generativas en los planes Create y Pro. Consulta [Edición con IA](/docs/ai-editing/).
+- **Edición opcional con tu propio agente.** Claude Code, Codex o cualquier otro cliente MCP inicia el servidor MCP de OpenScreen, y tú describes cortes, zooms, cambios de velocidad o anotaciones en lenguaje natural. Cada cambio se aplica como una edición común que se puede deshacer. El agente inicia sesión con su propia cuenta, que OpenScreen nunca ve, y también puede traducir los subtítulos. Camtasia, en cambio, integra sus funciones generativas en los planes Create y Pro. Consulta [Edición con IA](/docs/ai-editing/).
 
 ## Cuándo Camtasia es la mejor opción {#when-camtasia-is-the-better-choice}
 
