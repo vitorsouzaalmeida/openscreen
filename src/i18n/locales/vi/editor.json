@@ -402,7 +402,13 @@
 		"playbackControls": "Điều khiển phát lại",
 		"play": "Phát",
 		"pause": "Tạm dừng",
-		"loop": "Lặp lại"
+		"loop": "Lặp lại",
+		"previewSettings": "Cài đặt xem trước",
+		"previewFrameRate": "Tốc độ khung hình",
+		"previewFrameRateAuto": "Tự động",
+		"previewResolution": "Độ phân giải",
+		"previewResolutionFull": "Đầy đủ",
+		"previewSettingsHint": "Chỉ bản xem trước thay đổi, bản xuất thì không. Nếu phát ở 60 không mượt, hãy giảm độ phân giải."
 	},
 	"shell": {
 		"aiEditor": "Trình biên tập AI",

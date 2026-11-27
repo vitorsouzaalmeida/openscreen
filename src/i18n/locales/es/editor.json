@@ -402,7 +402,13 @@
 		"playbackControls": "Controles de reproducción",
 		"play": "Reproducir",
 		"pause": "Pausar",
-		"loop": "Bucle"
+		"loop": "Bucle",
+		"previewSettings": "Ajustes de la vista previa",
+		"previewFrameRate": "Fotogramas por segundo",
+		"previewFrameRateAuto": "Auto",
+		"previewResolution": "Resolución",
+		"previewResolutionFull": "Completa",
+		"previewSettingsHint": "Solo cambia la vista previa, nunca la exportación. Si 60 no se reproduce con fluidez, baja la resolución."
 	},
 	"shell": {
 		"aiEditor": "Editor de IA",

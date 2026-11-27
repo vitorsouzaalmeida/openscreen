@@ -402,7 +402,13 @@
 		"playbackControls": "Controlli di riproduzione",
 		"play": "Riproduci",
 		"pause": "Pausa",
-		"loop": "Ripeti"
+		"loop": "Ripeti",
+		"previewSettings": "Impostazioni dell'anteprima",
+		"previewFrameRate": "Frame rate",
+		"previewFrameRateAuto": "Auto",
+		"previewResolution": "Risoluzione",
+		"previewResolutionFull": "Piena",
+		"previewSettingsHint": "Cambia solo l'anteprima, mai l'esportazione. Se a 60 la riproduzione non è fluida, riduci la risoluzione."
 	},
 	"shell": {
 		"aiEditor": "Editor IA",

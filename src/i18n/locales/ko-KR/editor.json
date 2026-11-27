@@ -402,7 +402,13 @@
 		"playbackControls": "재생 컨트롤",
 		"play": "재생",
 		"pause": "일시정지",
-		"loop": "반복"
+		"loop": "반복",
+		"previewSettings": "미리보기 설정",
+		"previewFrameRate": "프레임 속도",
+		"previewFrameRateAuto": "자동",
+		"previewResolution": "해상도",
+		"previewResolutionFull": "전체",
+		"previewSettingsHint": "미리보기만 바뀌며 내보내기에는 영향이 없습니다. 60에서 재생이 매끄럽지 않으면 해상도를 낮추세요."
 	},
 	"shell": {
 		"aiEditor": "AI 편집기",

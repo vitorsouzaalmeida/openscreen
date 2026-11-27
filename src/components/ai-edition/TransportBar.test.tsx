@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/contexts/I18nContext";
 import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
+import { getPreviewPerformance, setPreviewPerformance } from "@/native/previewPerformanceStore";
 import { TransportBar } from "./TransportBar";
 
 vi.mock("@/native/client", () => ({
@@ -150,5 +151,45 @@ describe("TransportBar play button", () => {
 		const tooltip = await openTooltip(screen.getByRole("button", { name: "Pause" }));
 		expect(tooltip?.querySelector("kbd")).toHaveTextContent("K");
 		expect(tooltip?.querySelector("kbd")).not.toHaveTextContent("Space");
+	});
+});
+
+describe("TransportBar preview settings", () => {
+	beforeEach(() => {
+		vi.stubGlobal("ResizeObserver", StubResizeObserver);
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.unstubAllGlobals();
+		setPreviewPerformance({ frameRate: "auto", resolution: 1 });
+	});
+
+	it("sets the preview's frame rate and resolution from the gear's popover", async () => {
+		render(
+			providers(
+				<TransportBar playing={false} overrideTimeSec={null} clips={clips} onTogglePlay={noop} />,
+			),
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "Preview settings" }));
+		const frameRate = await screen.findByRole("group", { name: "Frame rate" });
+		expect(within(frameRate).getByRole("button", { name: "Auto" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+
+		fireEvent.click(within(frameRate).getByRole("button", { name: "60" }));
+		fireEvent.click(
+			within(screen.getByRole("group", { name: "Resolution" })).getByRole("button", {
+				name: "50%",
+			}),
+		);
+
+		expect(getPreviewPerformance()).toEqual({ frameRate: 60, resolution: 0.5 });
+		expect(within(frameRate).getByRole("button", { name: "60" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
 	});
 });

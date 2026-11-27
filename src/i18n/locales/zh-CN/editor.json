@@ -402,7 +402,13 @@
 		"playbackControls": "播放控件",
 		"play": "播放",
 		"pause": "暂停",
-		"loop": "循环"
+		"loop": "循环",
+		"previewSettings": "预览设置",
+		"previewFrameRate": "帧率",
+		"previewFrameRateAuto": "自动",
+		"previewResolution": "分辨率",
+		"previewResolutionFull": "完整",
+		"previewSettingsHint": "只影响预览，不影响导出。如果 60 播放不流畅，请降低分辨率。"
 	},
 	"shell": {
 		"aiEditor": "AI 编辑器",

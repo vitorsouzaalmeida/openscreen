@@ -133,4 +133,26 @@ describe("user preferences", () => {
 
 		expect(loadUserPreferences().hideSoftwareEncoderFallbackNotice).toBe(false);
 	});
+
+	it("defaults the preview to the automatic frame rate at full resolution", () => {
+		expect(loadUserPreferences().previewFrameRate).toBe("auto");
+		expect(loadUserPreferences().previewResolution).toBe(1);
+	});
+
+	it("persists the preview frame rate and resolution", () => {
+		saveUserPreferences({ previewFrameRate: 60, previewResolution: 0.5 });
+
+		expect(loadUserPreferences().previewFrameRate).toBe(60);
+		expect(loadUserPreferences().previewResolution).toBe(0.5);
+	});
+
+	it("falls back to the default preview settings for values that are not offered", () => {
+		localStorage.setItem(
+			"openscreen_user_preferences",
+			JSON.stringify({ previewFrameRate: 120, previewResolution: 0.25 }),
+		);
+
+		expect(loadUserPreferences().previewFrameRate).toBe("auto");
+		expect(loadUserPreferences().previewResolution).toBe(1);
+	});
 });

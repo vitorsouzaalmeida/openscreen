@@ -402,7 +402,13 @@
 		"playbackControls": "عناصر التحكم في التشغيل",
 		"play": "تشغيل",
 		"pause": "إيقاف مؤقت",
-		"loop": "تكرار"
+		"loop": "تكرار",
+		"previewSettings": "إعدادات المعاينة",
+		"previewFrameRate": "معدل الإطارات",
+		"previewFrameRateAuto": "تلقائي",
+		"previewResolution": "الدقة",
+		"previewResolutionFull": "كاملة",
+		"previewSettingsHint": "يتغيّر العرض في المعاينة فقط، وليس في التصدير. إذا لم يكن التشغيل سلسًا عند 60، فاخفض الدقة."
 	},
 	"shell": {
 		"aiEditor": "محرّر الذكاء الاصطناعي",

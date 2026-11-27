@@ -8,6 +8,7 @@ import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { formatSec } from "@/lib/ai-edition/timeline/format";
 import { formatBinding } from "@/lib/shortcuts";
 import styles from "./NewEditorShell.module.css";
+import { PreviewSettingsPopover } from "./PreviewSettingsPopover";
 
 interface TransportBarProps {
 	playing: boolean;
@@ -64,6 +65,7 @@ export const TransportBar = memo(function TransportBar({
 				<span className={styles.sep}>/</span>
 				<span className={styles.total}>{formatSec(virtualDurationSec)}</span>
 			</span>
+			<PreviewSettingsPopover />
 		</div>
 	);
 });

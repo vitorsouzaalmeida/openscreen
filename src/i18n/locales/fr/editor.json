@@ -402,7 +402,13 @@
 		"playbackControls": "Contrôles de lecture",
 		"play": "Lecture",
 		"pause": "Pause",
-		"loop": "Boucle"
+		"loop": "Boucle",
+		"previewSettings": "Réglages de l'aperçu",
+		"previewFrameRate": "Fréquence d'images",
+		"previewFrameRateAuto": "Auto",
+		"previewResolution": "Résolution",
+		"previewResolutionFull": "Pleine",
+		"previewSettingsHint": "Seul l'aperçu change, jamais l'export. Si la lecture à 60 n'est pas fluide, baissez la résolution."
 	},
 	"shell": {
 		"aiEditor": "Éditeur IA",

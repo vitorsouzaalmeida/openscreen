@@ -402,7 +402,13 @@
 		"playbackControls": "再生コントロール",
 		"play": "再生",
 		"pause": "一時停止",
-		"loop": "ループ"
+		"loop": "ループ",
+		"previewSettings": "プレビュー設定",
+		"previewFrameRate": "フレームレート",
+		"previewFrameRateAuto": "自動",
+		"previewResolution": "解像度",
+		"previewResolutionFull": "フル",
+		"previewSettingsHint": "変わるのはプレビューだけで、書き出しには影響しません。60 で滑らかに再生されない場合は、解像度を下げてください。"
 	},
 	"shell": {
 		"aiEditor": "AI エディター",

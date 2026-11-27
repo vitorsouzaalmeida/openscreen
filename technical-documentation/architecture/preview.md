@@ -27,7 +27,8 @@ established that nothing mounted it.
 Mounted as the first child of `.previewFrame` by
 [`NativeCompositorOverlay.tsx`](../../src/components/ai-edition/NativeCompositorOverlay.tsx).
 It owns the `<canvas>`, drives a `useNativeCompositorView` hook that allocates an
-offscreen `compositor_view` view sized to the canvas's device-pixel rect
+offscreen `compositor_view` view sized to the canvas's device-pixel rect, times the
+[preview resolution](#preview-settings)
 ([`useNativeCompositorView.ts:73`](../../src/native/hooks/useNativeCompositorView.ts:73)),
 and pushes a `SceneDescription` JSON every time the document or the editor
 settings change. Wallpaper, screen video, webcam, cursor, zoom regions, annotations
@@ -187,11 +188,30 @@ The contract, with the invariant on the consumer side:
    a mismatch would corrupt the image silently. The consumer never assumes a
    size — every draw is preceded by a resize of the canvas's drawing buffer to
    the packet's declared `width`/`height`.
-5. **Pull loop cadence.** Read-back frames are pulled on every other rAF tick
-   (`PULL_LOOP_TICK_DIVISOR = 2`), shared-texture frames (below) on every tick. Each
-   read-back frame is a GPU readback, a structured clone across IPC and a canvas upload,
-   and the tick counter does not advance while a read is in flight: an 8 MB frame whose
-   round trip passes 16.7 ms is pulled one tick in three, about 20 fps.
+5. **Pull loop cadence.** The loop runs on rAF but paces itself by the clock
+   (`pullIntervalMs`), since the display sets the rAF rate and the recording the frame
+   rate. Shared-texture frames (below) are pulled every 8 ms while they keep coming;
+   read-back frames, and a view with nothing new, every 33 ms. Each read-back frame is a
+   GPU readback, a structured clone across IPC and a canvas upload, and no pull starts
+   while one is in flight: an 8 MB frame whose round trip takes 18-24 ms cannot reach
+   60 fps however often it is asked for.
+
+### Preview settings
+
+The playback bar's gear (`PreviewSettingsPopover.tsx`) holds two per-machine choices,
+saved with the app's preferences (`previewFrameRate`, `previewResolution` in
+`userPreferences.ts`) and handed to the hook live by `previewPerformanceStore.ts`. Neither
+reaches the document, the scene or the export.
+
+- **Frame rate**: *Auto* is the cadence above. *60* pulls read-back frames every 8 ms
+  too, while they keep coming. *30* holds every transport to 33 ms. An idle view is
+  pulled every 33 ms whatever the choice, and no choice shows more frames than the
+  recording has.
+- **Resolution**: *Full*, *75 %* or *50 %*. The hook multiplies the device-pixel rect it
+  sends with `setRect` by it, so `preview_render_size` contain-fits the frame into a
+  smaller panel, and CSS stretches the smaller frame back over the canvas box. At 50 % a
+  frame is a quarter of the bytes, which is what brings a read-back round trip under a
+  60 fps frame period. A change is a new rect for the same view, never a new view.
 
 The renderer-side wrapper mirrors this verbatim in the Electron main process
 ([`compositorViewService.ts`](../../electron/native-bridge/services/compositorViewService.ts)),
@@ -417,7 +437,7 @@ sequenceDiagram
 
     Note over Addon,Canvas: compositing thread runs off-screen<br/>(D3D11VA decode → compositor → RGBA8 staging)
 
-    loop every other rAF tick (~30 fps)
+    loop every 33 ms, or 8 ms (see Pull loop cadence)
         Hook->>IPC: readFrame(viewId, lastGen)
         IPC->>Svc: dispatch
         Svc->>Addon: readFrame(id, sinceGen)

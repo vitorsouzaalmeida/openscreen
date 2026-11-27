@@ -402,7 +402,13 @@
 		"playbackControls": "播放控制項",
 		"play": "播放",
 		"pause": "暫停",
-		"loop": "循環"
+		"loop": "循環",
+		"previewSettings": "預覽設定",
+		"previewFrameRate": "幀率",
+		"previewFrameRateAuto": "自動",
+		"previewResolution": "解析度",
+		"previewResolutionFull": "完整",
+		"previewSettingsHint": "只影響預覽，不影響匯出。如果 60 播放不順暢，請降低解析度。"
 	},
 	"shell": {
 		"aiEditor": "AI 編輯器",

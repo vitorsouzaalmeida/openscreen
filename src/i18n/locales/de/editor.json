@@ -402,7 +402,13 @@
 		"playbackControls": "Wiedergabesteuerung",
 		"play": "Wiedergabe",
 		"pause": "Pause",
-		"loop": "Wiederholen"
+		"loop": "Wiederholen",
+		"previewSettings": "Vorschau-Einstellungen",
+		"previewFrameRate": "Bildrate",
+		"previewFrameRateAuto": "Auto",
+		"previewResolution": "Auflösung",
+		"previewResolutionFull": "Voll",
+		"previewSettingsHint": "Nur die Vorschau ändert sich, nie der Export. Läuft 60 nicht flüssig, verringere die Auflösung."
 	},
 	"shell": {
 		"aiEditor": "KI-Editor",

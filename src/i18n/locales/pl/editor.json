@@ -402,7 +402,13 @@
 		"playbackControls": "Sterowanie odtwarzaniem",
 		"play": "Odtwórz",
 		"pause": "Wstrzymaj",
-		"loop": "Zapętl"
+		"loop": "Zapętl",
+		"previewSettings": "Ustawienia podglądu",
+		"previewFrameRate": "Liczba klatek na sekundę",
+		"previewFrameRateAuto": "Automatycznie",
+		"previewResolution": "Rozdzielczość",
+		"previewResolutionFull": "Pełna",
+		"previewSettingsHint": "Zmienia się tylko podgląd, nigdy eksport. Jeśli przy 60 odtwarzanie nie jest płynne, zmniejsz rozdzielczość."
 	},
 	"shell": {
 		"aiEditor": "Edytor AI",

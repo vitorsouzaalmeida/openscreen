@@ -16,6 +16,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { RefObject } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompositorSharedFrameMeta } from "../contracts";
+import type { PreviewPerformance } from "../previewPerformanceStore";
 
 type SharedFrameListener = (frame: VideoFrame, meta: CompositorSharedFrameMeta) => void;
 
@@ -47,7 +48,7 @@ vi.mock("../compositorViewClient", () => ({
 	},
 }));
 
-import { useNativeCompositorView } from "./useNativeCompositorView";
+import { pullIntervalMs, useNativeCompositorView } from "./useNativeCompositorView";
 
 // jsdom ships no ResizeObserver; the hook constructs one to track the canvas box.
 // Nothing here observes anything — these tests only exercise the pull loop.
@@ -470,11 +471,11 @@ describe("useNativeCompositorView", () => {
 			};
 		}
 
-		async function mountedView() {
+		async function mountedView(performance?: PreviewPerformance) {
 			mocks.createCompositorView.mockResolvedValue({ id: 7 });
 			const ref = stubCanvasRef();
 			const { result } = renderHook(() =>
-				useNativeCompositorView(ref, { sources: { screenPath: "rec.mp4" } }),
+				useNativeCompositorView(ref, { sources: { screenPath: "rec.mp4" }, performance }),
 			);
 			await waitFor(() => expect(result.current.viewId).toBe(7));
 			mocks.readCompositorFrame.mockClear();
@@ -604,6 +605,155 @@ describe("useNativeCompositorView", () => {
 			} finally {
 				vi.unstubAllGlobals();
 			}
+		});
+
+		/** Read-back pixels on every pull, as while a recording plays without shared textures. */
+		function readBackFramesKeepComing() {
+			vi.stubGlobal(
+				"ImageData",
+				class {
+					constructor(
+						public data: Uint8ClampedArray,
+						public width: number,
+						public height: number,
+					) {}
+				},
+			);
+			vi.stubGlobal(
+				"createImageBitmap",
+				vi.fn(async () => ({ close: vi.fn() })),
+			);
+			let gen = 0;
+			mocks.readCompositorFrame.mockImplementation(async () => ({
+				gen: ++gen,
+				width: 2,
+				height: 1,
+				data: new Uint8Array(8),
+			}));
+		}
+
+		// The setting a user on read-back picks to see a 60 fps recording at 60.
+		it("at 60, pulls read-back frames on every tick of a 60 Hz display while they keep coming", async () => {
+			const run = manualFrames();
+			try {
+				readBackFramesKeepComing();
+				await mountedView({ frameRate: 60, resolution: 1 });
+
+				await run(1000, 1000 / 60);
+
+				// One pull a tick, bar the first few before a frame has come: 60 or 61 ticks fit in
+				// the second, against the 30 pulls of the automatic setting.
+				const pulls = mocks.readCompositorFrame.mock.calls.length;
+				expect(pulls).toBeGreaterThanOrEqual(57);
+				expect(pulls).toBeLessThanOrEqual(61);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("at 60, an idle view is still pulled ~30 times a second", async () => {
+			const run = manualFrames();
+			try {
+				mocks.readCompositorFrame.mockResolvedValue(null);
+				await mountedView({ frameRate: 60, resolution: 1 });
+
+				await run(1000, 1000 / 60);
+
+				expect(mocks.readCompositorFrame.mock.calls.length).toBeLessThanOrEqual(33);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("at 30, holds shared frames to ~30 pulls a second too", async () => {
+			const run = manualFrames();
+			try {
+				let gen = 0;
+				mocks.readCompositorFrame.mockImplementation(async () => ({
+					...sharedMeta({ gen: ++gen }),
+					shared: true,
+				}));
+				await mountedView({ frameRate: 30, resolution: 1 });
+				mocks.sharedListener?.(fakeVideoFrame(), sharedMeta({ gen: 1 }));
+
+				await run(1000, 1000 / 280);
+
+				expect(mocks.readCompositorFrame.mock.calls.length).toBeLessThanOrEqual(33);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("picks the interval from the setting, the transport and whether frames are coming", () => {
+			// Automatic: today's behaviour, fast for shared textures only.
+			expect(pullIntervalMs("auto", true, true)).toBe(8);
+			expect(pullIntervalMs("auto", false, true)).toBe(33);
+			// 60 lifts read-back to the fast interval; 30 holds shared textures to the slow one.
+			expect(pullIntervalMs(60, false, true)).toBe(8);
+			expect(pullIntervalMs(30, true, true)).toBe(33);
+			// Nothing coming: slow, whatever was asked.
+			expect(pullIntervalMs(60, true, false)).toBe(33);
+		});
+	});
+
+	describe("preview resolution", () => {
+		/** A canvas laid out at 800x450 CSS pixels; jsdom lays nothing out by itself. */
+		function laidOutCanvasRef() {
+			const ref = stubCanvasRef();
+			const canvas = ref.current as HTMLCanvasElement;
+			canvas.getBoundingClientRect = () =>
+				({ left: 0, top: 0, width: 800, height: 450 }) as DOMRect;
+			return ref;
+		}
+
+		it("creates the view at the canvas's size scaled by the resolution", async () => {
+			mocks.createCompositorView.mockResolvedValue({ id: 7 });
+			mocks.readCompositorFrame.mockResolvedValue(null);
+			const ref = laidOutCanvasRef();
+
+			const { result } = renderHook(() =>
+				useNativeCompositorView(ref, {
+					sources: { screenPath: "rec.mp4" },
+					performance: { frameRate: "auto", resolution: 0.5 },
+				}),
+			);
+			await waitFor(() => expect(result.current.viewId).toBe(7));
+
+			expect(mocks.createCompositorView).toHaveBeenCalledWith(
+				expect.objectContaining({ width: 400, height: 225 }),
+				{ screenPath: "rec.mp4" },
+			);
+		});
+
+		// Re-creating the view would reopen the decoders and blank the canvas for a setting
+		// the user is trying out while watching.
+		it("sends a changed resolution to the same view as a new rect", async () => {
+			mocks.createCompositorView.mockResolvedValue({ id: 7 });
+			mocks.readCompositorFrame.mockResolvedValue(null);
+			const ref = laidOutCanvasRef();
+			const sources = { screenPath: "rec.mp4" };
+
+			const { result, rerender } = renderHook(
+				({ resolution }: { resolution: PreviewPerformance["resolution"] }) =>
+					useNativeCompositorView(ref, {
+						sources,
+						performance: { frameRate: "auto", resolution },
+					}),
+				{ initialProps: { resolution: 1 } },
+			);
+			await waitFor(() => expect(result.current.viewId).toBe(7));
+			expect(mocks.setCompositorRect).not.toHaveBeenCalled();
+
+			rerender({ resolution: 0.75 });
+
+			await waitFor(() =>
+				expect(mocks.setCompositorRect).toHaveBeenCalledWith(
+					7,
+					expect.objectContaining({ width: 600, height: 338 }),
+				),
+			);
+			expect(mocks.createCompositorView).toHaveBeenCalledTimes(1);
+			expect(mocks.destroyCompositorView).not.toHaveBeenCalled();
 		});
 	});
 });
