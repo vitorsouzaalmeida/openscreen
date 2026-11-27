@@ -16,6 +16,8 @@
  *          times a second to bound the copies.
  *      Either way the canvas drawing buffer is sized from the frame's own dims, so pixels
  *      and canvas can never drift apart.
+ *   3. Follows the user's preview settings (`performance`): a frame rate that overrides the
+ *      cadence above, and a resolution that scales the rect of step 1.
  *
  * Every native-bridge call is wrapped in a try/catch that swallows + warns,
  * because the renderer may run without the bridge (pure web `npm run dev`,
@@ -39,6 +41,7 @@ import type { CompositorParamValue, CompositorViewRect } from "../contracts";
 import { publishFootageQuad } from "../footageQuadStore";
 import { publishNativePosition } from "../nativeSync";
 import { computeDeviceRect, rectsEqual } from "../nativeViewRect";
+import type { PreviewPerformance } from "../previewPerformanceStore";
 
 export interface UseNativeCompositorViewOptions {
 	/** When false, the hook does nothing on mount and destroys nothing on
@@ -49,6 +52,9 @@ export interface UseNativeCompositorViewOptions {
 	 * creation, so resolve them before enabling the hook to avoid a fixture→real
 	 * re-create. */
 	sources?: { screenPath?: string; webcamPath?: string; cursorPath?: string };
+	/** The user's preview settings. Followed live: a change never re-creates the view.
+	 *  Omitted → the automatic frame rate at the canvas's full resolution. */
+	performance?: PreviewPerformance;
 }
 
 export interface UseNativeCompositorViewResult {
@@ -104,6 +110,28 @@ const PULL_FLOWING_WINDOW_MS = 250;
  *  display would land on the third tick as often as the second. */
 const PULL_INTERVAL_SLACK_MS = 1.5;
 
+/** Least time between two pulls. `flowing`: a frame came within `PULL_FLOWING_WINDOW_MS`.
+ *  A view with nothing new is pulled ~30 times a second whatever the setting, so an idle
+ *  preview costs the same at 60 as at 30.
+ *
+ *  At 60, read-back frames are pulled as fast as shared ones. Whether they arrive that fast
+ *  is the round trip's business, a copy of the whole frame: 18-24 ms at 1080p, under a frame
+ *  period of 60 fps once the preview resolution brings it near 1100x620 (measured on
+ *  Windows, see rendering-performance.md). At 30, shared frames are held to the slow
+ *  interval too, for a machine that would rather spend less on the preview. */
+export function pullIntervalMs(
+	frameRate: PreviewPerformance["frameRate"],
+	sharedTransport: boolean,
+	flowing: boolean,
+): number {
+	if (!flowing || frameRate === 30) {
+		return PULL_INTERVAL_MS;
+	}
+	return frameRate === 60 || sharedTransport ? PULL_INTERVAL_FLOWING_MS : PULL_INTERVAL_MS;
+}
+
+const DEFAULT_PERFORMANCE: PreviewPerformance = { frameRate: "auto", resolution: 1 };
+
 export function useNativeCompositorView(
 	canvasRef: RefObject<HTMLCanvasElement>,
 	opts: UseNativeCompositorViewOptions = {},
@@ -125,6 +153,13 @@ export function useNativeCompositorView(
 	// cleanup still destroys the old view after a source change.
 	const viewIdRef = useRef<number | null>(null);
 	viewIdRef.current = view?.id ?? null;
+	// Read through a ref by the loops below: as a dependency of the main effect, a change of
+	// setting would destroy the view and create another.
+	const previewPerformance = opts.performance ?? DEFAULT_PERFORMANCE;
+	const performanceRef = useRef(previewPerformance);
+	performanceRef.current = previewPerformance;
+	/** Re-measures the canvas and sends its rect to the live view, if any. */
+	const scheduleRectUpdateRef = useRef<(() => void) | null>(null);
 
 	useEffect(() => {
 		if (!enabled) {
@@ -165,6 +200,11 @@ export function useNativeCompositorView(
 			}
 		};
 
+		/** The canvas's box in device pixels, times the preview resolution: native renders into
+		 *  the smaller rect and CSS stretches the frame back over the box. */
+		const deviceRect = (domRect: DOMRect) =>
+			computeDeviceRect(domRect, window.devicePixelRatio * performanceRef.current.resolution);
+
 		const applyRectNow = () => {
 			rectRafHandle = 0;
 			if (disposed) {
@@ -173,7 +213,7 @@ export function useNativeCompositorView(
 			// `getBoundingClientRect` on the canvas reflects its CSS layout box;
 			// scaled to device pixels for the native offscreen target.
 			const domRect = canvas.getBoundingClientRect();
-			const next = computeDeviceRect(domRect, window.devicePixelRatio);
+			const next = deviceRect(domRect);
 			// `x` / `y` are vestigial in the new contract (ignored native-side),
 			// but `rectsEqual` still compares them — harmless: scrolling will just
 			// re-push the rect, and the native side ignores x/y.
@@ -194,6 +234,7 @@ export function useNativeCompositorView(
 			}
 			rectRafHandle = requestAnimationFrame(applyRectNow);
 		};
+		scheduleRectUpdateRef.current = scheduleRectUpdate;
 
 		// Generation of the last frame we painted. The native side only publishes a
 		// NEW generation when it actually composed a new frame (it never republishes
@@ -210,8 +251,9 @@ export function useNativeCompositorView(
 		// the next frame's. The generation actually on the canvas lets an older one be dropped,
 		// instead of bringing back its pixels and its buffer size until native sends another.
 		let paintedGen = 0;
-		// Frames arrive as shared GPU textures (see `subscribeCompositorSharedFrames`), and one
-		// came lately: while both hold, the loop pulls at its fast interval.
+		// Whether frames arrive as shared GPU textures (see `subscribeCompositorSharedFrames`),
+		// and when the last frame came, on either transport: `pullIntervalMs` picks the loop's
+		// interval from the two.
 		let sharedTransport = false;
 		let lastFrameAt = Number.NEGATIVE_INFINITY;
 		// Whether this view's first shared frame was checked to have actually landed.
@@ -273,8 +315,11 @@ export function useNativeCompositorView(
 			if (disposed || inFlight) {
 				return;
 			}
-			const flowing = sharedTransport && now - lastFrameAt < PULL_FLOWING_WINDOW_MS;
-			const interval = flowing ? PULL_INTERVAL_FLOWING_MS : PULL_INTERVAL_MS;
+			const interval = pullIntervalMs(
+				performanceRef.current.frameRate,
+				sharedTransport,
+				now - lastFrameAt < PULL_FLOWING_WINDOW_MS,
+			);
 			if (now - lastPullAt < interval - PULL_INTERVAL_SLACK_MS) {
 				return;
 			}
@@ -291,12 +336,14 @@ export function useNativeCompositorView(
 			readCompositorFrame(id, lastGen)
 				.then((frame) => {
 					inFlight = false;
-					// A receipt keeps the fast cadence going. Read-back pixels mean the view went back to
-					// read-back (a failed import or send), whose frames are pulled ~30 times a second.
-					if (frame && "shared" in frame) {
+					// Any frame keeps the fast cadence going, for the transport or the setting that
+					// has one (`pullIntervalMs`). Read-back pixels mean the view went back to read-back
+					// (a failed import or send).
+					if (frame) {
 						lastFrameAt = now;
-					} else if (frame) {
-						sharedTransport = false;
+						if (!("shared" in frame)) {
+							sharedTransport = false;
+						}
 					}
 					// `null` = nothing newer than `lastGen` (idle path — no pixels
 					// crossed IPC) OR no frame yet. Either way, leave the canvas as-is.
@@ -366,7 +413,7 @@ export function useNativeCompositorView(
 		// the moment the effect ran. The async id will be used on subsequent
 		// resize/scroll updates. Without the bridge, this is a swallowed
 		// warning — the rest of the hook stays inert.
-		const initialRect = computeDeviceRect(canvas.getBoundingClientRect(), window.devicePixelRatio);
+		const initialRect = deviceRect(canvas.getBoundingClientRect());
 		lastRect = initialRect;
 		// Prime the canvas drawing buffer to the resolution we expect the
 		// first pulled frame to have; avoids a 300x150 flash before the
@@ -400,6 +447,7 @@ export function useNativeCompositorView(
 
 		return () => {
 			disposed = true;
+			scheduleRectUpdateRef.current = null;
 			unsubscribeShared();
 			publishFootageQuad(null);
 			publishNativePosition(null);
@@ -420,6 +468,13 @@ export function useNativeCompositorView(
 		// `canvasRef` is a stable RefObject; we re-run (destroy + re-create the view) when the
 		// enabled flag flips or the screen source changes.
 	}, [enabled, canvasRef, screenPath]);
+
+	// A new preview resolution is a new rect for the same canvas box, which no resize
+	// announces. The main effect, declared above, has already measured with it on mount.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the resolution is the trigger; the rect is measured through the ref
+	useEffect(() => {
+		scheduleRectUpdateRef.current?.();
+	}, [previewPerformance.resolution]);
 
 	const setParam = useCallback((key: string, value: CompositorParamValue) => {
 		const id = viewIdRef.current;

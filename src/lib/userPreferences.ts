@@ -7,6 +7,16 @@ import { type AspectRatio, isAspectRatio } from "@/utils/aspectRatioUtils";
 
 const PREFS_KEY = "openscreen_user_preferences";
 
+/** How often the editor's preview takes a frame from the native compositor. `"auto"` follows
+ *  the transport: every frame where they arrive as shared GPU textures, ~30 a second where
+ *  each one is copied through RAM. */
+export const PREVIEW_FRAME_RATES = ["auto", 30, 60] as const;
+export type PreviewFrameRate = (typeof PREVIEW_FRAME_RATES)[number];
+
+/** Scale of the preview's render target against the pane it is shown in. */
+export const PREVIEW_RESOLUTIONS = [1, 0.75, 0.5] as const;
+export type PreviewResolution = (typeof PREVIEW_RESOLUTIONS)[number];
+
 export interface UserPreferences {
 	/** Default padding % */
 	padding: number;
@@ -26,6 +36,10 @@ export interface UserPreferences {
 	preferSoftwareEncoder: boolean;
 	/** Stop showing the notice that recording fell back to software encoding */
 	hideSoftwareEncoderFallbackNotice: boolean;
+	/** Frame rate of the editor's preview; the export has its own */
+	previewFrameRate: PreviewFrameRate;
+	/** Resolution of the editor's preview, as a share of its pane; the export has its own */
+	previewResolution: PreviewResolution;
 }
 
 export const DEFAULT_PREFS: UserPreferences = {
@@ -38,6 +52,8 @@ export const DEFAULT_PREFS: UserPreferences = {
 	trayLayout: "horizontal",
 	preferSoftwareEncoder: false,
 	hideSoftwareEncoderFallbackNotice: false,
+	previewFrameRate: "auto",
+	previewResolution: 1,
 };
 
 /** Parses stored preferences without throwing on malformed JSON. */
@@ -99,6 +115,12 @@ export function loadUserPreferences(): UserPreferences {
 			typeof raw.hideSoftwareEncoderFallbackNotice === "boolean"
 				? raw.hideSoftwareEncoderFallbackNotice
 				: DEFAULT_PREFS.hideSoftwareEncoderFallbackNotice,
+		previewFrameRate: PREVIEW_FRAME_RATES.includes(raw.previewFrameRate as PreviewFrameRate)
+			? (raw.previewFrameRate as PreviewFrameRate)
+			: DEFAULT_PREFS.previewFrameRate,
+		previewResolution: PREVIEW_RESOLUTIONS.includes(raw.previewResolution as PreviewResolution)
+			? (raw.previewResolution as PreviewResolution)
+			: DEFAULT_PREFS.previewResolution,
 	};
 }
 

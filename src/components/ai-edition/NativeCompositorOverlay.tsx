@@ -25,6 +25,7 @@ import {
 	nativeLeadSec,
 	watchDrift,
 } from "@/native/nativeSync";
+import { usePreviewPerformance } from "@/native/previewPerformanceStore";
 import { buildSceneDescription, resolveVisibleClips } from "@/native/sceneDescription";
 import {
 	getWebcamNativeSize,
@@ -132,8 +133,10 @@ export function NativeCompositorOverlay({
 	}, [document]);
 
 	const ready = sources !== null;
+	const previewPerformance = usePreviewPerformance();
 	const { viewId, error } = useNativeCompositorView(canvasRef, {
 		sources: sources ?? undefined,
+		performance: previewPerformance,
 	});
 	const t = useScopedT("editor");
 	// No usable GPU: the preview still renders every effect, just slowly (~8 fps with

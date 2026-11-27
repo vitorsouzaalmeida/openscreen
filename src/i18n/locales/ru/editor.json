@@ -402,7 +402,13 @@
 		"playbackControls": "Элементы управления воспроизведением",
 		"play": "Воспроизвести",
 		"pause": "Пауза",
-		"loop": "Повтор"
+		"loop": "Повтор",
+		"previewSettings": "Настройки предпросмотра",
+		"previewFrameRate": "Частота кадров",
+		"previewFrameRateAuto": "Авто",
+		"previewResolution": "Разрешение",
+		"previewResolutionFull": "Полное",
+		"previewSettingsHint": "Меняется только предпросмотр, экспорт остаётся прежним. Если при 60 воспроизведение идёт рывками, уменьшите разрешение."
 	},
 	"shell": {
 		"aiEditor": "ИИ-редактор",

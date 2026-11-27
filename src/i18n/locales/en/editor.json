@@ -402,7 +402,13 @@
 		"playbackControls": "Playback controls",
 		"play": "Play",
 		"pause": "Pause",
-		"loop": "Loop"
+		"loop": "Loop",
+		"previewSettings": "Preview settings",
+		"previewFrameRate": "Frame rate",
+		"previewFrameRateAuto": "Auto",
+		"previewResolution": "Resolution",
+		"previewResolutionFull": "Full",
+		"previewSettingsHint": "Only the preview changes, never the export. If 60 does not play smoothly, lower the resolution."
 	},
 	"shell": {
 		"aiEditor": "AI editor",

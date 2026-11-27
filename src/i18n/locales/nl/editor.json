@@ -402,7 +402,13 @@
 		"playbackControls": "Afspeelbediening",
 		"play": "Afspelen",
 		"pause": "Pauzeren",
-		"loop": "Herhalen"
+		"loop": "Herhalen",
+		"previewSettings": "Voorbeeldinstellingen",
+		"previewFrameRate": "Framerate",
+		"previewFrameRateAuto": "Auto",
+		"previewResolution": "Resolutie",
+		"previewResolutionFull": "Volledig",
+		"previewSettingsHint": "Alleen het voorbeeld verandert, nooit de export. Speelt 60 niet vloeiend af, verlaag dan de resolutie."
 	},
 	"shell": {
 		"aiEditor": "AI-editor",

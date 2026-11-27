@@ -402,7 +402,13 @@
 		"playbackControls": "Oynatma denetimleri",
 		"play": "Oynat",
 		"pause": "Duraklat",
-		"loop": "Döngü"
+		"loop": "Döngü",
+		"previewSettings": "Önizleme ayarları",
+		"previewFrameRate": "Kare hızı",
+		"previewFrameRateAuto": "Otomatik",
+		"previewResolution": "Çözünürlük",
+		"previewResolutionFull": "Tam",
+		"previewSettingsHint": "Yalnızca önizleme değişir, dışa aktarma asla değişmez. 60 akıcı oynatılmıyorsa çözünürlüğü düşürün."
 	},
 	"shell": {
 		"aiEditor": "Yapay zekâ düzenleyici",

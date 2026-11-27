@@ -402,7 +402,13 @@
 		"playbackControls": "Controles de reprodução",
 		"play": "Reproduzir",
 		"pause": "Pausar",
-		"loop": "Repetir"
+		"loop": "Repetir",
+		"previewSettings": "Configurações da prévia",
+		"previewFrameRate": "Taxa de quadros",
+		"previewFrameRateAuto": "Automático",
+		"previewResolution": "Resolução",
+		"previewResolutionFull": "Total",
+		"previewSettingsHint": "Só a prévia muda, nunca a exportação. Se 60 não reproduzir com fluidez, reduza a resolução."
 	},
 	"shell": {
 		"aiEditor": "Editor de IA",
