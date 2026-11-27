@@ -16,12 +16,10 @@ flowchart LR
 
 The HUD starts and controls a recording. The source selector chooses a display or window and the countdown gives the user time to prepare. On Linux there is no in-app source selector: the compositor's portal picker takes its place. It is raised before the countdown, not during it — the helper negotiates the portal, reports `source-selected`, and then waits for `record` on stdin while the app counts down. Electron resolves the source and output paths, starts the selected capture backend, and records cursor telemetry alongside media. Stop finalizes the media and session files; the resulting paths are passed to the editor as recording assets.
 
-The in-app MCP server can observe this lifecycle through
-[`waitForRecording`](mcp-server.md#waiting-for-a-user-controlled-take). Its target is
-the current recording ID, not the current project or a newly created file. The
-recorder reports failure/discard explicitly; the editor acknowledges completion
-after the project's duration and automatic-zoom saves. Waiting never controls
-capture, and timing out or cancelling a request leaves the take running.
+An agent does not go through this lifecycle. `openscreen mcp` records in a hidden
+runner of its own process, with no HUD and no countdown, and turns the take into a
+project there: see [mcp-server.md](mcp-server.md#the-media-tools). It cannot start,
+stop or wait for a take made at the HUD.
 
 ## The HUD
 

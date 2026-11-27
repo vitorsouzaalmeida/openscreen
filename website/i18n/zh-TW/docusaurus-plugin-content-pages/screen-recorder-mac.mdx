@@ -51,7 +51,7 @@ OpenScreen 是免費、MIT 授權的 Mac 螢幕錄影軟體，在 macOS 13 或�
 - **以 VideoToolbox 編碼。** H.264 匯出都交由 Apple 的 VideoToolbox 編碼器處理，並會先嘗試零拷貝路徑，讓合成完成的影格不需要再回傳到 CPU。如果 VideoToolbox 無法使用，則改用軟體編碼器。MP4 匯出支援 24、30 或 60 fps，解析度從 720p 到原始尺寸皆可。GIF 匯出也可使用。詳見[匯出](/docs/export/)。
 - **在 Mac 自己的晶片上產生字幕。** 轉錄由 whisper.cpp 執行，使用一個約 264 MB 的 Whisper Small 模型，下載一次即可。Apple Silicon 上使用 Metal，Intel Mac 上使用 CPU。字幕會燒錄進影片。詳見[字幕](/features/captions/)。
 - **編輯器的其他功能。** 根據錄下的游標放置的[自動縮放](/features/auto-zoom/)、背景、多片段時間軸、文字與箭頭標註、模糊區域，以及旁白與音樂軌道。詳見[剪輯與時間軸](/docs/editing-timeline/)。
-- **可選用的聊天剪輯。** 使用你自己的金鑰連接提供者，並用一般語言描述剪切、縮放或變速。在你連接提供者之前，這項功能是關閉的，而每項變更都會成為一般可復原的編輯。詳見 [AI 剪輯](/docs/ai-editing/)。
+- **可選用自己的代理來剪輯。** Claude Code、Codex 或任何其他 MCP 用戶端會啟動 OpenScreen 的 MCP 伺服器，而你用一般語言描述剪切、縮放或變速。每項變更都會成為一般可復原的編輯。詳見 [AI 剪輯](/docs/ai-editing/)。
 - **命令列介面。** [CLI](/docs/cli/) 可錄製、匯出、加字幕並打包專案，並支援 JSON 輸出。在 Mac 上，可從 `/Applications/Openscreen.app/Contents/MacOS/Openscreen` 執行。
 
 OpenScreen 的匯出速度是如何與其他工具比較的，請見[打造難以造假的匯出效能評測（英文）](/blog/2026/09/09/an-export-benchmark-hard-to-fake/)。

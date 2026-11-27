@@ -14,7 +14,7 @@ keywords:
 
 Quando as configurações não têm o visual que você procura, peça a um agente: uma onda a cada clique, uma vinheta que respira, um fade para preto nos últimos segundos. O agente escreve o efeito como um pequeno shader de GPU, e o OpenScreen o desenha na pré-visualização e em cada exportação, MP4 e GIF, no Windows, no macOS e no Linux.
 
-Os efeitos vêm de um agente: o chat integrado ou um cliente MCP como o Claude Code ou o Codex (veja [Edição com IA](./ai-editing.md)). Depois que o efeito está no projeto, você mesmo o ajusta no editor.
+Os efeitos vêm do seu próprio agente: um cliente MCP como o Claude Code ou o Codex (veja [Edição com IA](./ai-editing.md)). Depois que o efeito está no projeto, você mesmo o ajusta no editor.
 
 ## Pedir um efeito {#asking-for-an-effect}
 

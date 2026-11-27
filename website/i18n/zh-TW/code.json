@@ -157,7 +157,7 @@
     "message": "不上傳任何內容"
   },
   "home.features.local.body": {
-    "message": "錄影、轉錄與算繪都在你的電腦上進行，影片不會離開你的電腦。只有在你要求時才會送出文字：聊天面板與字幕翻譯，兩者都使用你自行提供的金鑰。轉錄功能會在第一次執行時，下載一次 264 MB 的 Whisper 模型。"
+    "message": "錄影、轉錄與算繪都在你的電腦上進行，影片不會離開你的電腦。OpenScreen 不會把任何內容送往 AI 模型：你自行連接的代理，會以你在該代理的帳號讀取專案。轉錄功能會在第一次執行時，下載一次 264 MB 的 Whisper 模型。"
   },
   "home.features.platforms.title": {
     "message": "Windows、macOS、Linux"
@@ -282,10 +282,10 @@
     "message": "描述你要的修改，代理來完成。"
   },
   "showcase.agent.body": {
-    "message": "本頁上方的精靈會觀察游標移動到哪裡，據此放置縮放。代理則更進一步：它會讀取實際的逐字稿與實際的時間軸，因此回答時會附上你可以自行核對的時間碼，說明要剪掉哪些區段、能省下多少時間。它做的每一項編輯都是一般可復原的操作，而且需要你自備提供者的金鑰。在你連接之前，什麼都不會執行。"
+    "message": "本頁上方的精靈會觀察游標移動到哪裡，據此放置縮放。你自己的代理則更進一步：它會讀取實際的逐字稿與實際的時間軸，因此回答時會附上你可以自行核對的時間碼，說明要剪掉哪些區段、能省下多少時間。它做的每一項編輯都是一般可復原的操作。它是 Claude Code、Codex 或任何 MCP 用戶端，以自己的帳號登入：OpenScreen 沒有金鑰需要向你索取。"
   },
   "showcase.agent.fact": {
-    "message": "自備金鑰 · 預設關閉 · 每項編輯皆可復原"
+    "message": "你自己的代理 · 應用程式中沒有金鑰 · 每項編輯皆可復原"
   },
   "showcase.agent.link.docs": {
     "message": "AI 剪輯說明文件"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "在編輯器聊天面板中輸入的請求，以及代理所做的編輯出現在時間軸上。",
+    "message": "向代理輸入的請求，以及它所做的編輯出現在時間軸上。",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "請編輯器的代理完成修改",
+    "message": "請代理完成修改",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

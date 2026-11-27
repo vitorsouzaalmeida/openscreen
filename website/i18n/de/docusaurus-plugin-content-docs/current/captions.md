@@ -2,7 +2,7 @@
 id: captions
 title: Untertitel & Transkript
 sidebar_position: 7
-description: "Mit Whisper lokal in 100 Sprachen transkribieren, gestaltete Untertitel einbrennen, mit eigenem LLM-Schlüssel übersetzen, durch Löschen von Wörtern schneiden."
+description: "Mit Whisper lokal in 100 Sprachen transkribieren, gestaltete Untertitel einbrennen, vom eigenen Agenten übersetzen lassen, durch Löschen von Wörtern schneiden."
 keywords:
   - automatische Untertitel
   - Untertitel
@@ -36,7 +36,7 @@ Klicke im Tab **Transcript** des Inspektors auf **Captions**:
 | Abschnitt | Einstellungen |
 |---|---|
 | **Show captions** | Hauptschalter für Vorschau und Export. |
-| **Language** | *Original (transcript)* oder eine der Übersetzungsebenen, die du erzeugt hast. |
+| **Language** | *Original (transcript)* oder eine der Übersetzungsebenen, die das Projekt hat. |
 | **Text** | Schrift, Größe, Fett, Textfarbe. |
 | **Background** | Fläche **None**, **Dark** oder **Light** hinter dem Text, und ihre Deckkraft. |
 | **Position** | **Bottom** oder **Top**, mit dem Abstand von diesem Rand (0–50 % des Bildes); **Left**, **Center** oder **Right**, mit dem Abstand von dieser Seite (0–25 %, keiner bei Center). |
@@ -48,9 +48,9 @@ Die Größe wird in Pixeln bei einem 1080 Pixel hohen Bild angegeben und skalier
 
 ### Übersetzung {#translation}
 
-Wähle eine Zielsprache und klicke auf **Translate**. Die Liste enthält fünfzehn Zielsprachen: Englisch, Französisch, Spanisch, Deutsch, Italienisch, Portugiesisch, Niederländisch, Polnisch, Türkisch, Russisch, Arabisch, Hindi, Japanisch, Koreanisch und Chinesisch.
+Der Editor hat keine Schaltfläche zum Übersetzen: Untertitel übersetzt dein eigener Agent, über den MCP-Server von OpenScreen (siehe [KI-Bearbeitung](./ai-editing.md)). Bitte ihn um die gewünschte Sprache, etwa „füge eine französische Version der Untertitel hinzu“: Er liest die Untertitelphrasen, übersetzt sie mit seinem eigenen Modell und speichert das Ergebnis im Projekt als Übersetzungsebene. Der Text, den er liest, geht an den Anbieter dieses Agenten, unter deinem Konto bei ihm. OpenScreen selbst sendet nichts.
 
-Die Übersetzung läuft über den LLM-Anbieter, den du verbunden hast (siehe [KI-Bearbeitung](./ai-editing.md)). Sie ist die einzige Untertitelfunktion, die eine Netzwerkverbindung braucht. Gespeichert wird sie **neben** dem Transkript, nie darin: Originaltext und Zeitmarken bleiben unverändert, du kannst jederzeit zurück zu *Original* wechseln, und das Löschen einer Übersetzung lässt die Aufnahme genau so, wie sie war. Übersetzt du nach dem Hinzufügen von Material erneut, kostet das nur das neue Material, und alles, was das Modell nicht zurückgibt, fällt auf die Originalwörter zurück, statt erfunden zu werden.
+Gespeichert wird eine Übersetzung **neben** dem Transkript, nie darin: Originaltext und Zeitmarken bleiben unverändert. Der Bereich **Captions** listet die Ebenen auf, die ein Projekt hat: Wähle eine unter **Display** aus, wechsle jederzeit zurück zu *Original* oder lösche eine Übersetzung, was die Aufnahme genau so lässt, wie sie war. Nachdem du Material hinzugefügt hast, muss der Agent nur die neuen Phrasen übersetzen, und eine Phrase ohne Übersetzung zeigt ihre Originalwörter statt erfundener.
 
 :::note
 Projekte, die mit dem älteren Ablauf „generate captions“ erstellt wurden, enthalten den Untertiteltext als echte Annotationen, die über der Live-Ebene gezeichnet würden. Der Bereich **Captions** erkennt sie und bietet an, sie zu entfernen. Er fragt vorher nach, weil dabei Daten gelöscht werden.

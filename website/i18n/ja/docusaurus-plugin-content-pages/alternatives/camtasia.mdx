@@ -28,8 +28,8 @@ OpenScreen は、Windows・macOS・Linux 向けの無料の Camtasia 代替で�
 | 自動ズーム | あり。記録したクリックに配置 | あり。SmartFocus。Camtasia Recorder と Camtasia Rev の録画で使用可能 |
 | カーソルエフェクト | サイズ、スムージング、モーションブラー、クリックバウンス | 14 種類のカーソルエフェクトに加え、リップル、リング、クリックズームなどのクリックエフェクト |
 | 字幕 | 端末上の Whisper、約 264 MB のモデル 1 つを一度だけダウンロード。自動検出または 100 の言語コード。動画に焼き込み | 端末上の Whisper、対応言語として 57 言語を掲載。ダイナミックキャプション、クローズドキャプション、基本的な VTT のインポート・エクスポート |
-| 翻訳 | 接続した AI プロバイダーを通じて字幕を 15 言語に | Pro プランで、音声と文字起こしを 7 言語 9 方言に |
-| 生成 AI | 自分の API キーによる任意のチャット編集 | Create プランと Pro プランに組み込み。両プランで音声、Pro でアバター・吹き替え・翻訳 |
+| 翻訳 | 字幕を、OpenScreen の MCP サーバーを通して自分の AI エージェントが翻訳 | Pro プランで、音声と文字起こしを 7 言語 9 方言に |
+| 生成 AI | 組み込みはなし。OpenScreen の MCP サーバーを通した、自分のエージェントによる任意の編集 | Create プランと Pro プランに組み込み。両プランで音声、Pro でアバター・吹き替え・翻訳 |
 | クイズと SCORM | なし | あり。4 種類の設問形式、SCORM 準拠の LMS への結果レポート |
 | エクスポート | MP4（H.264）または GIF、最大 60 fps、透かしなし | MP4、GIF、M4A、透過対応 WebM、またはインタラクティブな Smart Player 動画 |
 | 公開 | ディスク上のファイル。ホスティングなし | Screencast でのホスティングと YouTube への直接アップロード |
@@ -63,7 +63,7 @@ OpenScreen は、Windows・macOS・Linux 向けの無料の Camtasia 代替で�
 ### 自動化と AI {#automation-and-ai}
 
 - **すべてのプラットフォームで使えるコマンドラインインターフェース。** アプリの実行ファイルは `record`、`sources`、`export`、`captions`、`pack`、`info` の各コマンドを受け付け、ウィンドウを表示せずに実行し、`--json` で NDJSON を出力します。スクリプト、CI、コーディングエージェント向けです。TechSmith が文書化しているのは、Windows 版 Camtasia Recorder（バージョン 9 以降）のコマンドラインスイッチです。[CLI リファレンス](/docs/cli/)と、CI やサーバーで必要な環境を説明した[ディスプレイ、CI、サーバー](/docs/cli/#displays-ci-and-servers)を参照してください。
-- **自分の API キーによる任意のチャット編集。** Claude、OpenAI、Gemini、Mistral、OpenRouter、MiniMax、または任意の OpenAI 互換エンドポイントを接続し、カット、ズーム、速度変更、注釈を普段の言葉で指示できます。変更はすべて元に戻せる通常の編集として反映されます。プロバイダーを接続するまではオフで、同じプロバイダーが字幕を 15 言語に翻訳します。Camtasia は代わりに、生成機能を Create プランと Pro プランに組み込んでいます。[AI 編集](/docs/ai-editing/)を参照してください。
+- **自分のエージェントによる任意の編集。** Claude Code、Codex、またはその他の MCP クライアントが OpenScreen の MCP サーバーを起動し、カット、ズーム、速度変更、注釈を普段の言葉で指示できます。変更はすべて元に戻せる通常の編集として反映されます。エージェントは自身のアカウントでサインインし、OpenScreen がそれを目にすることはありません。字幕の翻訳もできます。Camtasia は代わりに、生成機能を Create プランと Pro プランに組み込んでいます。[AI 編集](/docs/ai-editing/)を参照してください。
 
 ## Camtasia のほうが適している場合 {#when-camtasia-is-the-better-choice}
 

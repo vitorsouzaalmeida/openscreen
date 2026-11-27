@@ -1,6 +1,6 @@
 ---
 title: Screen recorder with local Whisper captions
-description: "OpenScreen is a free screen recorder with captions: Whisper transcribes on your machine, then you style, translate and burn the captions into the video."
+description: "OpenScreen is a free screen recorder with captions: Whisper transcribes on your machine, then you style the captions and burn them into the video."
 keywords:
   - screen recorder with captions
   - offline auto captions screen recorder
@@ -32,7 +32,7 @@ This page is published by the OpenScreen project. The Cap, Camtasia and Screen S
 | Styling | Font, size, bold, text color, background, position, and 1 to 12 words per line |
 | Output | Burned into the exported video |
 | Transcript editing | Delete words to cut them from the video. Silences are marked and can be cut too |
-| Translation | 15 languages, through an AI provider you connect with your own key |
+| Translation | By your own AI agent, through OpenScreen's MCP server. No translate button in the app |
 | Command line | The `captions` command adds captions to a project |
 | Price | Free, including commercial use. No account |
 
@@ -70,9 +70,9 @@ Whisper reports word times a little late. OpenScreen pulls each word boundary ba
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### Translation with your own key
+### Translation by your own agent
 
-Translation covers 15 languages: English, French, Spanish, German, Italian, Portuguese, Dutch, Polish, Turkish, Russian, Arabic, Hindi, Japanese, Korean and Chinese. It goes through the AI provider you connect for chat editing, with your own key. Until you connect a provider, it sends nothing. The translation is stored beside the transcript, so the original words and timings stay as they were, and you can switch back at any time. See [Translation](/docs/captions/#translation) and [AI editing](/docs/ai-editing/).
+The app has no translate button. Captions are translated by an AI agent you already use, such as Claude Code or Codex, through OpenScreen's MCP server: it reads the caption phrases, translates them with its own model, and stores the result in the project as a language layer. The translation is stored beside the transcript, so the original words and timings stay as they were. In the Captions pane you pick the language the captions show, switch back at any time, or delete a layer. See [Translation](/docs/captions/#translation) and [AI editing](/docs/ai-editing/).
 
 ### From the command line
 
@@ -80,7 +80,7 @@ The `captions` command of the [CLI](/docs/cli/) transcribes a project with the s
 
 ### What goes over the network
 
-The audio stays on your computer. Apart from one-time model downloads, only translation reaches the network: it sends the transcript text to the provider you chose. For the app as a whole: OpenScreen has no account and no server of its own. Its only report is an anonymous daily count of active installs, which you can turn off. The [FAQ](/docs/faq/#does-openscreen-work-offline) lists the few connections it still makes.
+The audio stays on your computer. Apart from one-time model downloads, captions use no network. Translation is not done by OpenScreen: the agent that translates sends the caption text it reads to its own provider, under your account with it. For the app as a whole: OpenScreen has no account and no server of its own. Its only report is an anonymous daily count of active installs, which you can turn off. The [FAQ](/docs/faq/#does-openscreen-work-offline) lists the few connections it still makes.
 
 ## Other recorders with local captions
 
@@ -95,7 +95,7 @@ On-device Whisper is not unique to OpenScreen. As of September 2026:
 - **Free, including commercial use.** No plan and no account. Cap's pricing page says its free version is for personal use only. Screen Studio needs an active plan to export video files. Camtasia's desktop editor watermarks exports until you upgrade to a paid Essentials, Create or Pro plan or a business license. All three as of September 2026.
 - **Windows, macOS and Linux.** OpenScreen runs on Windows 10 (1903 or later) and 11, x64 and ARM64. macOS 13 or later, Apple Silicon and Intel. Linux, x64. As of September 2026, Screen Studio runs only on macOS, Camtasia's desktop editor runs on Windows and macOS, and Cap offers apps for all three. See [Linux](/screen-recorder-linux/), [Windows](/screen-recorder-windows/) and [macOS](/screen-recorder-mac/).
 - **Transcript editing without a subscription.** Cutting by deleting words is part of the free app. Camtasia lists text-based editing in its paid plans (as of September 2026). Cap added cutting by transcript to its web editor in July 2026. Its desktop Studio Mode guide covers correcting caption text and timing, and does not describe cutting video from the transcript.
-- **Translation through a provider you pick.** Any provider OpenScreen supports, with your own key, and no plan to buy from OpenScreen. Translation itself is not unique: Cap Pro lists caption translation too (as of September 2026).
+- **Translation by an agent you pick.** Any agent that speaks MCP, signed in with its own account, and no plan to buy from OpenScreen. It takes an agent, where Cap Pro lists caption translation as a feature of the product (as of September 2026).
 
 ## When OpenScreen is not the right tool
 

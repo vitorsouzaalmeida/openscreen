@@ -2,7 +2,7 @@
 id: captions
 title: Legendas e transcrição
 sidebar_position: 7
-description: "Transcreva localmente com o Whisper em 100 idiomas, embuta legendas com estilo, traduza com sua própria chave de LLM e corte a gravação apagando palavras."
+description: "Transcreva localmente com o Whisper em 100 idiomas, embuta legendas com estilo, peça ao seu próprio agente que as traduza e corte a gravação apagando palavras."
 keywords:
   - legendas automáticas
   - legendar vídeo
@@ -36,7 +36,7 @@ Na aba **Transcrição** do inspetor, clique em **Legendas**:
 | Seção | Controles |
 |---|---|
 | **Mostrar legendas** | Liga/desliga geral, para a pré-visualização e para a exportação. |
-| **Idioma** | *Original (transcrição)* ou qualquer camada de tradução que você tenha gerado. |
+| **Idioma** | *Original (transcrição)* ou qualquer camada de tradução que o projeto tenha. |
 | **Texto** | Fonte, tamanho, negrito, cor do texto. |
 | **Fundo** | Caixa **Nenhuma**, **Escura** ou **Clara** atrás do texto, e a opacidade dela. |
 | **Posição** | **Base** ou **Topo**, com a distância até essa borda (0–50% do quadro); **Esquerda**, **Centro** ou **Direita**, com a distância até esse lado (0–25%, nenhuma para Centro). |
@@ -48,9 +48,9 @@ O tamanho é expresso em pixels em um quadro de 1080 de altura e é ajustado à 
 
 ### Tradução {#translation}
 
-Escolha um idioma de destino e clique em **Traduzir**. A lista traz quinze idiomas de destino: inglês, francês, espanhol, alemão, italiano, português, holandês, polonês, turco, russo, árabe, hindi, japonês, coreano e chinês.
+O editor não tem botão de tradução: as legendas são traduzidas pelo seu próprio agente, pelo servidor MCP do OpenScreen (veja [Edição com IA](./ai-editing.md)). Peça a ele o idioma que você quer, "adicione uma versão em francês das legendas": ele lê as frases das legendas, traduz com o próprio modelo e armazena o resultado no projeto como uma camada de tradução. O texto que ele lê vai para o provedor desse agente, na conta que você tem com ele. O OpenScreen em si não envia nada.
 
-A tradução passa pelo provedor de LLM que você conectou (veja [Edição com IA](./ai-editing.md)) — é o único recurso de legendas que precisa de rede. Ela é armazenada **ao lado** da transcrição, nunca dentro dela: o texto original e os tempos continuam intactos, você pode voltar para *Original* a qualquer momento, e excluir uma tradução deixa a gravação exatamente como estava. Traduzir de novo depois de adicionar material só custa o material novo, e qualquer trecho que o modelo não devolva volta às palavras originais, em vez de ser inventado.
+Uma tradução é armazenada **ao lado** da transcrição, nunca dentro dela: o texto original e os tempos continuam intactos. O painel de legendas lista as camadas que o projeto tem: escolha uma em **Exibição**, volte para *Original* a qualquer momento ou exclua uma tradução, o que deixa a gravação exatamente como estava. Depois que você adiciona material, o agente só tem as frases novas para traduzir, e uma frase sem tradução mostra as palavras originais, em vez de palavras inventadas.
 
 :::note
 Projetos feitos com o antigo fluxo "Gerar legendas" guardam o texto das legendas como anotações de verdade, que seriam desenhadas por cima da camada ao vivo. O painel de legendas as detecta e se oferece para removê-las — ele pergunta antes, já que isso apaga dados.

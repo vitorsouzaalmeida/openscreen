@@ -51,7 +51,7 @@ OpenScreen 是一款面向 Mac 的免费录屏软件，采用 MIT 许可证，�
 - **使用 VideoToolbox 编码。** H.264 导出交给苹果的 VideoToolbox 编码器处理，优先尝试零拷贝路径，即合成后的帧不会再返回 CPU。如果 VideoToolbox 不可用，则由软件编码器接管。MP4 导出支持 24、30 或 60 fps，从 720p 到原始尺寸。GIF 导出同样可用。参见[导出](/docs/export/)。
 - **基于 Mac 自身芯片的字幕。** 转录运行 whisper.cpp，使用一个约 264 MB 的 Whisper Small 模型，仅下载一次。在 Apple Silicon 上使用 Metal，在 Intel Mac 上使用 CPU。字幕会烧录进视频。详见[字幕](/features/captions/)。
 - **编辑器的其余功能。** 根据录制光标放置的[自动缩放](/features/auto-zoom/)、背景、多片段时间轴、文字和箭头标注、模糊区域，以及配音和音乐轨道。参见[编辑与时间轴](/docs/editing-timeline/)。
-- **可选的聊天式编辑。** 使用你自己的密钥连接提供方，用日常语言描述剪切、缩放或变速。在你连接提供方之前处于关闭状态，每次修改都是一次可撤销的普通编辑。参见 [AI 编辑](/docs/ai-editing/)。
+- **可选的编辑方式：使用你自己的 AI 代理。** Claude Code、Codex 或任何其他 MCP 客户端启动 OpenScreen 的 MCP 服务器，你用日常语言描述剪切、缩放或变速。每次修改都是一次可撤销的普通编辑。参见 [AI 编辑](/docs/ai-editing/)。
 - **命令行界面。** [CLI](/docs/cli/) 可完成录制、导出、字幕和项目打包，并支持 JSON 输出。在 Mac 上，可从 `/Applications/Openscreen.app/Contents/MacOS/Openscreen` 运行。
 
 关于 OpenScreen 的导出速度是如何与其他工具进行测量比较的，详见[一份力求难以作弊的导出基准测试（英文）](/blog/2026/09/09/an-export-benchmark-hard-to-fake/)。

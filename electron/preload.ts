@@ -8,7 +8,6 @@ import type { NativeWindowsRecordingRequest } from "../src/lib/nativeWindowsReco
 import type { RecordingSession, StoreRecordedSessionInput } from "../src/lib/recordingSession";
 import type { ShortcutBinding } from "../src/lib/shortcuts";
 import type {
-	AiEditionChatEvent,
 	AiEditionMcpHostRequest,
 	AiEditionMcpHostResponse,
 	CompositorSharedFrameMeta,
@@ -59,13 +58,6 @@ sharedTexture?.setSharedTextureReceiver(async ({ importedSharedTexture }, meta) 
 
 contextBridge.exposeInMainWorld("electronAPI", {
 	assetBaseUrl,
-
-	// The renderer's navigator.clipboard.writeText is denied by Electron's
-	// permission gate (clipboard-sanitized-write), which left chat's Copy
-	// message permanently on its error toast (issue #738). Main's clipboard
-	// module has no such gate, so the write crosses here.
-	copyToClipboard: (text: string) =>
-		ipcRenderer.invoke("clipboard:write-text", text) as Promise<void>,
 
 	// --- Native export encoder -------------------------------------------------
 	// The renderer composites and extracts frames but cannot spawn ffmpeg (it is
@@ -277,8 +269,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getRecordedVideoPath: () => {
 		return ipcRenderer.invoke("get-recorded-video-path");
 	},
-	reportRecordingOutcome: (outcome: import("../src/lib/recordingSession").RecordingOutcome) =>
-		ipcRenderer.invoke("recording-outcome", outcome),
 
 	setRecordingState: (
 		recording: boolean,
@@ -660,11 +650,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// One-way fire-and-forget; we deliberately don't await the IPC.
 	rendererConsole: (channel: "log" | "warn" | "error", args: unknown[]) => {
 		ipcRenderer.send(`renderer-console-${channel}`, ...args);
-	},
-	onAiEditionChatEvent: (callback: (event: AiEditionChatEvent) => void) => {
-		const listener = (_e: unknown, payload: AiEditionChatEvent) => callback(payload);
-		ipcRenderer.on("ai-edition.chat-event", listener);
-		return () => ipcRenderer.removeListener("ai-edition.chat-event", listener);
 	},
 	// The editor answers the MCP server's reads and writes of the live document.
 	// Subscribing is what makes this window the one the server asks; the

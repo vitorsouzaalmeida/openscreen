@@ -77,7 +77,7 @@ Mehr dazu, wie die Zooms gesetzt werden: [Auto-zoom](/features/auto-zoom/).
 
 **Mehrere Takes zusammenfügen.** Wechsle zu **Media**, nutze **Import media**, falls ein Take noch nicht aufgeführt ist, und zieh seine Karte dann in die Clipzeile. Sie landet am Ende der Zeitleiste, und du ziehst sie an ihren Platz. Siehe [Mediathek](../media-library.md).
 
-Wenn du deinen eigenen LLM-Anbieter verbunden hast, übergibt **Auto-enhance → Smart cuts** das Schneiden dem KI-Agenten. Das ist optional und bleibt aus, bis du einen Schlüssel hinzufügst ([KI-Bearbeitung](../ai-editing.md)). Rückgängig machen reicht 50 Schritte zurück, Änderungen des Agenten eingeschlossen.
+Wenn du einen KI-Agenten wie Claude Code oder Codex nutzt, kannst du ihm das Schneiden übergeben: Er bearbeitet das Projekt über den MCP-Server von OpenScreen ([KI-Bearbeitung](../ai-editing.md)). Das ist optional. Rückgängig machen reicht 50 Schritte zurück, Änderungen des Agenten eingeschlossen.
 
 ## 6. Private Daten unkenntlich machen, annotieren, Ton hinzufügen {#6-blur-private-data-annotate-add-sound}
 
@@ -96,7 +96,7 @@ Der Tab **Cursor** gestaltet den Zeiger aus Schritt 2 neu. Alle Werkzeuge stehen
 
 Klicke im Tab **Transcript** auf **Captions** und schalte **Show captions** ein. Die Untertitel werden live aus dem Transkript gezeichnet, die Schnitte aus Schritt 5 gelten also ohne zusätzlichen Schritt auch für sie. Stelle Schrift, Größe, Fett, Farbe, Hintergrundfläche, Position und 1 bis 12 Wörter pro Zeile ein. Prüfe die Platzierung in der Vorschau nach jeder Änderung des Formats.
 
-Whisper erkennt die gesprochene Sprache, oder du legst mit **Regenerate as** auf der Arbeitsfläche **Media** eine der 100 Sprachen fest. Um in einer anderen Sprache zu veröffentlichen, nutzt du **Translate** für eine von 15 Zielsprachen und wählst diese Sprache vor dem Export unter **Display** aus. Die Übersetzung läuft über deinen eigenen LLM-Anbieter und braucht deshalb einen Schlüssel.
+Whisper erkennt die gesprochene Sprache, oder du legst mit **Regenerate as** auf der Arbeitsfläche **Media** eine der 100 Sprachen fest. Um in einer anderen Sprache zu veröffentlichen, bittest du deinen eigenen Agenten um eine Übersetzung ([Übersetzung](../captions.md#translation)) und wählst diese Sprache vor dem Export unter **Display** aus. Der Editor selbst hat keine Schaltfläche zum Übersetzen.
 
 Untertitel werden ins Video eingebrannt. Editor und CLI schreiben keine `.srt`- oder `.vtt`-Datei, ein Player kann sie also nicht ausschalten. Ein Agent kann eine mit `exportCaptions` schreiben. Details: [Untertitel & Transkript](../captions.md) und [wie die Untertitelfunktion arbeitet](/features/captions/).
 

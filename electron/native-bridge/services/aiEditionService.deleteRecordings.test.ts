@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocumentService } from "../../ai-edition/document-service";
 import { findMediaLinksByFingerprint, registerMediaLinks } from "../../media/mediaLinksRegistry";
-import { AiEditionService, type AiEditionServiceOptions } from "./aiEditionService";
+import { AiEditionService } from "./aiEditionService";
 
 describe("AiEditionService — deleting a project's recordings", () => {
 	let root: string;
@@ -18,15 +18,12 @@ describe("AiEditionService — deleting a project's recordings", () => {
 	function service(): AiEditionService {
 		return new AiEditionService({
 			documents,
-			llmConfig: () => {
-				throw new Error("not used");
-			},
 			recordings: {
 				dirs: () => [recordingsDir],
 				registryDir: () => recordingsDir,
 				trashItem,
 			},
-		} as unknown as AiEditionServiceOptions);
+		});
 	}
 
 	beforeEach(async () => {

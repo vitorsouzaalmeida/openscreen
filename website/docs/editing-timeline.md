@@ -34,7 +34,7 @@ A floating icon rail sits over the preview. Five facets:
 | **Camera layout** | Webcam composite: picture-in-picture, vertical stack, dual frame, or no webcam. Mirror and "shrink on zoom." For picture-in-picture: camera shape (square, or original: the camera's own proportions, so a portrait camera stays portrait), roundness (fully round, a square camera is a circle), size, and position: one of eight spots along the edge, always the same distance from it. Drag the webcam on the canvas and it snaps to the nearest one. |
 | **Audio** | The output level, applied the same way in the preview and the export. |
 | **Cursor** | Only meaningful for recordings made in the editable cursor mode, on Windows, macOS, or Linux. Show/hide and auto-hide, the cursor style with its **3D cursor** switch, the cursor types (each type the video shows, drawn as recorded or as the arrow), sliders for size (up to eight times the system cursor), smoothing, and motion blur, click bounce (None, Light, Strong), and **Click impact**, which pushes the screen back on each click under every camera. |
-| **Transcript** | The aggregated transcript across every clip, editable — see [Transcript editing](./captions.md#transcript-editing). Its **Captions** button turns captions on, styles them, and translates them — see [Captions & transcript](./captions.md#captions). |
+| **Transcript** | The aggregated transcript across every clip, editable — see [Transcript editing](./captions.md#transcript-editing). Its **Captions** button turns captions on, styles them, and picks the language they show — see [Captions & transcript](./captions.md#captions). |
 
 The **pencil** button on the same rail opens the **Edit clip** modal for the selected clip: a draggable crop rectangle with numeric X/Y/W/H inputs and aspect-ratio presets, plus the clip's in/out points. Crop is per clip, not per project.
 
@@ -42,9 +42,7 @@ Selecting a region on the timeline (a zoom, trim, annotation, speed, or Full Cam
 
 ## Timeline toolbar
 
-- **Auto-enhance** (wand icon) — a menu with two one-shot passes:
-  - **Automatic zooms** — reads the recorded clicks and zooms in on them. No network, no model. [Auto zoom](/features/auto-zoom/) explains how the zooms are placed.
-  - **Smart cuts** (marked *With AI*) — hands the job to the AI agent instead, which needs a [connected provider](./ai-editing.md).
+- **Auto-enhance** (wand icon) — a menu with a one-shot pass, **Automatic zooms**: it reads the recorded clicks and zooms in on them. No network, no model. [Auto zoom](/features/auto-zoom/) explains how the zooms are placed.
 - **Speed** (`S`) — adds a speed-change region at the playhead.
 - **Annotation** (`A`) — adds an annotation at the playhead.
 - **Trim** (`T`) — drops a two-second cut ("trim region") at the playhead. Drag its edges to resize, like any other region.

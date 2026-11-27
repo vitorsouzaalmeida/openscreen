@@ -1,6 +1,6 @@
 ---
 title: 內建本機 Whisper 字幕的螢幕錄影軟體
-description: "OpenScreen 是免費螢幕錄影軟體，內建字幕功能：Whisper 在你的電腦上轉錄，接著你可以自行設定樣式、翻譯，並將字幕燒錄進影片。"
+description: "OpenScreen 是免費螢幕錄影軟體，內建字幕功能：Whisper 在你的電腦上轉錄，接著你可以自行設定字幕樣式，並將字幕燒錄進影片。"
 keywords:
   - 螢幕錄影字幕軟體
   - 離線自動字幕螢幕錄影
@@ -32,7 +32,7 @@ OpenScreen 是一款免費、MIT 授權、支援 Windows、macOS 與 Linux 的�
 | 樣式 | 字型、大小、粗體、文字顏色、背景、位置，以及每行 1 到 12 個字 |
 | 輸出 | 燒錄進匯出的影片 |
 | 逐字稿編輯 | 刪除字詞即可將其從影片中剪掉。靜音區段會被標記，也可以剪掉 |
-| 翻譯 | 15 種語言，透過你自行連接、自備金鑰的 AI 提供者 |
+| 翻譯 | 由你自己的 AI 代理透過 OpenScreen 的 MCP 伺服器進行。應用程式中沒有翻譯按鈕 |
 | 命令列 | `captions` 指令會將字幕加入專案 |
 | 價格 | 免費，包含商業使用。不需要帳號 |
 
@@ -70,9 +70,9 @@ Whisper 回報的字詞時間點會稍微偏晚。OpenScreen 會把每個字詞�
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### 用你自己的金鑰翻譯 {#translation-with-your-own-key}
+### 由你自己的代理翻譯 {#translation-by-your-own-agent}
 
-翻譯支援 15 種語言：英文、法文、西班牙文、德文、義大利文、葡萄牙文、荷蘭文、波蘭文、土耳其文、俄文、阿拉伯文、印地文、日文、韓文與中文。這項功能透過你為聊天剪輯連接的 AI 提供者運作，使用你自己的金鑰。在你連接提供者之前，不會送出任何資料。翻譯結果會存放在逐字稿旁邊，原本的文字與時間點維持不變，你隨時可以切換回去。詳見[翻譯](/docs/captions/#translation)與 [AI 剪輯](/docs/ai-editing/)。
+應用程式沒有翻譯按鈕。字幕由你已經在使用的 AI 代理（例如 Claude Code 或 Codex）透過 OpenScreen 的 MCP 伺服器翻譯：它會讀取字幕語句，用自己的模型翻譯，並把結果以語言層的形式存入專案。翻譯結果會存放在逐字稿旁邊，原本的文字與時間點維持不變。在字幕窗格中，你可以選擇字幕顯示的語言、隨時切換回去，或刪除某個語言層。詳見[翻譯](/docs/captions/#translation)與 [AI 剪輯](/docs/ai-editing/)。
 
 ### 從命令列使用 {#from-the-command-line}
 
@@ -80,7 +80,7 @@ Whisper 回報的字詞時間點會稍微偏晚。OpenScreen 會把每個字詞�
 
 ### 哪些資料會經過網路 {#what-goes-over-the-network}
 
-音訊始終留在你的電腦上。除了一次性的模型下載之外，只有翻譯功能會連上網路：它會把逐字稿的文字送給你選擇的提供者。就整個應用程式而言，OpenScreen 沒有帳號，也沒有自己的伺服器。它唯一的回報是每天一次的活躍安裝匿名計數，而且你可以關閉。[常見問題](/docs/faq/#does-openscreen-work-offline)列出了它仍會連線的少數幾種情況。
+音訊始終留在你的電腦上。除了一次性的模型下載之外，字幕不會使用網路。翻譯不是由 OpenScreen 進行的：負責翻譯的代理會把它讀取的字幕文字，以你在該代理的帳號送往它自己的提供者。就整個應用程式而言，OpenScreen 沒有帳號，也沒有自己的伺服器。它唯一的回報是每天一次的活躍安裝匿名計數，而且你可以關閉。[常見問題](/docs/faq/#does-openscreen-work-offline)列出了它仍會連線的少數幾種情況。
 
 ## 其他內建本機字幕的錄影軟體 {#other-recorders-with-local-captions}
 
@@ -95,7 +95,7 @@ Whisper 回報的字詞時間點會稍微偏晚。OpenScreen 會把每個字詞�
 - **免費，包含商業使用。** 沒有方案，也不需要帳號。Cap 的價格頁面指出，其免費版僅供個人使用。Screen Studio 需要有效方案才能匯出影片檔。Camtasia 的桌面版編輯器會在匯出時加上浮水印，除非升級到付費的 Essentials、Create 或 Pro 方案，或購買企業授權。以上三者資訊皆截至 2026 年 9 月。
 - **支援 Windows、macOS 與 Linux。** OpenScreen 支援 Windows 10（1903 或更新版本）與 11，x64 與 ARM64；macOS 13 或更新版本，Apple Silicon 與 Intel；以及 Linux，x64。截至 2026 年 9 月，Screen Studio 僅支援 macOS，Camtasia 的桌面版編輯器支援 Windows 與 macOS，Cap 則三個平台都有應用程式。詳見 [Linux](/screen-recorder-linux/)、[Windows](/screen-recorder-windows/) 與 [macOS](/screen-recorder-mac/) 頁面。
 - **不需要訂閱即可編輯逐字稿。** 刪除字詞來剪輯是免費版就有的功能。Camtasia 將依逐字稿剪輯列在付費方案中（截至 2026 年 9 月）。Cap 在 2026 年 7 月為其網頁版編輯器加入了同類的依逐字稿剪輯功能。其桌面版 Studio Mode 的說明涵蓋更正字幕文字與時間，並未描述依逐字稿剪輯影片。
-- **透過你自選的提供者翻譯。** 可使用 OpenScreen 支援的任何提供者，用你自己的金鑰，不需要向 OpenScreen 購買任何方案。翻譯功能本身並非獨有：Cap Pro 也列有字幕翻譯（截至 2026 年 9 月）。
+- **由你自選的代理翻譯。** 可使用任何支援 MCP 的代理，以它自己的帳號登入，不需要向 OpenScreen 購買任何方案。這需要一個代理，而 Cap Pro 則把字幕翻譯列為產品本身的功能（截至 2026 年 9 月）。
 
 ## 不適合使用 OpenScreen 的情況 {#when-openscreen-is-not-the-right-tool}
 

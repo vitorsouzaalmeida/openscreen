@@ -30,15 +30,15 @@ OpenScreen sort souvent de nouvelles versions. D'une version à l'autre, le form
 - [Enregistrer](./recording.md) une fenêtre précise ou tout votre écran, avec l'audio système, le micro et la webcam, depuis un HUD flottant ou depuis l'éditeur lui-même.
 - Construire un projet à partir de plusieurs sources : [importer, couper, recadrer et réordonner des clips](./media-library.md) sur une seule timeline.
 - [Monter](./editing-timeline.md) avec des zooms, des coupes, une vitesse par région, des segments Caméra plein écran, des annotations texte, image, flèche et flou, des effets de curseur, des dispositions de webcam, ainsi que des arrière-plans et des effets.
-- Transcrire en local avec Whisper, puis [incruster des sous-titres](./captions.md) (mis en forme en direct, traduisibles en 15 langues via votre propre fournisseur de LLM), ou couper votre enregistrement en supprimant des mots de la transcription.
-- Connecter, si vous le souhaitez, votre propre clé LLM pour [monter par chat](./ai-editing.md). Cette fonction est désactivée par défaut et n'est jamais obligatoire.
-- Laisser votre propre agent de code [faire toute la vidéo](./ai-editing.md#letting-an-agent-make-the-whole-video) par le serveur MCP d'OpenScreen : enregistrer, monter, exporter.
+- Transcrire en local avec Whisper, puis [incruster des sous-titres](./captions.md) (mis en forme en direct, traduisibles par votre propre agent), ou couper votre enregistrement en supprimant des mots de la transcription.
+- [Monter avec votre propre agent](./ai-editing.md), si vous le souhaitez : Claude Code, Codex ou tout client MCP lance `openscreen mcp` et modifie en direct le projet que vous avez ouvert. Ce n'est jamais obligatoire.
+- Laisser cet agent [faire toute la vidéo](./ai-editing.md#letting-an-agent-make-the-whole-video) : enregistrer, monter, exporter.
 - [Exporter](./export.md) en MP4 (720p/1080p/source, H.264) ou en GIF animé.
 
 Les questions sur la licence, les filigranes ou ce qui passe par le réseau trouvent leur réponse dans la [FAQ](/docs/faq/). La comparaison d'OpenScreen avec d'autres enregistreurs se trouve sur les pages [Screen Studio](/alternatives/screen-studio/), [Cap](/compare/openscreen-vs-cap/) et [OBS Studio](/compare/openscreen-vs-obs/).
 
 :::note
-L'enregistrement, le montage, la transcription, les sous-titres et l'export ne demandent aucun compte et continuent de fonctionner sans connexion réseau. La transcription exige d'abord un téléchargement : ses modèles, récupérés lors de votre première transcription (le modèle Whisper fait environ 264 Mo). Quand une connexion est disponible, les versions installées depuis GitHub Releases vérifient sur GitHub la présence de mises à jour. Le montage par chat avec l'IA et la traduction des sous-titres ne passent en ligne qu'une fois que vous avez vous-même connecté un fournisseur, et seulement vers ce fournisseur.
+L'enregistrement, le montage, la transcription, les sous-titres et l'export ne demandent aucun compte et continuent de fonctionner sans connexion réseau. La transcription exige d'abord un téléchargement : ses modèles, récupérés lors de votre première transcription (le modèle Whisper fait environ 264 Mo). Quand une connexion est disponible, les versions installées depuis GitHub Releases vérifient sur GitHub la présence de mises à jour. OpenScreen n'envoie rien à aucun modèle d'IA : si vous ajoutez votre propre agent, ce qu'il lit par le serveur MCP d'OpenScreen part chez le fournisseur de cet agent, sous votre compte chez lui.
 :::
 
 ## Le projet en bref {#project-facts}

@@ -20,7 +20,6 @@ import {
 	PRODUCT_NAME,
 	usesNativeAboutPanel,
 } from "./about";
-import { flushChatPersistence } from "./ai-edition/chat-service";
 import { AppSettingsStore } from "./app-settings";
 import {
 	blockedFromInstalling,
@@ -1304,9 +1303,6 @@ app.on("before-quit", (event) => {
 		.catch((error) => {
 			console.error("[stt] Failed to stop whisper helper during app quit:", error);
 		})
-		// Chat history is written asynchronously. Flushing after the helper stops also
-		// catches a reply that landed meanwhile; a turn still running is not waited for.
-		.then(flushChatPersistence)
 		.finally(() => {
 			sttShutdownFinished = true;
 			app.quit();
@@ -1553,7 +1549,7 @@ appReady?.then(async () => {
 		showMainWindow();
 	}
 
-	const { mcpController, mcpAppChannel } = registerIpcHandlers(
+	const { mcpAppChannel } = registerIpcHandlers(
 		createEditorWindowWrapper,
 		createSourceSelectorWindowWrapper,
 		createCountdownOverlayWindowWrapper,
@@ -1577,7 +1573,6 @@ appReady?.then(async () => {
 			}
 		},
 		switchToHudWrapper,
-		() => editorHasUnsavedChanges,
 	);
 
 	// Native STT (whisper.cpp + forced alignment) — single instance per app.
@@ -1600,12 +1595,10 @@ appReady?.then(async () => {
 	}
 
 	createWindow();
-	// Off unless the user turned it on in Settings → AI. Started here rather than
-	// in registerIpcHandlers so neither the headless CLI nor a bench run binds it.
-	void mcpController.startIfEnabled();
-	// Always on, unlike the in-app server: `openscreen mcp` forwards its document calls here
-	// so the app stays the one writer of its projects (app-channel.ts). Without it, that
-	// server works on the files and refuses the project the editor holds.
+	// `openscreen mcp` forwards its document calls here so the app stays the one writer of
+	// its projects (app-channel.ts). Without it, that server works on the files and refuses
+	// the project the editor holds. Started here rather than in registerIpcHandlers so
+	// neither the headless CLI nor a bench run opens it.
 	serveAppChannel({ userDataDir: app.getPath("userData"), ...mcpAppChannel })
 		.then((channel) => app.once("will-quit", () => channel.close()))
 		.catch((error) => console.warn("[mcp] could not open the channel for openscreen mcp:", error));

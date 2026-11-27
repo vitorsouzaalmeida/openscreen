@@ -144,7 +144,7 @@
     "message": "Nada é enviado"
   },
   "home.features.local.body": {
-    "message": "Gravação, transcrição e renderização acontecem no seu computador, e o seu vídeo nunca sai dele. Só sai texto quando você pede: pelo painel de chat e pela tradução de legendas, cada um com uma chave fornecida por você. A transcrição baixa o modelo Whisper de 264 MB uma única vez, na primeira execução."
+    "message": "Gravação, transcrição e renderização acontecem no seu computador, e o seu vídeo nunca sai dele. O OpenScreen não envia nada a nenhum modelo de IA: um agente que você mesmo conecta lê o projeto na conta que você tem com ele. A transcrição baixa o modelo Whisper de 264 MB uma única vez, na primeira execução."
   },
   "home.features.platforms.title": {
     "message": "Windows, macOS, Linux"
@@ -269,10 +269,10 @@
     "message": "Descreva a edição. O agente faz."
   },
   "showcase.agent.body": {
-    "message": "A varinha mágica mais acima nesta página posiciona zooms observando por onde o seu cursor passou. O agente vai além: ele lê a transcrição real e a linha do tempo real, então responde com timecodes que você pode conferir — quais trechos vai cortar e quanto isso economiza. Cada edição que ele faz é uma edição comum, que pode ser desfeita, e ele precisa de uma chave de provedor fornecida por você. Nada roda até você conectar uma."
+    "message": "A varinha mágica mais acima nesta página posiciona zooms observando por onde o seu cursor passou. O seu próprio agente vai além: ele lê a transcrição real e a linha do tempo real, então responde com timecodes que você pode conferir — quais trechos vai cortar e quanto isso economiza. Cada edição que ele faz é uma edição comum, que pode ser desfeita. Ele é o Claude Code, o Codex ou qualquer cliente MCP, conectado com a própria conta: o OpenScreen não tem nenhuma chave para pedir a você."
   },
   "showcase.agent.fact": {
-    "message": "use sua própria chave · desativado por padrão · toda edição pode ser desfeita"
+    "message": "seu próprio agente · sem chave no app · toda edição pode ser desfeita"
   },
   "showcase.agent.link.docs": {
     "message": "Documentação da edição com IA"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "Um pedido digitado no painel de chat do editor, e as edições do agente aparecendo na linha do tempo.",
+    "message": "Um pedido digitado a um agente, e as edições que ele faz aparecendo na linha do tempo.",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "Pedir uma edição ao agente do editor",
+    "message": "Pedir uma edição a um agente",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

@@ -217,14 +217,6 @@ describe("setEditorSettings", () => {
 			"No clip on the timeline has a camera",
 		);
 	});
-
-	it("is refused while edits are off", () => {
-		const result = executeAgentTool(fixture(), "setEditorSettings", '{"padding":10}', {
-			editsAllowed: false,
-		});
-		expect(result.ok).toBe(false);
-		expect(result.document).toBeUndefined();
-	});
 });
 
 describe("getCurrentDocument's settings", () => {
@@ -350,16 +342,5 @@ describe("style presets", () => {
 		expect(listed.warning).toContain("could not be read");
 		expect(apply(fixture(), "openscreen-factory", null).ok).toBe(true);
 		expect(apply(fixture(), "Vertical", null).resultJson).toContain("could not be read");
-	});
-
-	it("is a write, refused while edits are off", () => {
-		const refused = executeAgentTool(
-			fixture(),
-			"applyStylePreset",
-			JSON.stringify({ presetId: "openscreen-factory" }),
-			{ editsAllowed: false },
-		);
-		expect(refused.ok).toBe(false);
-		expect(refused.document).toBeUndefined();
 	});
 });

@@ -5,9 +5,9 @@ description: "What OpenScreen's desktop app, website, MCP server and agent plugi
 
 # Privacy policy
 
-Last updated: 22 November 2026.
+Last updated: 27 November 2026.
 
-OpenScreen is a free, open-source screen recorder and video editor. It has no account and no servers of its own: your recordings, projects and transcripts are stored on your computer, and no feature uploads a recording. This page lists everything that does leave your machine, from the desktop app, this website, the MCP server and the agent plugin, including the project data that AI features send to the provider you choose.
+OpenScreen is a free, open-source screen recorder and video editor. It has no account and no servers of its own: your recordings, projects and transcripts are stored on your computer, and no feature uploads a recording. This page lists everything that does leave your machine, from the desktop app, this website, the MCP server and the agent plugin, including the project data that an AI agent you connect receives.
 
 ## Who is responsible
 
@@ -35,13 +35,12 @@ To turn it off, untick **Send Anonymous Usage Count** in the tray menu, or set t
 - **GitHub.** Builds that update themselves check for a new release every 24 hours and when you ask. GitHub receives the request, including your IP address, under [its privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
 - **Hugging Face and GitHub, once.** The first transcription downloads the Whisper speech model from huggingface.co, and on a machine with a GPU a word-timing model from github.com. Transcription itself runs on your computer.
 - **Google Fonts, only for a font added in version 1.x.** A custom font added in an earlier version is still fetched at launch.
-- **Your AI provider, only if you connect one.** Chat editing sends your messages and the project data the agent reads, such as the timeline and the transcript. Caption translation sends the caption text. Nothing is sent until you choose a provider and give it your own API key. The provider (Anthropic, OpenAI, Google, Mistral, OpenRouter, MiniMax or a server you set) handles that data under its own terms. Keys are stored encrypted on your computer.
 
-The app contains no crash reporting. **Save Diagnostics** writes a file to your disk and sends nothing.
+The app itself sends nothing to an AI model provider, and stores no key for one: what an agent you connect receives is described in the next section. The app contains no crash reporting. **Save Diagnostics** writes a file to your disk and sends nothing.
 
 ## The MCP server and the agent plugin
 
-OpenScreen's MCP server runs on your computer: `openscreen mcp` talks to the agent that started it, and the server built into the app listens only on 127.0.0.1, behind a token. What they exchange with the agent stays on your machine. The only thing either sends off it is the anonymous daily count described above, which `openscreen mcp` sends just as the app does. The agent you connect, such as Claude Code or Codex, receives project data and still frames from them, and may pass them to its own model provider under that agent's terms.
+OpenScreen's MCP server runs on your computer: `openscreen mcp` is started by your agent and talks to it over stdin and stdout, with no network port. What it exchanges with the agent stays on your machine. The only thing it sends off it is the anonymous daily count described above, which `openscreen mcp` sends just as the app does. The agent you connect, such as Claude Code or Codex, signs in with its own account, which OpenScreen never sees. It receives the project data it asks for, such as the timeline, the transcript, caption text and still frames, and may pass them to its own model provider under that agent's terms.
 
 The `openscreen-demo` skill and the OpenScreen plugin for coding agents send data only when you ask for it:
 

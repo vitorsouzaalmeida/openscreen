@@ -2,7 +2,7 @@
 id: captions
 title: Sous-titres et transcription
 sidebar_position: 7
-description: "Transcrire en local avec Whisper (100 langues), incruster des sous-titres stylisés, les traduire avec votre clé LLM, couper une vidéo en supprimant des mots."
+description: "Transcrire en local avec Whisper (100 langues), incruster des sous-titres stylisés, les faire traduire par votre propre agent, couper une vidéo en supprimant des mots."
 keywords:
   - sous-titres automatiques
   - sous-titrage
@@ -36,7 +36,7 @@ Dans l'onglet **Transcription** de l'inspecteur, cliquez sur **Sous-titres** :
 | Section | Réglages |
 |---|---|
 | **Afficher les sous-titres** | Activation générale, pour l'aperçu comme pour l'export. |
-| **Langue** | *Original (transcription)*, ou toute couche de traduction que vous avez générée. |
+| **Langue** | *Original (transcription)*, ou toute couche de traduction que contient le projet. |
 | **Texte** | Police, taille, gras, couleur du texte. |
 | **Fond** | Bandeau derrière le texte : **Aucune**, **Sombre** ou **Claire**, et son opacité. |
 | **Position** | **Bas** ou **Haut**, avec la distance depuis ce bord (0–50 % du cadre) ; **Gauche**, **Centre** ou **Droite**, avec la distance depuis ce côté (0–25 %, aucune pour Centre). |
@@ -48,9 +48,9 @@ La taille s'exprime en pixels pour un cadre de 1080 pixels de haut et suit la so
 
 ### Traduction {#translation}
 
-Choisissez une langue cible et cliquez sur **Traduire**. La liste propose quinze langues cibles : anglais, français, espagnol, allemand, italien, portugais, néerlandais, polonais, turc, russe, arabe, hindi, japonais, coréen et chinois.
+L'éditeur n'a pas de bouton de traduction : les sous-titres sont traduits par votre propre agent, par le serveur MCP d'OpenScreen (voir [Montage par IA](./ai-editing.md)). Demandez-lui la langue que vous voulez, « ajoute une version française des sous-titres » : il lit les phrases des sous-titres, les traduit avec son propre modèle, et enregistre le résultat dans le projet comme couche de traduction. Le texte qu'il lit part chez le fournisseur de cet agent, sous votre compte chez lui. OpenScreen lui-même n'envoie rien.
 
-La traduction passe par le fournisseur de LLM que vous avez connecté (voir [Montage par IA](./ai-editing.md)) : c'est la seule fonction des sous-titres qui a besoin du réseau. Elle est stockée **à côté** de la transcription, jamais dedans : le texte d'origine et son minutage restent intacts, vous pouvez revenir à *Original* à tout moment, et supprimer une traduction laisse l'enregistrement exactement tel qu'il était. Relancer la traduction après avoir ajouté des séquences ne coûte que le nouveau contenu, et tout ce que le modèle ne renvoie pas est remplacé par les mots d'origine au lieu d'être inventé.
+Une traduction est stockée **à côté** de la transcription, jamais dedans : le texte d'origine et son minutage restent intacts. Le panneau Sous-titres liste les couches que contient un projet : choisissez-en une sous **Affichage**, revenez à *Original* à tout moment, ou supprimez une traduction, ce qui laisse l'enregistrement exactement tel qu'il était. Après un ajout de séquences, l'agent n'a que les nouvelles phrases à traduire, et une phrase sans traduction affiche ses mots d'origine plutôt que des mots inventés.
 
 :::note
 Les projets créés avec l'ancienne fonction « générer des sous-titres » contiennent le texte des sous-titres sous forme de vraies annotations, qui s'afficheraient par-dessus la couche en direct. Le volet Sous-titres les détecte et propose de les supprimer ; il demande d'abord, puisque cela efface des données.

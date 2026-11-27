@@ -26,7 +26,7 @@ Esta página la publica el proyecto OpenScreen. Los datos sobre Cap vienen de ca
 | Inicio de sesión | Nunca hace falta | Necesario para los enlaces para compartir y el modo Instant |
 | Zooms automáticos | Sí, planificados a partir de los clics grabados | Sí, generados a partir de los clics grabados |
 | Subtítulos | Whisper en el equipo, un modelo de unos 264 MB, descargado una vez. Incrustados en el video | Whisper o Parakeet en el equipo, en beta. Incrustados en el video, o guardados como SRT o WebVTT |
-| Funciones de IA | Edición por chat opcional y traducción de subtítulos a 15 idiomas, con la clave de tu propio proveedor | Alojadas en Cap Pro: títulos, resúmenes, capítulos, transcripciones y traducción de subtítulos. Sin necesidad de clave |
+| Funciones de IA | Edición y traducción de subtítulos opcionales por tu propio agente, a través del servidor MCP de OpenScreen. Sin clave en la app | Alojadas en Cap Pro: títulos, resúmenes, capítulos, transcripciones y traducción de subtítulos. Sin necesidad de clave |
 | Exportación | MP4 (H.264) a 720p, 1080p o tamaño de origen, 24, 30 o 60 fps. GIF de 15 a 30 fps. Sin marca de agua | MP4 a 720p, 1080p o 4K, 15, 30 o 60 fps. GIF de 10 a 30 fps. MOV transparente solo con cursor. Sin marca de agua |
 | Equipos y cumplimiento | Ninguno | Espacios de trabajo en equipo. Complemento SAML SSO a 199 USD/mes. SOC 2 tipo II, ISO 27001 y HIPAA, con BAA firmado a 99 USD/mes (a septiembre de 2026) |
 | Interfaz de línea de comandos | Sí, con salida JSON | Sí, con salida JSON |
@@ -59,7 +59,7 @@ Si estás eligiendo entre las dos, revisa primero la licencia. Las demás difere
 ### Una app de escritorio, no un servicio {#a-desktop-app-not-a-service}
 
 - **Sin inicio de sesión.** OpenScreen graba y edita en tu equipo y te entrega un archivo. No hay enlace alojado, ni cuenta, ni plan. Cap combina su modo Studio local con el modo Instant, que sube mientras grabas, y sus enlaces para compartir exigen iniciar sesión.
-- **Edición por chat con tu propia clave.** Es opcional: conecta Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax o cualquier endpoint compatible con OpenAI, y describe cortes, zooms, cambios de velocidad o anotaciones en lenguaje natural. Está desactivada hasta que conectas un proveedor, y cada cambio se aplica como una edición común que se puede deshacer. Ese mismo proveedor traduce los subtítulos a 15 idiomas. Las funciones de IA alojadas de Cap, como títulos, resúmenes y capítulos, vienen con Cap Pro. Consulta [Edición con IA](/docs/ai-editing/).
+- **Edición con tu propio agente.** Es opcional: Claude Code, Codex o cualquier otro cliente MCP inicia el servidor MCP de OpenScreen, y tú describes cortes, zooms, cambios de velocidad o anotaciones en lenguaje natural. El agente inicia sesión con su propia cuenta, que OpenScreen nunca ve, y cada cambio se aplica como una edición común que se puede deshacer. Ese mismo agente traduce los subtítulos. Las funciones de IA alojadas de Cap, como títulos, resúmenes y capítulos, vienen con Cap Pro. Consulta [Edición con IA](/docs/ai-editing/).
 
 ### Edición y exportación {#editing-and-export}
 

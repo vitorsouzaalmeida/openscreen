@@ -77,7 +77,7 @@ More on how the zooms are placed: [Auto-zoom](/features/auto-zoom/).
 
 **Join several takes.** Switch to **Media**, use **Import media** if a take is not listed yet, then drag its card onto the clip row: it lands at the end of the timeline, and you drag it into place. See [Media library](../media-library.md).
 
-If you have connected your own LLM provider, **Auto-enhance → Smart cuts** hands the cutting to the AI agent. It is optional and off until you add a key ([AI editing](../ai-editing.md)). Undo keeps the last 50 steps, agent edits included.
+If you use an AI agent such as Claude Code or Codex, you can hand it the cutting: it edits the project through OpenScreen's MCP server ([AI editing](../ai-editing.md)). It is optional. Undo keeps the last 50 steps, agent edits included.
 
 ## 6. Blur private data, annotate, add sound
 
@@ -96,7 +96,7 @@ The **Cursor** facet restyles the pointer from step 2. Every tool is listed in [
 
 In the **Transcript** facet, click **Captions** and turn on **Show captions**. They are drawn live from the transcript, so the cuts from step 5 carry over with no extra step. Set the font, size, bold, color, background plate, position, and 1 to 12 words per line. Check the placement in the preview after any change of shape.
 
-Whisper detects the spoken language, or you can force one of 100 languages with **Regenerate as** in the Media stage. To publish in another language, **Translate** into one of 15 targets and select that language under **Display** before exporting. Translation goes through your own LLM provider, so it needs a key.
+Whisper detects the spoken language, or you can force one of 100 languages with **Regenerate as** in the Media stage. To publish in another language, ask your own agent for a translation ([Translation](../captions.md#translation)), then select that language under **Display** before exporting. The editor itself has no translate button.
 
 Captions are burned into the video. The editor and the CLI write no `.srt` or `.vtt` file, so a player cannot turn them off. An agent can write one with `exportCaptions`. Details: [Captions & transcript](../captions.md), and [how the captions feature works](/features/captions/).
 

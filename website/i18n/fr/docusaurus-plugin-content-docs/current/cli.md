@@ -167,14 +167,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` et `--max-words` fixent le nombre de mots par sous-titre. Chacun accepte de 1 à 12, la plage de l’éditeur. Par défaut : 2 et 7.
-- Les sous-titres sont la transcription affichée sur la vidéo : dans l'éditeur, vous modifiez leur style, les corrigez et les traduisez comme n'importe quels autres. La relancer conserve la transcription et ne règle que le nombre de mots par sous-titre.
+- Les sous-titres sont la transcription affichée sur la vidéo : dans l'éditeur, vous modifiez leur style et les corrigez comme n'importe quels autres. La relancer conserve la transcription et ne règle que le nombre de mots par sous-titre.
 - Le projet est enregistré dans le format propre à l'éditeur. Un script qui modifie le JSON du projet comme [ci-dessous](#example-an-automated-product-demo) le fait avant `captions`, et `pack` ne lit pas encore ce format.
 - La vidéo d'écran du projet doit avoir une piste audio, par exemple issue de `record --mic`.
 - Les sous-titres sont incrustés dans l'export. Aucun fichier de sous-titres n'est produit. Voir [Sous-titres et transcription](./captions.md).
 
 ### `openscreen mcp` {#openscreen-mcp}
 
-Expose les outils MCP d'OpenScreen sur stdin et stdout, pour un agent de code qui la lance : les outils d'édition, plus l'enregistrement, l'export et les images fixes. Vous ne la lancez pas vous-même ; votre agent le fait, une fois configuré comme le montre [Laisser un agent faire toute la vidéo](./ai-editing.md#letting-an-agent-make-the-whole-video).
+Expose les outils MCP d'OpenScreen sur stdin et stdout, pour un agent de code qui la lance : les outils d'édition, plus l'enregistrement, l'export et les images fixes. Vous ne la lancez pas vous-même ; votre agent le fait, une fois configuré comme le montre [Montage par IA](./ai-editing.md#setting-it-up).
 
 ### `openscreen pack` {#openscreen-pack}
 

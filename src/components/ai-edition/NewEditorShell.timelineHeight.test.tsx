@@ -27,7 +27,6 @@ vi.mock("@/contexts/I18nContext", () => ({
 }));
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { EditorDialogsProvider } from "@/contexts/EditorDialogsContext";
 import { AUDIO_ROW_EXPANSION_PX } from "@/lib/ai-edition/document/audioTracks";
 import {
 	annotationRegionSchema,
@@ -45,9 +44,7 @@ import {
 function renderShell() {
 	return render(
 		<TooltipProvider>
-			<EditorDialogsProvider>
-				<NewEditorShell />
-			</EditorDialogsProvider>
+			<NewEditorShell />
 		</TooltipProvider>,
 	);
 }
@@ -56,12 +53,6 @@ describe("NewEditorShell timeline height", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		(window as unknown as { electronAPI?: unknown }).electronAPI = {
-			onAiEditionChatEvent: () => () => {
-				/* unsubscribe */
-			},
-			sendAiEditionChatPrompt: () => {
-				/* mock */
-			},
 			setTitleBarOverlay: () => {
 				/* noop */
 			},

@@ -22,11 +22,11 @@ OpenScreen 是一款免費、MIT 授權、支援 Windows、macOS 與 Linux 的�
 | | |
 | --- | --- |
 | Claude 能做的事 | 錄影、剪輯、加速、縮放、裁切、重新排列片段、加入文字、箭頭與模糊、加入音樂、轉錄、加字幕與翻譯、寫出自訂特效、匯出、查看成果 |
-| 連接方式 | OpenScreen 的 MCP 伺服器：以 `mcp` 參數啟動應用程式本身的執行檔，或使用應用程式 **AI 設定**中的伺服器 |
+| 連接方式 | OpenScreen 的 MCP 伺服器：由 Claude Code 以 `mcp` 參數啟動的應用程式本身的執行檔。不需要連接埠、權杖或任何設定 |
 | 用戶端 | Claude Code、Claude Desktop、Codex、Cursor，以及任何其他 MCP 用戶端 |
 | OpenScreen 的費用 | 無。沒有點數，不需要帳號，沒有浮水印 |
 | 剪輯在哪裡執行 | 在你的電腦上：錄影、剪輯、Whisper 轉錄與匯出 |
-| 復原 | 每次編輯都會寫入專案。在開啟的編輯器中，可用 `Ctrl/Cmd + Z` 復原；專案關閉時，可用還原點一步還原 |
+| 復原 | 每次編輯都會寫入專案。在開啟的編輯器中，每次編輯都是一個 `Ctrl/Cmd + Z` 步驟；專案關閉時，可用還原點一步還原 |
 | 平台 | Windows 10（1903 或更新版本）與 11。macOS 13 或更新版本。Linux，x64 |
 | 授權 | MIT，可免費商用 |
 
@@ -46,7 +46,7 @@ Install the OpenScreen demo skill with `npx skills add getopenscreen/openscreen 
 claude mcp add openscreen -- "<executable>" mcp
 ```
 
-`<executable>` 是應用程式的執行檔，各系統上的位置列於[執行 CLI](/docs/cli/#running-the-cli)。以這種方式啟動時，伺服器不需要連接埠、權杖或任何設定。如果你想讓 OpenScreen 保持開啟，並在編輯器中看著每一次編輯生效，請在 **AI 設定** → **MCP 伺服器**中開啟伺服器，並複製那裡顯示的指令（[詳細說明](/docs/ai-editing/#using-claude-code-codex-or-another-mcp-client)）。
+`<executable>` 是應用程式的執行檔，各系統上的位置列於[執行 CLI](/docs/cli/#running-the-cli)。伺服器不需要連接埠、權杖，也不需要在應用程式中做任何設定。如果你想看著每一次編輯生效，請讓 OpenScreen 保持開啟並開著該專案：Claude 的編輯會立即出現在它的編輯器中（[詳細說明](/docs/ai-editing/#live-edits-and-undo)）。
 
 ## 用 Claude 剪輯產品示範影片 {#edit-a-product-demo-with-claude}
 
@@ -87,6 +87,6 @@ OpenScreen 是第一款讓選單之外的特效匯出結果與預覽完全一致
 2. 把[兩分鐘完成設定](#set-it-up-in-two-minutes)中的提示貼到 Claude Code。
 3. 提出你的第一個剪輯要求。
 
-[AI 剪輯](/docs/ai-editing/)涵蓋每一項工具與內建的聊天面板，聊天面板可搭配你自己來自 Anthropic、OpenAI、Google 等的 API 金鑰使用。OpenScreen 也提供完全不需要代理程式的[自動縮放](/features/auto-zoom/)與[本機字幕](/features/captions/)。或回到 [OpenScreen 首頁](/)。
+[AI 剪輯](/docs/ai-editing/)涵蓋每一項工具，以及 Codex、Cursor 與其他 MCP 用戶端的設定方式。OpenScreen 也提供完全不需要代理程式的[自動縮放](/features/auto-zoom/)與[本機字幕](/features/captions/)。或回到 [OpenScreen 首頁](/)。
 
 Claude 與 Claude Code 為 Anthropic 的商標。OpenScreen 是獨立專案，與 Anthropic 無關聯，亦未獲其認可。

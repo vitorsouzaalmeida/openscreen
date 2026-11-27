@@ -51,7 +51,7 @@ OpenScreen 免費，支援 Windows、macOS 與 Linux。Screen Studio 4 仍然只
 | 錄製內容 | 螢幕畫面或單一視窗，之後可在編輯器中裁切 | 螢幕畫面、單一視窗，或選取的區域 |
 | 自動縮放 | 是，放置在錄下的點擊處 | 是 |
 | 字幕 | 裝置端 Whisper，一個約 264 MB 的模型，下載一次。燒錄進影片 | 裝置端 Whisper（Base、Small 或 Medium），或在 macOS 26 及更新版本上使用 Apple Speech Recognition。逐字稿可匯出成檔案 |
-| 字幕翻譯 | 透過你自行連接的 AI 提供者，支援 15 種語言 | 其字幕指南中沒有翻譯步驟 |
+| 字幕翻譯 | 由你自己的 AI 代理透過 OpenScreen 的 MCP 伺服器進行 | 其字幕指南中沒有翻譯步驟 |
 | 多片段時間軸 | 是 | 其路線圖列為規劃中的「多片段錄影」 |
 | 文字、箭頭與圖片標註 | 是 | 其路線圖列為暫停中的「標註」 |
 | 匯出 | MP4（H.264）或 GIF，最高 60 fps，無浮水印 | MP4 或 GIF，可設定影格率、輸出尺寸與品質 |
@@ -97,7 +97,7 @@ OpenScreen 免費，支援 Windows、macOS 與 Linux。Screen Studio 4 仍然只
 ### 匯出與自動化 {#export-and-automation}
 
 - **命令列介面。** 指令碼、CI 與程式碼代理都能透過[命令列](/docs/cli/)操作 OpenScreen。Screen Studio 的指南沒有命令列相關內容。
-- **可選用自己金鑰的聊天剪輯。** 可連接 Claude、OpenAI、Gemini、Mistral、OpenRouter、MiniMax，或任何相容 OpenAI 介面的服務，並用一般語言描述剪切、縮放、變速或標註。每項變更都會成為一般可復原的編輯。在你連接提供者之前，這項功能是關閉的，而且同一個提供者也用來將字幕翻譯成 15 種語言。詳見 [AI 剪輯](/docs/ai-editing/)。
+- **可選用自己的代理來剪輯。** Claude Code、Codex 或任何其他 MCP 用戶端會啟動 OpenScreen 的 MCP 伺服器，而你用一般語言描述剪切、縮放、變速或標註。每項變更都會成為一般可復原的編輯，並即時出現在開啟的編輯器中。代理以自己的帳號登入，OpenScreen 永遠看不到這個帳號；它也能翻譯字幕。詳見 [AI 剪輯](/docs/ai-editing/)。
 
 ## Screen Studio 更適合的情況 {#when-screen-studio-is-the-better-choice}
 

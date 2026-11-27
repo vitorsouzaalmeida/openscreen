@@ -84,7 +84,6 @@ If the icon has to swap and the wording has to follow (Play, Pause), it is an ac
 | Timeline | "Auto-Focus on for all zooms, click to switch all to manual", changing with `aria-pressed` | name "Auto-Focus for all zooms", one tooltip |
 | Timeline | "Clear timeline" | "Remove all zooms, trims, speeds, annotations and Full Camera. Clips, audio and captions stay." |
 | HUD hide | "Hide recording bar" | add how to get it back: "Show it again from the tray icon." |
-| Chat | "Compact context" | "Summarize earlier messages to use less context" |
 | Segmented rows | every option has a title equal to its text | title only for an icon-only option |
 
 ## 8. Writing and translating

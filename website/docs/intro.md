@@ -30,15 +30,15 @@ OpenScreen ships often. Between releases, the `.openscreen` project format and t
 - [Record](./recording.md) a specific window or your whole screen, with system audio, microphone, and webcam — from a floating HUD or from the editor itself.
 - Build a project from several sources: [import, trim, crop, and reorder clips](./media-library.md) on one timeline.
 - [Edit](./editing-timeline.md) with zooms, trims, per-region speed, Full Camera segments, text/image/arrow/blur annotations, cursor effects, webcam layouts, and background/effects.
-- Transcribe on-device with Whisper, then [burn in captions](./captions.md) — restyled live, translatable into 15 languages through your own LLM provider — or cut your recording by deleting words from the transcript.
-- Optionally connect your own LLM key to [edit by chat](./ai-editing.md) — off by default, never required.
-- Let your own coding agent [make the whole video](./ai-editing.md#letting-an-agent-make-the-whole-video) through OpenScreen's MCP server: record, edit, export.
+- Transcribe on-device with Whisper, then [burn in captions](./captions.md) — restyled live, translatable by your own agent — or cut your recording by deleting words from the transcript.
+- Optionally [edit with your own agent](./ai-editing.md): Claude Code, Codex or any MCP client starts `openscreen mcp` and edits the project you have open, live. Never required.
+- Let that agent [make the whole video](./ai-editing.md#letting-an-agent-make-the-whole-video): record, edit, export.
 - [Export](./export.md) to MP4 (720p/1080p/source, H.264) or animated GIF.
 
 Questions about licensing, watermarks, or what goes over the network are answered in the [FAQ](/docs/faq/). How OpenScreen compares with other recorders is on the [Screen Studio](/alternatives/screen-studio/), [Cap](/compare/openscreen-vs-cap/) and [OBS Studio](/compare/openscreen-vs-obs/) pages.
 
 :::note
-Recording, editing, transcription, captions, and export need no account and keep working without a network connection. Transcription needs one download first: its models, fetched on your first run (the Whisper model is ~264 MB). When a connection is there, builds installed from GitHub Releases check GitHub for updates. AI chat editing and caption translation go online only once you connect a provider yourself, and only to that provider.
+Recording, editing, transcription, captions, and export need no account and keep working without a network connection. Transcription needs one download first: its models, fetched on your first run (the Whisper model is ~264 MB). When a connection is there, builds installed from GitHub Releases check GitHub for updates. OpenScreen sends nothing to any AI model: if you add your own agent, what it reads through OpenScreen's MCP server goes to that agent's provider, under your account with it.
 :::
 
 ## Project facts

@@ -37,7 +37,7 @@ OpenScreen es un grabador de pantalla y editor de video gratis, con licencia MIT
 - **github.com y api.github.com.** Las compilaciones que se actualizan solas buscan una nueva versión un minuto después de abrirse, luego cada seis horas, y cuando tú lo pides. La descargan en segundo plano y muestran un botón de actualización; no se instala nada hasta que haces clic en él.
 - **fonts.googleapis.com, solo para una fuente añadida en 1.x.** Una fuente personalizada para anotaciones añadida en una versión anterior se sigue descargando al iniciar, aunque la 2.x ya no la dibuja.
 - **PostHog, una vez al día.** Un recuento anónimo de instalaciones activas, enviado a los servidores de PostHog en la UE. Contiene la versión de la app, el sistema operativo, la arquitectura del procesador, cómo se instaló la app, si se usó directamente o a través de su servidor MCP por un agente de IA, si es el primer recuento de la semana y del mes, la semana en que se instaló la app, y cuántas veces un agente de IA llamó a cada herramienta del servidor MCP desde el recuento anterior: el nombre de la herramienta y un número, nunca lo que se le pasó. Nada más: ningún identificador de instalación (cada recuento recibe un ID aleatorio nuevo), ninguna dirección IP conservada, nada sobre tus grabaciones. Desmarca **Enviar recuento de uso anónimo** en el menú de la bandeja para desactivarlo, o define `DO_NOT_TRACK=1`.
-- **Tu proveedor de IA, solo si conectas uno.** La edición por chat envía tus mensajes y los datos del proyecto que lee, como la línea de tiempo y la transcripción. La traducción de subtítulos envía el texto de los subtítulos. Ambas permanecen desactivadas hasta que conectas un proveedor. Consulta [Edición con IA](./ai-editing.md).
+- **El proveedor de tu propio agente, solo si usas uno.** OpenScreen por sí mismo no envía nada a ningún modelo de IA. Un agente que agregues, como Claude Code o Codex, envía lo que lee a través del servidor MCP de OpenScreen (la línea de tiempo, la transcripción, los fotogramas) a su propio proveedor, con tu cuenta en él. Consulta [Edición con IA](./ai-editing.md).
 
 ## ¿OpenScreen recopila analíticas o informes de fallos? {#does-openscreen-collect-analytics-or-crash-reports}
 
@@ -45,7 +45,6 @@ OpenScreen es un grabador de pantalla y editor de video gratis, con licencia MIT
 
 - Una vez al día, la app informa de que una instalación estuvo activa. [¿OpenScreen funciona sin conexión?](#does-openscreen-work-offline) detalla exactamente qué contiene ese recuento y cómo desactivarlo.
 - El recuento no lleva ningún identificador de instalación: cada uno recibe un ID aleatorio nuevo, y nada más en él es propio de tu equipo. La semana de instalación que lleva, como `2026-W44`, es la semana en que se instaló la app, la misma para todos los que la instalaron esa semana, no un identificador.
-- Las claves de los proveedores de IA se guardan cifradas con `safeStorage` de Electron. Si el cifrado no está disponible, la clave no se guarda.
 
 ## ¿Es seguro instalar OpenScreen? {#is-openscreen-safe-to-install}
 

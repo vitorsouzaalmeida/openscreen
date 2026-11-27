@@ -1,19 +1,13 @@
-// Agent tool layer (P1.1/P1.2): the zod argument schemas — the single source of
-// truth, shared with the LangChain `tool()`s built in `deep-agent/service.ts` —
-// plus the executor that validates arguments and applies each tool against an
-// AxcutDocument snapshot. Pure — no IPC, no fs. The chat-service tool loop owns
-// checkpoints and persistence; this module only knows how to turn
+// The document tool layer: the zod argument schemas, the single source of truth that
+// `document-tools.ts` serves over MCP, plus the executor that validates arguments and
+// applies each tool against an AxcutDocument snapshot. Pure: no IPC, no fs. The MCP tool
+// runner owns checkpoints and persistence; this module only knows how to turn
 // (document, toolName, argsJson) into a new document.
 //
-// Read tools return JSON the model can reason over; write tools return the
-// mutated document plus a human-readable summary line for the chat panel
-// ("applied: added trim 0:02.1 – 0:02.4").
+// Read tools return JSON the model can reason over; write tools return the mutated
+// document plus a human-readable summary line ("applied: added trim 0:02.1 – 0:02.4").
 //
-// The PROSE the model reads lives in `TOOL_DESCRIPTIONS` (deep-agent/service.ts)
-// — not here. This header used to claim the file held "the JSON-schema tool
-// definitions fed to the LLM as tools[]", which stopped being true when the
-// deep-agent landed and stayed on the page for a whole release; the specs it
-// described are gone (see `MUTATING_TOOL_NAMES`).
+// The PROSE the model reads lives in `TOOL_DESCRIPTIONS` (document-tools.ts), not here.
 
 import { z } from "zod";
 import { DEFAULT_TEXT_PLATE } from "../../src/lib/ai-edition/annotations/background";
@@ -137,7 +131,7 @@ export interface AgentToolExecution {
 	resultJson: string;
 	/** Updated document — only set when the tool mutated it. */
 	document?: AxcutDocument;
-	/** One-line human summary for the chat panel (mutating tools only). */
+	/** One-line human summary of the edit (mutating tools only). */
 	summary?: string;
 }
 
@@ -661,9 +655,9 @@ function droppedByEdit(before: AxcutDocument, after: AxcutDocument) {
 }
 
 // Zod arg schemas — the SINGLE source of truth for every tool's arguments. The executor
-// below validates against them, and the deep-agent (LangChain) layer imports the same
-// objects to build its `tool()`s, so the two can never advertise a different shape than the
-// one we actually validate. (The primitives `secondsSchema`/`depthSchema`/`focusSchema` stay
+// below validates against them, and the MCP server registers the same objects
+// (`TOOL_ARG_SCHEMAS`), so it can never advertise a different shape than the one we
+// actually validate. (The primitives `secondsSchema`/`depthSchema`/`focusSchema` stay
 // private — callers only ever need the composed `*Args`.)
 const secondsSchema = z.number().finite().nonnegative();
 
@@ -695,7 +689,7 @@ export const addTrimArgs = z.object({
  * The `union(…, unknown)` is what makes "each item stands or falls alone" true for
  * MALFORMED items too, not just unplaceable ones. A bare `z.array(addTrimArgs)`
  * rejects the whole call the moment one entry is bad — and it rejects it in
- * LangChain, before `applyBatch` runs — so nine good cuts would be thrown away
+ * the MCP SDK, before `applyBatch` runs — so nine good cuts would be thrown away
  * with the tenth and `refused[index]` could never name it. Advertising the
  * union keeps the element shape in the JSON schema the model reads (it shows up
  * as `anyOf: [addTrim, {}]`) while letting a bad entry through to the unitary
@@ -831,7 +825,7 @@ const customScaleSchema = z
 export const addZoomArgs = z.object({
 	startSec: secondsSchema,
 	endSec: secondsSchema,
-	// No schema default: the MCP server, the in-app agent and addZooms all parse the arguments
+	// No schema default: the MCP server and addZooms both parse the arguments
 	// before the tool runs, and a default filled in there reads as a depth passed next to
 	// customScale. The handler applies 3 when neither level is given.
 	depth: depthSchema
@@ -1144,24 +1138,12 @@ export const removeClipArgs = z.object({
 });
 
 /**
- * Every tool the model is handed, in the order `buildTools` builds them.
+ * Every tool the model is handed, in the order `TOOL_ARG_SCHEMAS` (document-tools.ts)
+ * lists them.
  *
- * The roster lives here, beside `MUTATING_TOOL_NAMES`, rather than in
- * `deep-agent/service.ts` where `buildTools` is: the workbench needs to name the
- * surface from its L0 layer, and importing the service would drag LangChain into
- * a layer that deliberately runs on zod and pure document helpers alone.
- *
- * It is hand-written — the schemas differ per tool, so nothing can generate it —
- * but it is not free-floating: `deep-agent/service.test.ts` asserts it equals
- * `buildTools(...).map(t => t.name)`, and that test runs in CI. Adding a tool
- * without adding it here fails the suite.
- *
- * ponytail: there used to be two more copies of this list, one in that test and
- * one in `workbench/lib/prompts.ts`, neither derived from anything. The
- * workbench's copy sat at 19 entries from the day it was written while the agent
- * grew to 21 (`addTrims`/`addZooms`, commit 560d368e). Nothing caught it,
- * because `npm run wb` is not part of CI — so the bench asserted a surface the
- * product had not had for some time.
+ * It is hand-written (the schemas differ per tool, so nothing can generate it) but it is
+ * not free-floating: `document-tools.test.ts` asserts the two lists are equal, and that
+ * test runs in CI. Adding a tool without adding it here fails the suite.
  */
 export const OPENSCREEN_TOOL_NAMES = [
 	"getCurrentDocument",
@@ -1206,53 +1188,15 @@ export const OPENSCREEN_TOOL_NAMES = [
 ] as const;
 
 /**
- * The tools `createDeepAgent` used to inject on top of ours, over an in-memory
- * backend that was EMPTY and that the model was not told was empty — the
- * mechanical cause of D1, where the agent ran `ls`/`glob` against that sandbox
- * and reported in good faith that the project held no cursor telemetry.
- *
- * The surface is gone, so this is no longer "tools we also get": it is the list
- * of names that must never appear again. A call to one of them now means the
- * model is hallucinating a filesystem it was never offered, which is a rarer but
- * still exact D1 tell — which is why the workbench scores it as well as pinning
- * it here.
- *
- * `execute` is included even though it vanished at runtime: it is in the
- * middleware's list too and only disappeared because the default backend is not
- * a sandbox. A sandbox backend would have made it a 26th tool. The workbench's
- * own copy of this list omitted it, so `isPhantomTool` could not flag the one
- * name a sandbox backend would have brought back.
- */
-export const PHANTOM_TOOL_NAMES = [
-	"ls",
-	"read_file",
-	"write_file",
-	"edit_file",
-	"glob",
-	"grep",
-	"execute",
-	"write_todos",
-	"task",
-] as const;
-
-/**
- * The tools that change the document. A LIST, not an inference: it gates the
- * checkpoint the chat-service takes before a write and the mutating/non-mutating
- * split the workbench scores its DSL axis on, and neither should quietly change
- * because someone edited a switch case.
- *
- * ponytail: this replaces `AGENT_TOOL_SPECS`, ~300 lines of JSON schema whose
- * own comment said "sent verbatim to the provider". It has not been sent
- * anywhere since the deep-agent landed: the model receives the zod schemas
- * built in `deep-agent/service.ts` and the prose in `TOOL_DESCRIPTIONS`. Two
- * descriptions of the same tools, only one of them reaching the model — and it
- * was the other one that humans read and kept up to date. The surviving
- * documentation duty is `TOOL_DESCRIPTIONS`; `service.test.ts` pins the three
- * remaining surfaces (descriptions, built tools, executor cases) to each other.
+ * The tools that change the document. A LIST, not an inference: it decides which calls
+ * the MCP runner treats as edits (a checkpoint first, the editor's apply after), and
+ * that should not quietly change because someone edited a switch case.
+ * `document-tools.test.ts` pins it to the executor: a read never returns a document, a
+ * write that succeeds always does.
  */
 export const MUTATING_TOOL_NAMES: ReadonlySet<string> = new Set([
-	// Writes the transcript, not the timeline — but it writes the document, so it is a
-	// consented edit like any other.
+	// Writes the transcript, not the timeline — but it writes the document, so it is an
+	// edit like any other.
 	"setWordText",
 	"removeWords",
 	"addTrim",
@@ -1832,60 +1776,7 @@ function clipRoster(document: AxcutDocument): string {
 	return `The timeline is: ${clips.map((c) => `${c.id}${c.reason ? ` (${c.reason})` : ""}`).join(", ")}.`;
 }
 
-/** The in-app agent's edit switch, as AI settings label it (`providerSettings.projectEditsLabel`). */
-export const AGENT_EDITS_SETTING = "'Agent edits' in AI settings";
-
-/**
- * The refusal the model gets for every write while `allowAgentEdits` is off.
- *
- * ponytail: it has to be ACTIONABLE, not merely negative. There is no
- * AbortSignal and no timeout anywhere on the product path, and the agent runs
- * at recursionLimit 1000: a bare "refused" invites a model to try the next
- * write tool, and the next, for as long as the provider will answer. So the
- * payload says what to do instead (state the edit, ask), that retrying is
- * pointless (every write is refused, not just this one), that claiming the edit
- * happened is forbidden, and where the user turns the setting back on. The
- * arguments are echoed back so the model can quote the exact edit it wanted
- * without a second round trip.
- *
- * The `{error}` envelope is the shape the workbench's wire oracle already
- * recognises as a failed tool result — a new one would read as a success.
- *
- * `setting` names the switch as the user sees it: the in-app agent's by default,
- * the MCP server's when an MCP client is refused (`openscreen-mcp-server.ts`).
- */
-export function consentRequired(
-	name: string,
-	args: unknown,
-	setting: string = AGENT_EDITS_SETTING,
-): AgentToolExecution {
-	return {
-		ok: false,
-		resultJson: JSON.stringify({
-			error:
-				"Edits are turned off: the user asked to be consulted before the timeline changes. " +
-				"Nothing was modified.",
-			code: "consent_required",
-			tool: name,
-			requestedArgs: args,
-			howToProceed:
-				"Describe the exact edit you would make — the tool, the times, the ids — and ask the " +
-				"user to confirm it. Do NOT retry this call and do NOT reach for another write tool: " +
-				"every one of them is refused while the setting is off. Never say an edit was applied. " +
-				`If they want you to go ahead, they can turn on ${setting}.`,
-		}),
-	};
-}
-
 export interface AgentToolOptions {
-	/**
-	 * `allowAgentEdits` from the LLM config, threaded down as an explicit
-	 * argument rather than read from a module global so this stays pure and
-	 * testable. Only `false` refuses; `undefined` is "allowed", which keeps the
-	 * three-argument call sites (and ~40 test assertions) working unchanged and
-	 * mirrors `config.allowAgentEdits !== false`.
-	 */
-	editsAllowed?: boolean;
 	/** Cursor telemetry resolved for THIS turn — see `CursorTelemetryContext`.
 	 *  Absent means the runtime has no telemetry reader wired at all, which the
 	 *  executor reports as "could not look", never as "there is none". */
@@ -1946,7 +1837,7 @@ export type CursorTelemetryLoad =
 
 /** Resolves the asset a cursor/transcript question is about: the argument if it
  *  names one, otherwise the project's primary asset. Shared so the async wrapper
- *  in `deep-agent/service.ts` loads telemetry for exactly the asset the executor
+ *  in `document-tools.ts` loads telemetry for exactly the asset the executor
  *  will then report on. */
 export function resolveCursorAssetId(
 	document: AxcutDocument,
@@ -2108,20 +1999,6 @@ export function executeAgentTool(
 		} catch {
 			return failure(`Tool arguments are not valid JSON: ${rawArgs.slice(0, 120)}`);
 		}
-	}
-
-	// ponytail: THE guard for `allowAgentEdits`. It sits here, in front of the
-	// switch, because this function is the single gate every document mutation
-	// passes through — the two production callers (`documentTool` for the main
-	// agent and, through it, any sub-agent) and the workbench alike. A guard in
-	// the event sink could not work: the sink is an observer, called from inside
-	// the tool body, and by the time it fires the edit has happened.
-	//
-	// Reads stay open on purpose. A model that cannot call getCurrentDocument or
-	// getTranscript cannot describe the edit it is asking permission for, and
-	// would answer "I have no tool for that" — false, and worse than silence.
-	if (options?.editsAllowed === false && isMutatingTool(name)) {
-		return consentRequired(name, args);
 	}
 
 	switch (name) {
@@ -2333,12 +2210,12 @@ export function executeAgentTool(
 			// This tool exists to fix a name the transcriber misheard. An INSERTED word was
 			// never heard: retyping it resizes the clip it plays on and asks for generated
 			// media of a new length, which is the gesture the editor gates on `insertionsEnabled`
-			// — and that gate lives in the renderer, where the chat does not run. Refused here
+			// — and that gate lives in the renderer, where these tools do not run. Refused here
 			// unconditionally rather than mirrored, because the agent has no business authoring
 			// generated media at all.
 			if (isGeneratedAssetId(assetId)) {
 				return failure(
-					`Word ${wordId} was added to the transcript, not heard — the chat cannot rewrite it.`,
+					`Word ${wordId} was added to the transcript, not heard — this tool cannot rewrite it.`,
 				);
 			}
 			let next: AxcutDocument;

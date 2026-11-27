@@ -51,7 +51,7 @@ OpenScreen est gratuit et tourne sous Windows, macOS et Linux. Screen Studio 4 n
 | Ce qu'il enregistre | Un écran ou une fenêtre. Recadrage possible ensuite dans l'éditeur | Un écran, une fenêtre ou une zone sélectionnée |
 | Zooms automatiques | Oui, placés sur les clics enregistrés | Oui |
 | Sous-titres | Whisper en local, un modèle d'environ 264 Mo, téléchargé une fois. Incrustés dans la vidéo | Whisper en local (Base, Small ou Medium), ou la reconnaissance vocale d'Apple sous macOS 26 ou ultérieur. La transcription peut être exportée en fichier |
-| Traduction des sous-titres | 15 langues, via un fournisseur d'IA que vous connectez | Aucune étape de traduction dans son guide des sous-titres |
+| Traduction des sous-titres | Par votre propre agent IA, par le serveur MCP d'OpenScreen | Aucune étape de traduction dans son guide des sous-titres |
 | Timeline multiclip | Oui | « Enregistrements multiclip » figure comme prévu sur sa feuille de route |
 | Annotations texte, flèche et image | Oui | « Annotations » figure comme en pause sur sa feuille de route |
 | Export | MP4 (H.264) ou GIF, jusqu'à 60 fps, sans filigrane | MP4 ou GIF, avec réglages de fréquence d'images, taille de sortie et qualité |
@@ -97,7 +97,7 @@ Les deux applications couvrent les points suivants. Rien ici n'est propre à l'u
 ### Export et automatisation {#export-and-automation}
 
 - **Une interface en ligne de commande.** Scripts, CI et agents de codage peuvent piloter OpenScreen depuis sa [ligne de commande](/docs/cli/). Le guide de Screen Studio ne contient aucune rubrique sur la ligne de commande.
-- **Montage par chat en option, avec votre propre clé.** Connectez Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax ou tout point de terminaison compatible OpenAI, et décrivez des coupes, des zooms, des changements de vitesse ou des annotations en langage courant. Chaque modification s'applique comme une modification ordinaire, que vous pouvez annuler. C'est désactivé tant que vous n'avez pas connecté de fournisseur, et le même fournisseur traduit les sous-titres en 15 langues. Voir [Montage par IA](/docs/ai-editing/).
+- **Montage en option, avec votre propre agent.** Claude Code, Codex ou tout autre client MCP lance le serveur MCP d'OpenScreen, et vous décrivez des coupes, des zooms, des changements de vitesse ou des annotations en langage courant. Chaque modification s'applique comme une modification ordinaire, que vous pouvez annuler, en direct dans l'éditeur ouvert. L'agent se connecte avec son propre compte, qu'OpenScreen ne voit jamais, et il peut aussi traduire les sous-titres. Voir [Montage par IA](/docs/ai-editing/).
 
 ## Quand Screen Studio est le meilleur choix {#when-screen-studio-is-the-better-choice}
 

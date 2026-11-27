@@ -22,11 +22,11 @@ Esta página la publica el proyecto OpenScreen y describe la versión 2.1.
 | | |
 | --- | --- |
 | Qué puede hacer Claude | Grabar, cortar, acelerar, hacer zoom, recortar el encuadre, reordenar clips, añadir texto, flechas y desenfoques, añadir música, transcribir, subtitular y traducir, escribir efectos personalizados, exportar, mirar el resultado |
-| Cómo se conecta | El servidor MCP de OpenScreen: el propio ejecutable de la app iniciado con `mcp`, o el servidor de **Configuración de IA** de la app |
+| Cómo se conecta | El servidor MCP de OpenScreen: el propio ejecutable de la app, que Claude Code inicia con `mcp`. Sin puerto, sin token, sin ajuste |
 | Clientes | Claude Code, Claude Desktop, Codex, Cursor y cualquier otro cliente MCP |
 | Lo que cobra OpenScreen | Nada. Sin créditos, sin cuenta, sin marca de agua |
 | Dónde se ejecuta la edición | En tu equipo: grabación, edición, transcripción con Whisper y exportación |
-| Tu deshacer | Cada edición queda en el proyecto. En el editor abierto, `Ctrl/Cmd + Z` la deshace; en un proyecto cerrado, un punto de control la revierte en un solo paso |
+| Tu deshacer | Cada edición queda en el proyecto. En el editor abierto, cada edición es un solo paso de `Ctrl/Cmd + Z`; en un proyecto cerrado, un punto de control la revierte en un solo paso |
 | Plataformas | Windows 10 (1903 o posterior) y 11. macOS 13 o posterior. Linux, x64 |
 | Licencia | MIT, gratis incluso para uso comercial |
 
@@ -46,7 +46,7 @@ Para agregar el servidor a mano:
 claude mcp add openscreen -- "<executable>" mcp
 ```
 
-`<executable>` es el ejecutable de la app, indicado para cada sistema en [Ejecutar la CLI](/docs/cli/#running-the-cli). Iniciado así, el servidor no necesita puerto, token ni ajuste alguno. Si prefieres dejar OpenScreen abierto y ver cómo cada edición llega a su editor, activa el servidor en **Configuración de IA** → **Servidor MCP** y copia el comando que se muestra allí ([detalles](/docs/ai-editing/#using-claude-code-codex-or-another-mcp-client)).
+`<executable>` es el ejecutable de la app, indicado para cada sistema en [Ejecutar la CLI](/docs/cli/#running-the-cli). El servidor no necesita puerto, token ni ajuste alguno en la app. Para ver cómo llega cada edición, deja OpenScreen abierto en el proyecto: las ediciones de Claude aparecen en su editor al instante ([detalles](/docs/ai-editing/#live-edits-and-undo)).
 
 ## Edita una demo de producto con Claude {#edit-a-product-demo-with-claude}
 
@@ -87,6 +87,6 @@ OpenScreen es el primer editor con efectos fuera de menú que exportan exactamen
 2. Pega el prompt de [Configúralo en dos minutos](#set-it-up-in-two-minutes) en Claude Code.
 3. Pide tu primera edición.
 
-[Edición con IA](/docs/ai-editing/) cubre cada herramienta y el panel de chat integrado, que funciona con tu propia clave de API de Anthropic, OpenAI, Google y otros. OpenScreen también hace [zooms automáticos](/features/auto-zoom/) y [subtítulos locales](/features/captions/) sin ningún agente. O vuelve a la [página de inicio de OpenScreen](/).
+[Edición con IA](/docs/ai-editing/) cubre cada herramienta, y la configuración para Codex, Cursor y otros clientes MCP. OpenScreen también hace [zooms automáticos](/features/auto-zoom/) y [subtítulos locales](/features/captions/) sin ningún agente. O vuelve a la [página de inicio de OpenScreen](/).
 
 Claude y Claude Code son marcas comerciales de Anthropic. OpenScreen es un proyecto independiente y no está afiliado a Anthropic ni cuenta con su respaldo.

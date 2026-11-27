@@ -701,30 +701,18 @@ lente.
   - **Ce serait la première ressource du serveur,** qui n'en a aucune aujourd'hui.
   - **Pourquoi une ressource :** le contrat est trop long pour une description d'outil, et il
     évolue avec `contract`.
-- **Le prompt de base** (`BASE_SYSTEM_PROMPT`) gagne deux choses :
+- **Les consignes d'édition** (`EDITING_GUIDANCE`, dans `document-tools.ts`) gagnent deux choses :
   - une ligne dans la carte des intentions : un effet visuel que les réglages n'offrent pas se
     fait avec `addEffect` ;
   - les effets dans la ligne des bases de temps.
 - **Le skill `openscreen-demo`** gagne une entrée « effets » à son étape 6.
 
-### E.6 L'agent intégré
+### E.6 L'agent intégré et son banc (retirés)
 
-Il a les mêmes outils et le même validateur que le serveur MCP : `handlers.ts` passe
-`checkShaderEffect: (code, params) => loudnessService.checkShaderEffect(code, params)` à
-`runChat`, qui le transmet par `ChatRunEnv` et `InvokeArgs` jusqu'à `buildTools`.
-
-### E.7 Le banc (workbench)
-
-Un scénario, `effect-ripple-on-click`, sur une mire avec trois clics :
-
-- **Attendu :** un `addEffect` dont le code lit `ctx.clicks`, une région qui couvre chaque clic et
-  la demi-seconde qui suit, et la cible `image`, puisque rien ne demande les textes.
-- **Pas exigé :** lire la piste du curseur. Le compositeur donne déjà les clics placés sur la
-  sortie, c'est tout l'intérêt du contrat (C.2).
-
-`documentInvariants` valide les deux nouvelles listes : chaque région pointe une définition
-existante, et ses `values` sont dans les bornes. Hors ligne, rien ne compile le code : le résultat
-dit `validated: false`, et les checks lisent le code comme du texte.
+OpenScreen n'a plus d'agent intégré ni de banc d'essai (workbench) : le serveur MCP
+(`openscreen mcp`) est le seul appelant de ces outils. `handlers.ts` lui passe
+`checkShaderEffect: (code, params, image) => loudnessService.checkShaderEffect(code, params, image)`
+dans `mcpToolDeps`.
 
 ---
 
@@ -739,8 +727,7 @@ dit `validated: false`, et les checks lisent le code comme du texte.
   supprimer se font comme pour un zoom (`selectPill`, `startPillDrag`, `removeRegions`).
 - **L'annulation** passe par l'historique habituel (`saveDocument({ history: true })`). Une
   édition d'agent reste un seul pas d'annulation par tour (`agentDocumentApply.ts`).
-- **Pas de bouton « ajouter un effet » en v1.** Un effet naît d'un agent : le chat intégré ou un
-  client MCP. Un bouton qui ouvrirait un panneau vide n'aurait rien à proposer. La bibliothèque
+- **Pas de bouton « ajouter un effet » en v1.** Un effet naît d'un agent, par un client MCP. Un bouton qui ouvrirait un panneau vide n'aurait rien à proposer. La bibliothèque
   d'effets (J) lui donnera un contenu.
 - **Le copier-coller** (`regionClipboard`) copie la région avec sa définition. Collée dans un
   autre projet, la définition y est recréée.
@@ -877,7 +864,6 @@ Le détail est dans
 | TS, timeline | La région suit `moveClip`, `removeClip`, `replaceTimeline` et les trims (`timelineMap.test.ts`, `timeline.test.ts`). |
 | TS, outils | `addEffect` avec `effect` puis avec `effectId` ; `setEffect` ; `setEffectDefinition` ; `getEffect` ; `removeModifier` ; les refus (compilation, boucle sans borne, chevauchement, aucun clip) ; le palier et sa recommandation dans le retour ; le snapshot. |
 | TS, scène | Projection, `programmeStart/EndSec` d'une pilule coupée, normalisation des `values`. |
-| Banc | Les deux scénarios de E.7. |
 | Bout en bout | La boucle du spike par la CLI `mcp` : prompt, `addEffect`, `getFrames`, puis comparaison de la vue live avec l'export. Une ligne dans le [journal e2e](../technical-documentation/testing/manual-e2e-checklist.md). |
 
 ---
@@ -933,8 +919,8 @@ ailleurs (`legacyEditor`, sans ancre).
 2. **Modèle de données et DSL (TS).**
    - Schéma (B.2) et `RegionKind` dans tout le pipeline (B.3) ;
    - outils (E.1), snapshot (E.2), projection de scène (B.5) ;
-   - validateur branché sur l'agent intégré (E.6) ;
-   - descriptions, prompt de base, ressource MCP du contrat, skill, `openscreen info`, banc.
+   - validateur branché sur le serveur MCP (E.6) ;
+   - descriptions, consignes d'édition, ressource MCP du contrat, skill, `openscreen info`.
 3. **Passe macOS.** naga `msl-out`, samplers inline, bindings explicites, thread de fond, tests
    sur le runner CI.
 4. **Passe Linux.** WGSL direct, bind group layout explicite, thread de fond, test lavapipe.

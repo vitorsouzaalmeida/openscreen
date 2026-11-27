@@ -167,14 +167,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` und `--max-words` legen die Wörter pro Untertitel fest. Erlaubt sind jeweils 1 bis 12, wie im Editor. Standard: 2 und 7.
-- Die Untertitel sind das Transkript, auf das Video gezeichnet. Im Editor gestaltest, korrigierst und übersetzt du sie daher wie alle anderen. Ein erneuter Lauf behält das Transkript und legt nur die Wörter pro Untertitel fest.
+- Die Untertitel sind das Transkript, auf das Video gezeichnet. Im Editor gestaltest und korrigierst du sie daher wie alle anderen. Ein erneuter Lauf behält das Transkript und legt nur die Wörter pro Untertitel fest.
 - Das Projekt wird im eigenen Format des Editors gespeichert. Ein Skript, das die Projekt-JSON wie [unten](#example-an-automated-product-demo) gezeigt bearbeitet, tut das vor `captions`, und `pack` liest dieses Format noch nicht.
 - Das Bildschirmvideo des Projekts muss eine Audiospur haben, zum Beispiel aus `record --mic`.
 - Untertitel werden in den Export eingebrannt. Eine Ausgabe als Untertiteldatei gibt es nicht. Siehe [Untertitel](./captions.md).
 
 ### `openscreen mcp` {#openscreen-mcp}
 
-Stellt die MCP-Werkzeuge von OpenScreen über stdin und stdout bereit, für einen Coding-Agenten, der den Befehl startet: die Bearbeitungswerkzeuge, dazu Aufnahme, Export und Standbilder. Du führst ihn nicht selbst aus; das macht dein Agent, sobald er so eingerichtet ist, wie [Einen Agenten das ganze Video erstellen lassen](./ai-editing.md#letting-an-agent-make-the-whole-video) zeigt.
+Stellt die MCP-Werkzeuge von OpenScreen über stdin und stdout bereit, für einen Coding-Agenten, der den Befehl startet: die Bearbeitungswerkzeuge, dazu Aufnahme, Export und Standbilder. Du führst ihn nicht selbst aus; das macht dein Agent, sobald er so eingerichtet ist, wie [KI-Bearbeitung](./ai-editing.md#setting-it-up) zeigt.
 
 ### `openscreen pack` {#openscreen-pack}
 

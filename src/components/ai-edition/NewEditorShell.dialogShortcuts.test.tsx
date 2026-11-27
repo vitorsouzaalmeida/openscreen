@@ -50,7 +50,6 @@ vi.mock("@/contexts/I18nContext", () => ({
 }));
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { EditorDialogsProvider } from "@/contexts/EditorDialogsContext";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { NewEditorShell } from "./NewEditorShell";
@@ -63,9 +62,7 @@ const originalSave = useProjectStore.getState().saveDocument;
 function renderShell() {
 	return render(
 		<TooltipProvider>
-			<EditorDialogsProvider>
-				<NewEditorShell />
-			</EditorDialogsProvider>
+			<NewEditorShell />
 		</TooltipProvider>,
 	);
 }
@@ -88,9 +85,6 @@ beforeEach(() => {
 		onMenuNewProject: (listener: () => void) => {
 			nativeNew = listener;
 			return () => undefined;
-		},
-		onAiEditionChatEvent: () => () => {
-			/* unsubscribe */
 		},
 		setTitleBarOverlay: () => {
 			/* no native titlebar */

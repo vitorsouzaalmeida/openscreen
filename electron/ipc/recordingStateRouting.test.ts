@@ -1,11 +1,10 @@
-// Every start and stop of a take reaches the MCP recorder.
+// Every start and stop of a take goes through one setter.
 //
 // The native capture paths start and stop in the main process and used to call
-// `onRecordingStateChange` themselves, so only the browser path's `set-recording-state`
-// told the in-app MCP recorder a take had started. On Windows native capture, an MCP
-// `startRecording` then waited out its 120 s on a take already running.
+// `onRecordingStateChange` themselves, beside the browser path's `set-recording-state`:
+// two places to keep the tray, the display-sleep blocker and `appRecording` in step.
 //
-// The fix routes every path through `setAppRecording` in handlers.ts. The scan below is
+// Every path now goes through `setAppRecording` in handlers.ts. The scan below is
 // syntactic, like macSpaces.test.ts: registerIpcHandlers needs all of Electron to run.
 
 import fs from "node:fs";
@@ -31,28 +30,16 @@ const count = (pattern: RegExp) => source.match(pattern)?.length ?? 0;
 describe("recording state routing", () => {
 	it("changes the recording state in setAppRecording only", () => {
 		expect(count(/onRecordingStateChange(\?\.)?\(/g)).toBe(1);
-		expect(count(/mcpAppRecorder\.recordingChanged\(/g)).toBe(1);
 		expect(count(/(?<!let )\bappRecording = /g)).toBe(1);
 		const setter = source.slice(source.indexOf("const setAppRecording"));
 		const body = setter.slice(0, setter.indexOf("};"));
 		expect(body).toContain("appRecording = recording");
-		expect(body).toContain("mcpAppRecorder.recordingChanged(recording, recordingId)");
 		expect(body).toContain("onRecordingStateChange?.(recording, sourceName, preparing)");
 	});
 
 	it.each(["windows", "mac", "linux"])("a native %s start and stop notify it", (platform) => {
 		expect(handlerBody(`start-native-${platform}-recording`)).toContain("setAppRecording(true");
 		expect(handlerBody(`stop-native-${platform}-recording`)).toContain("setAppRecording(false");
-	});
-
-	it("a take's outcome is accepted from the main window only, before anything else", () => {
-		const body = handlerBody("recording-outcome");
-		const guard = body.indexOf(
-			"if (event.sender !== getMainWindow()?.webContents) return { success: false };",
-		);
-		expect(guard).toBeGreaterThan(-1);
-		expect(guard).toBeLessThan(body.indexOf("recordingOutcomeSchema"));
-		expect(guard).toBeLessThan(body.indexOf("recordingCompletion."));
 	});
 
 	it("the browser path notifies it", () => {

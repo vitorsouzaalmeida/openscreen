@@ -73,8 +73,6 @@ const REQUIRED = [
 	"architecture/recording.md",
 	"architecture/native-bridge.md",
 	"architecture/transcription-and-captions.md",
-	"architecture/ai-agent.md",
-	"architecture/llm-providers.md",
 	"architecture/cursor.md",
 	"architecture/decisions.md",
 	"engineering/rendering-performance.md",

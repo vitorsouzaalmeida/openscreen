@@ -250,7 +250,7 @@ describe("deriveAssetStatus", () => {
 
 	it("keeps a stored transcript ready when a regenerate over it failed", () => {
 		// The failed retry left the previous transcript untouched on the document:
-		// reading the asset as "failed" would disable Smart cuts over a transcript
+		// reading the asset as "failed" would gate the captions over a transcript
 		// that is right there and usable.
 		const derived = deriveAssetStatus({
 			assetId: "asset_1",

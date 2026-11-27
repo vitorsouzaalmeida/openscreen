@@ -14,7 +14,7 @@ keywords:
 
 Wenn die Einstellungen den Look nicht haben, den du suchst, bitte einen Agenten darum: eine Welle bei jedem Klick, eine Vignette, die atmet, eine Abblende ins Schwarze in den letzten Sekunden. Der Agent schreibt den Effekt als kleinen GPU-Shader, und OpenScreen zeichnet ihn in der Vorschau und in jedem Export, MP4 wie GIF, unter Windows, macOS und Linux.
 
-Effekte kommen von einem Agenten: dem eingebauten Chat oder einem MCP-Client wie Claude Code oder Codex (siehe [KI-Bearbeitung](./ai-editing.md)). Sobald ein Effekt im Projekt ist, stellst du ihn selbst im Editor ein.
+Effekte kommen von deinem eigenen Agenten: einem MCP-Client wie Claude Code oder Codex (siehe [KI-Bearbeitung](./ai-editing.md)). Sobald ein Effekt im Projekt ist, stellst du ihn selbst im Editor ein.
 
 ## Einen Effekt anfragen {#asking-for-an-effect}
 

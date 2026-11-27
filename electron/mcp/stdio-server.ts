@@ -1,16 +1,15 @@
 // `openscreen mcp`: the MCP tools on stdin/stdout, for the agent that started
-// this process. The document tools are the in-app server's own, run by the same
-// executor; the media tools around them record, export and look at the result.
+// this process: the document tools, and the media tools around them that record,
+// export and look at the result.
 //
 // When the OpenScreen app runs, it is the authority: each document tool call is
 // forwarded to it (app-channel.ts), so the project open in its editor is edited
 // there, live, and checkpoints live in one place. With no app, the calls run here
 // on the project files, where no editor can hold one.
 //
-// No port and no token: the client launched this process itself, with the
-// user's rights, as it would launch `openscreen record` or `openscreen export`.
-// For the same reason it may edit, record and export, where the in-app server waits
-// for the user to allow it: there is no other caller to keep out.
+// No port, no token and no switch in the app: the client launched this process itself,
+// with the user's rights, as it would launch `openscreen record` or `openscreen export`,
+// so there is no other caller to keep out.
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { DocumentService } from "../ai-edition/document-service";
@@ -41,7 +40,6 @@ export async function serveMcpOverStdio(options: {
 	const deps: McpToolDeps = {
 		...options.mcpToolDeps,
 		transport: "stdio",
-		editsAllowed: () => true,
 		updateNotice: options.updateNotice,
 	};
 	// The media tools' own document calls (stopRecording's checkpoint, setPointerTrack)
@@ -52,8 +50,6 @@ export async function serveMcpOverStdio(options: {
 		local: createToolRunner(deps),
 	});
 	const media = createMediaTools({
-		transport: "stdio",
-		editsAllowed: () => true,
 		runners: options.runners,
 		documents: options.documents,
 		openVideo: options.openVideo,

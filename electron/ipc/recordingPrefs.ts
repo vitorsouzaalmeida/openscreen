@@ -4,8 +4,7 @@ import type { RecordingPrefs } from "./handlers";
 
 /**
  * Shared durable recording preferences. Persist before publishing any new snapshot.
- * Returns the same read and write for the main process: the MCP server points the
- * recording bar at a take with them (handlers.ts).
+ * Returns the same read and write for the main process (handlers.ts).
  */
 export function registerRecordingPrefsHandlers(
 	defaults: RecordingPrefs,

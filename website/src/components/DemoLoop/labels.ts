@@ -138,8 +138,7 @@ export function loopLabel(name: LoopName): string {
 			return translate({
 				id: "demoLoop.ask-the-agent",
 				description: LOOP,
-				message:
-					"A request typed into the editor's chat panel, and the edits the agent makes appearing on the timeline.",
+				message: "A request typed to an agent, and the edits it makes appearing on the timeline.",
 			});
 	}
 }
@@ -256,7 +255,7 @@ export function loopTitle(name: LoopName): string {
 			return translate({
 				id: "demoLoop.title.ask-the-agent",
 				description: TITLE,
-				message: "Asking the editor's agent for an edit",
+				message: "Asking an agent for an edit",
 			});
 	}
 }

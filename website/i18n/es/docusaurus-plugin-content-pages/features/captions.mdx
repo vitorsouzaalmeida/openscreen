@@ -1,6 +1,6 @@
 ---
 title: Grabar pantalla con subtítulos locales de Whisper
-description: "OpenScreen es un grabador de pantalla gratis con subtítulos: Whisper transcribe en tu equipo y tú das estilo, traduces e incrustas los subtítulos."
+description: "OpenScreen es un grabador de pantalla gratis con subtítulos: Whisper transcribe en tu equipo y tú das estilo a los subtítulos y los incrustas en el video."
 keywords:
   - grabador de pantalla con subtítulos
   - subtítulos automáticos sin conexión grabador de pantalla
@@ -32,7 +32,7 @@ Esta página la publica el proyecto OpenScreen. Los datos sobre Cap, Camtasia y 
 | Estilo | Fuente, tamaño, negrita, color de texto, fondo, posición, y de 1 a 12 palabras por línea |
 | Salida | Incrustados en el video exportado |
 | Edición de la transcripción | Elimina palabras para cortarlas del video. Los silencios se marcan y también se pueden cortar |
-| Traducción | 15 idiomas, mediante un proveedor de IA que conectas con tu propia clave |
+| Traducción | Por tu propio agente de IA, a través del servidor MCP de OpenScreen. Sin botón de traducir en la app |
 | Línea de comandos | El comando `captions` agrega subtítulos a un proyecto |
 | Precio | Gratis, incluido el uso comercial. Sin cuenta |
 
@@ -70,9 +70,9 @@ Whisper reporta los tiempos de las palabras un poco tarde. OpenScreen desplaza h
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### Traducción con tu propia clave {#translation-with-your-own-key}
+### Traducción por tu propio agente {#translation-by-your-own-agent}
 
-La traducción cubre 15 idiomas: inglés, francés, español, alemán, italiano, portugués, neerlandés, polaco, turco, ruso, árabe, hindi, japonés, coreano y chino. Pasa por el proveedor de IA que conectas para la edición por chat, con tu propia clave. Hasta que conectas un proveedor, no envía nada. La traducción se guarda junto a la transcripción, así que las palabras y tiempos originales quedan como estaban, y puedes volver atrás en cualquier momento. Consulta [Traducción](/docs/captions/#translation) y [Edición con IA](/docs/ai-editing/).
+La app no tiene botón de traducir. Los subtítulos los traduce un agente de IA que ya usas, como Claude Code o Codex, a través del servidor MCP de OpenScreen: lee las frases de los subtítulos, las traduce con su propio modelo y guarda el resultado en el proyecto como una capa de idioma. La traducción se guarda junto a la transcripción, así que las palabras y tiempos originales quedan como estaban. En el panel Subtítulos eliges el idioma en que se muestran los subtítulos, vuelves atrás en cualquier momento o eliminas una capa. Consulta [Traducción](/docs/captions/#translation) y [Edición con IA](/docs/ai-editing/).
 
 ### Desde la línea de comandos {#from-the-command-line}
 
@@ -80,7 +80,7 @@ El comando `captions` de la [CLI](/docs/cli/) transcribe un proyecto con el mism
 
 ### Qué pasa por la red {#what-goes-over-the-network}
 
-El audio se queda en tu equipo. Aparte de las descargas únicas de modelos, solo la traducción llega a la red: envía el texto de la transcripción al proveedor que elegiste. Para la app en general: OpenScreen no tiene cuenta ni servidor propio. Su único informe es un recuento diario anónimo de instalaciones activas, que puedes desactivar. Las [preguntas frecuentes](/docs/faq/#does-openscreen-work-offline) enumeran las pocas conexiones que sigue haciendo.
+El audio se queda en tu equipo. Aparte de las descargas únicas de modelos, los subtítulos no usan la red. La traducción no la hace OpenScreen: el agente que traduce envía el texto de los subtítulos que lee a su propio proveedor, con tu cuenta en él. Para la app en general: OpenScreen no tiene cuenta ni servidor propio. Su único informe es un recuento diario anónimo de instalaciones activas, que puedes desactivar. Las [preguntas frecuentes](/docs/faq/#does-openscreen-work-offline) enumeran las pocas conexiones que sigue haciendo.
 
 ## Otros grabadores con subtítulos locales {#other-recorders-with-local-captions}
 
@@ -95,7 +95,7 @@ La transcripción en el propio dispositivo no es exclusiva de OpenScreen. A sept
 - **Gratis, incluido el uso comercial.** Sin plan y sin cuenta. La página de precios de Cap dice que su versión gratuita es solo para uso personal. Screen Studio necesita un plan activo para exportar archivos de video. El editor de escritorio de Camtasia pone marca de agua a las exportaciones hasta que actualizas a un plan de pago Essentials, Create o Pro, o a una licencia empresarial. Los tres a septiembre de 2026.
 - **Windows, macOS y Linux.** OpenScreen funciona en Windows 10 (1903 o posterior) y 11, x64 y ARM64. macOS 13 o posterior, Apple Silicon e Intel. Linux, x64. A septiembre de 2026, Screen Studio solo funciona en macOS, el editor de escritorio de Camtasia funciona en Windows y macOS, y Cap ofrece apps para los tres. Consulta [Linux](/screen-recorder-linux/), [Windows](/screen-recorder-windows/) y [macOS](/screen-recorder-mac/).
 - **Edición de la transcripción sin suscripción.** Cortar eliminando palabras es parte de la app gratuita. Camtasia enumera la edición basada en texto en sus planes de pago (a septiembre de 2026). Cap agregó el corte por transcripción a su editor web en julio de 2026. Su guía del modo Studio de escritorio cubre corregir el texto y el tiempo de los subtítulos, y no describe cortar video desde la transcripción.
-- **Traducción mediante un proveedor que tú eliges.** Cualquier proveedor que admita OpenScreen, con tu propia clave, y sin ningún plan que comprarle a OpenScreen. La traducción en sí no es exclusiva: Cap Pro también enumera traducción de subtítulos (a septiembre de 2026).
+- **Traducción por un agente que tú eliges.** Cualquier agente que hable MCP, con la sesión iniciada en su propia cuenta, y sin ningún plan que comprarle a OpenScreen. Hace falta un agente, mientras que Cap Pro enumera la traducción de subtítulos como una función del producto (a septiembre de 2026).
 
 ## Cuándo OpenScreen no es la herramienta adecuada {#when-openscreen-is-not-the-right-tool}
 

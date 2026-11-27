@@ -17,9 +17,6 @@ CMakeLists.txt text eol=lf
 *.md   text eol=lf
 *.mdx  text eol=lf
 
-# Adopted measurement manifests hash exact bytes; keep their artifacts unchanged.
-workbench/measurements/** -text
-
 # These ~8 MB of README media are copies of files in public/, served from the
 # tree (README, raw.githubusercontent links), never from an archive, so leaving
 # them out of archives costs nothing. This rule does not make the repository

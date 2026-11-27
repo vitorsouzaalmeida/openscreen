@@ -26,7 +26,7 @@ Diese Seite wird vom OpenScreen-Projekt veröffentlicht. Die Angaben zu Cap stam
 | Anmeldung | Nie nötig | Nötig für Share-Links und den Instant Mode |
 | Automatische Zooms | Ja, anhand aufgezeichneter Klicks geplant | Ja, aus aufgezeichneten Klicks erzeugt |
 | Untertitel | Lokales Whisper, ein Modell von etwa 264 MB, einmalig heruntergeladen. In das Video eingebrannt | Lokales Whisper oder Parakeet, in Beta. In das Video eingebrannt, oder als SRT oder WebVTT gespeichert |
-| KI-Funktionen | Optionale Chat-Bearbeitung und Untertitelübersetzung in 15 Sprachen, mit eigenem Anbieterschlüssel | In Cap Pro gehostet: Titel, Zusammenfassungen, Kapitel, Transkriptionen und Untertitelübersetzung. Kein Schlüssel nötig |
+| KI-Funktionen | Optionale Bearbeitung und Untertitelübersetzung durch deinen eigenen Agenten, über den MCP-Server von OpenScreen. Kein Schlüssel in der App | In Cap Pro gehostet: Titel, Zusammenfassungen, Kapitel, Transkriptionen und Untertitelübersetzung. Kein Schlüssel nötig |
 | Export | MP4 (H.264) in 720p, 1080p oder Originalgröße, 24, 30 oder 60 fps. GIF mit 15 bis 30 fps. Kein Wasserzeichen | MP4 in 720p, 1080p oder 4K, 15, 30 oder 60 fps. GIF mit 10 bis 30 fps. Transparente MOV nur mit Cursor. Kein Wasserzeichen |
 | Teams und Compliance | Keine | Team-Workspaces. SAML-SSO-Add-on für 199 $/Monat. SOC 2 Type II, ISO 27001 und HIPAA, mit unterzeichnetem BAA für 99 $/Monat (Stand September 2026) |
 | Kommandozeile | Ja, mit JSON-Ausgabe | Ja, mit JSON-Ausgabe |
@@ -59,7 +59,7 @@ Wenn du zwischen beiden wählst, prüfe zuerst die Lizenz. Der Rest ergibt sich 
 ### Eine Desktop-App, kein Dienst {#a-desktop-app-not-a-service}
 
 - **Keine Anmeldung.** OpenScreen nimmt auf und bearbeitet auf deinem Rechner und gibt dir eine Datei. Es gibt keinen gehosteten Link, kein Konto und keinen Tarif. Cap kombiniert seinen lokalen Studio Mode mit dem Instant Mode, der während der Aufnahme hochlädt, und seine Share-Links brauchen eine Anmeldung.
-- **Chat-Bearbeitung mit eigenem Schlüssel.** Sie ist optional: Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax oder einen beliebigen OpenAI-kompatiblen Endpunkt verbinden und Schnitte, Zooms, Geschwindigkeitsänderungen oder Annotationen in Alltagssprache beschreiben. Sie ist aus, bis du einen Anbieter verbindest, und jede Änderung landet als gewöhnliche, rückgängig machbare Bearbeitung. Derselbe Anbieter übersetzt Untertitel in 15 Sprachen. Caps gehostete KI-Funktionen, wie Titel, Zusammenfassungen und Kapitel, kommen mit Cap Pro. Siehe [KI-Bearbeitung](/docs/ai-editing/).
+- **Bearbeitung mit deinem eigenen Agenten.** Sie ist optional: Claude Code, Codex oder ein beliebiger anderer MCP-Client startet den MCP-Server von OpenScreen, und du beschreibst Schnitte, Zooms, Geschwindigkeitsänderungen oder Annotationen in Alltagssprache. Der Agent meldet sich mit seinem eigenen Konto an, das OpenScreen nie sieht, und jede Änderung landet als gewöhnliche, rückgängig machbare Bearbeitung. Derselbe Agent übersetzt die Untertitel. Caps gehostete KI-Funktionen, wie Titel, Zusammenfassungen und Kapitel, kommen mit Cap Pro. Siehe [KI-Bearbeitung](/docs/ai-editing/).
 
 ### Bearbeitung und Export {#editing-and-export}
 

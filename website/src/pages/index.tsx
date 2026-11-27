@@ -69,7 +69,7 @@ function CopyButton({ text }: { text: string }) {
 // Beside the download button: one click copies the demo prompt, and the label says where it goes.
 function AgentBadge() {
 	// Without a clipboard, the AI editing docs show this same prompt to select by hand.
-	const docs = useBaseUrl("/docs/ai-editing#letting-an-agent-make-the-whole-video");
+	const docs = useBaseUrl("/docs/ai-editing#setting-it-up");
 	// Long enough to read the instruction that replaces the label.
 	const [copied, copy] = useCopy(
 		DEMO_PROMPT,
@@ -230,7 +230,7 @@ export default function Home() {
 								description="{docs} links to the AI editing docs."
 								values={{
 									docs: (
-										<Link to="/docs/ai-editing#letting-an-agent-make-the-whole-video">
+										<Link to="/docs/ai-editing#setting-it-up">
 											<Translate id="home.agents.foot.docs">Set it up by hand</Translate>
 										</Link>
 									),
@@ -314,9 +314,9 @@ export default function Home() {
 							<p>
 								<Translate id="home.features.local.body">
 									Recording, transcription and rendering all happen on your machine, and your video
-									never leaves it. Text leaves only when you ask: the chat panel and caption
-									translation, each with a key you supply. Transcription downloads its 264 MB
-									Whisper model once, on first run.
+									never leaves it. OpenScreen sends nothing to an AI model: an agent you connect
+									yourself reads the project under your own account with it. Transcription downloads
+									its 264 MB Whisper model once, on first run.
 								</Translate>
 							</p>
 						</article>

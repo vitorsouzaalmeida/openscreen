@@ -51,7 +51,7 @@ OpenScreen ist kostenlos und läuft unter Windows, macOS und Linux. Screen Studi
 | Was aufgenommen wird | Ein Bildschirm oder ein Fenster. Danach im Editor zuschneiden | Ein Bildschirm, ein Fenster oder ein ausgewählter Bereich |
 | Automatische Zooms | Ja, platziert auf aufgezeichneten Klicks | Ja |
 | Untertitel | Lokales Whisper, ein Modell von etwa 264 MB, einmalig heruntergeladen. In das Video eingebrannt | Lokales Whisper (Base, Small oder Medium), oder Apple Speech Recognition ab macOS 26. Transkript als Datei exportierbar |
-| Untertitelübersetzung | 15 Sprachen, über einen von dir angebundenen KI-Anbieter | Kein Übersetzungsschritt im Untertitel-Guide |
+| Untertitelübersetzung | Durch deinen eigenen KI-Agenten, über den MCP-Server von OpenScreen | Kein Übersetzungsschritt im Untertitel-Guide |
 | Zeitleiste mit mehreren Clips | Ja | „Multi-clip recordings“ auf der Roadmap als geplant gelistet |
 | Text-, Pfeil- und Bildannotationen | Ja | „Annotations“ auf der Roadmap als pausiert gelistet |
 | Export | MP4 (H.264) oder GIF, bis zu 60 fps, kein Wasserzeichen | MP4 oder GIF, mit Einstellungen für Bildrate, Ausgabegröße und Qualität |
@@ -97,7 +97,7 @@ Beide Apps decken Folgendes ab. Nichts davon ist für eine der beiden einzigarti
 ### Export und Automatisierung {#export-and-automation}
 
 - **Eine Kommandozeile.** Skripte, CI und Coding-Agenten können OpenScreen über die [Kommandozeile](/docs/cli/) steuern. Der Guide von Screen Studio hat keinen Eintrag zur Kommandozeile.
-- **Optionale Chat-Bearbeitung mit eigenem Schlüssel.** Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax oder einen beliebigen OpenAI-kompatiblen Endpunkt verbinden und Schnitte, Zooms, Geschwindigkeitsänderungen oder Annotationen in Alltagssprache beschreiben. Jede Änderung landet als gewöhnliche, rückgängig machbare Bearbeitung. Es ist aus, bis du einen Anbieter verbindest, und derselbe Anbieter übersetzt Untertitel in 15 Sprachen. Siehe [KI-Bearbeitung](/docs/ai-editing/).
+- **Optionale Bearbeitung mit deinem eigenen Agenten.** Claude Code, Codex oder ein beliebiger anderer MCP-Client startet den MCP-Server von OpenScreen, und du beschreibst Schnitte, Zooms, Geschwindigkeitsänderungen oder Annotationen in Alltagssprache. Jede Änderung landet als gewöhnliche, rückgängig machbare Bearbeitung, live im geöffneten Editor. Der Agent meldet sich mit seinem eigenen Konto an, das OpenScreen nie sieht, und er kann auch die Untertitel übersetzen. Siehe [KI-Bearbeitung](/docs/ai-editing/).
 
 ## Wann Screen Studio die bessere Wahl ist {#when-screen-studio-is-the-better-choice}
 

@@ -1,26 +1,9 @@
-import type { ToolRunnableConfig } from "@langchain/core/tools";
-// ponytail: port of axcut's AxcutDeepAgentService (apps/server/src/services/
-// axcut-deep-agent.ts). Wraps LangChain's `createAgent` (LangGraph ReAct graph)
-// with our existing document tools and emits agent.text / agent.toolStart /
-// agent.toolEnd / agent.error events into a sink the chat-service pipes through
-// `webContents.send`.
-//
-// It used to wrap `createDeepAgent` from the `deepagents` package. That factory
-// stacks three middlewares unconditionally — filesystem, todo-list, sub-agents —
-// which handed the model EIGHT extra tools (ls / read_file / write_file /
-// edit_file / glob / grep / write_todos / task) bound to an EMPTY in-memory
-// backend, plus ~5 800 characters of system prompt promising a filesystem this
-// app does not have. Nothing here used any of it, and the cost was not
-// cosmetic: asked what cursor telemetry the project holds, the model ran
-// `ls {"path":"/"}` then `glob {"pattern":"**/*"}` against that empty sandbox
-// and reported, in good faith, that the project contains no pointer data. A
-// fabricated proof of absence. `createDeepAgent` has no option to drop those
-// middlewares (they are in `REQUIRED_MIDDLEWARE_NAMES`), so the fix is to stop
-// going through it: `createAgent` is what it wrapped, minus the sandbox.
+// The document tools every agent is served: what each is called, what it takes, how it is
+// described, and the one async step (`runDocumentTool`) that runs it through the shared
+// executor in agent-tools.ts. `electron/mcp/` serves this list over MCP.
 
-import { anthropicPromptCachingMiddleware, createAgent, tool } from "langchain";
 import { z } from "zod";
-import type { CursorTelemetryPoint } from "../../../src/components/video-editor/types";
+import type { CursorTelemetryPoint } from "../../src/components/video-editor/types";
 import {
 	CAPTION_FONT_SIZE_MAX,
 	CAPTION_FONT_SIZE_MIN,
@@ -28,22 +11,21 @@ import {
 	CAPTION_INSET_Y_MAX,
 	CAPTION_PLATE_OPACITY_MAX,
 	CAPTION_PLATE_OPACITY_MIN,
-} from "../../../src/lib/ai-edition/captions";
+} from "../../src/lib/ai-edition/captions";
 import {
 	CAPTION_WORDS_PER_LINE_MAX,
 	CAPTION_WORDS_PER_LINE_MIN,
-} from "../../../src/lib/ai-edition/captions/wordsPerLine";
-import type { ToolExecutionStep } from "../../../src/lib/ai-edition/chatExecution";
-import { AUDIO_FADE_MAX_MS } from "../../../src/lib/ai-edition/document/audioTracks";
-import { VOCABULARY_MAX_CHARS } from "../../../src/lib/ai-edition/document/transcript";
-import type { AxcutDocument } from "../../../src/lib/ai-edition/schema";
+} from "../../src/lib/ai-edition/captions/wordsPerLine";
+import { AUDIO_FADE_MAX_MS } from "../../src/lib/ai-edition/document/audioTracks";
+import { VOCABULARY_MAX_CHARS } from "../../src/lib/ai-edition/document/transcript";
+import type { AxcutDocument } from "../../src/lib/ai-edition/schema";
 import type {
 	ShaderEffectChecker,
 	ShaderEffectImageStore,
 	ShaderEffectImageStored,
-} from "../../../src/lib/ai-edition/shaderEffects";
-import type { StylePreset } from "../../../src/lib/ai-edition/stylePresets";
-import { collectAutoZoomSuggestionsForDocument } from "../../../src/lib/ai-edition/timeline/apply-auto-zooms";
+} from "../../src/lib/ai-edition/shaderEffects";
+import type { StylePreset } from "../../src/lib/ai-edition/stylePresets";
+import { collectAutoZoomSuggestionsForDocument } from "../../src/lib/ai-edition/timeline/apply-auto-zooms";
 // ponytail: the legend is DERIVED from the depth→scale table, not retyped. Both
 // tool descriptions used to assert "depth 1–6 maps to 1.0×–3.5×" — a formula
 // (`depth/2 + 0.5`) that was purged from two rendering sites and survived here,
@@ -52,12 +34,12 @@ import {
 	MAX_ZOOM_SCALE,
 	MIN_ZOOM_SCALE,
 	ZOOM_DEPTH_LEGEND,
-} from "../../../src/lib/ai-edition/timeline/zoom-scale";
-import { ZOOM_TRANSITION_LEGEND } from "../../../src/lib/ai-edition/timeline/zoom-transitions";
-import { TEXT_FONT_FAMILIES } from "../../../src/lib/textFonts";
-import type { AgentTurnUsage, SegmentationSupport } from "../../../src/native/contracts";
+} from "../../src/lib/ai-edition/timeline/zoom-scale";
+import { ZOOM_TRANSITION_LEGEND } from "../../src/lib/ai-edition/timeline/zoom-transitions";
+import { TEXT_FONT_FAMILIES } from "../../src/lib/textFonts";
+import type { SegmentationSupport } from "../../src/native/contracts";
+
 import {
-	AGENT_EDITS_SETTING,
 	type AgentToolExecution,
 	type AutoZoomPlan,
 	addAnnotationArgs,
@@ -79,7 +61,6 @@ import {
 	getTranscriptArgs,
 	getTranscriptWordsArgs,
 	insertClipArgs,
-	isMutatingTool,
 	moveClipArgs,
 	moveLayoutBoundaryArgs,
 	removeClipArgs,
@@ -101,7 +82,7 @@ import {
 	setZoomArgs,
 	shaderEffectCheckLookup,
 	shaderEffectToCheck,
-} from "../agent-tools";
+} from "./agent-tools";
 import {
 	getCaptionsArgs,
 	getCaptionTranslationUnitsArgs,
@@ -109,79 +90,19 @@ import {
 	removeCaptionTranslationArgs,
 	setCaptionSettingsArgs,
 	setVocabularyArgs,
-} from "../caption-tools";
-import {
-	createToolExecutionObserver,
-	executionSummary,
-	executionText,
-	toolExecutionStep,
-} from "../chat-execution";
+} from "./caption-tools";
 import {
 	applyStylePresetArgs,
 	listStylePresetsArgs,
 	setEditorSettingsArgs,
-} from "../editor-settings-tool";
-import { abortable } from "./cancellation";
-import {
-	createOpenScreenChatModel,
-	messageContentToText,
-	messageContentToThinking,
-	type OpenScreenChatModelConfig,
-} from "./chat-model";
-import { createTurnUsageAccumulator } from "./usage";
+} from "./editor-settings-tool";
 
-export interface OpenScreenAgentSink {
-	/** Latest cumulative usage from completed model calls; never sum stream chunks. */
-	usage?: (usage: AgentTurnUsage) => void;
-	executionStep?: (step: ToolExecutionStep) => void;
-	text: (delta: string) => void;
-	/** Streaming delta from the model's reasoning block (Anthropic/MiniMax
-	 * thinking). Provider-agnostic — for providers without thinking this is
-	 * never called. The chat panel uses it to surface the reasoning phase
-	 * that would otherwise be invisible "dead air" while the model thinks. */
-	thinking: (delta: string) => void;
-	toolStart: (name: string, args: unknown) => void;
-	toolEnd: (name: string, ok: boolean, summary?: string) => void;
-	error: (message: string) => void;
-	/** A completed tool edit, committed before cancellation can interleave. */
-	document?: (document: AxcutDocument) => void;
-}
-
-// The tool arg schemas live in agent-tools.ts (imported above) — one source of truth for
-// both the executor's validation and the LangChain `tool()`s built here. Only the empty /
-// inline read-tool schemas below stay local.
-
-/**
- * The block appended when the user has turned edits off: "Agent edits" for the
- * in-app agent, "MCP edits" for an MCP client; `setting` names the one in force.
- *
- * ponytail: the executor's refusal is the wall (see `consentRequired` in
- * agent-tools.ts) but a wall alone does not fix the measured defect. The
- * workbench scores `dsl.consent.no-silent-edit` on the tool_calls the model
- * EMITS, not on what the executor did with them, so a turn that fires three
- * writes and has them all refused still reads as a silent-edit attempt — and
- * rightly: the model tried. Only the prompt can stop the emission. Two layers,
- * neither sufficient alone.
- */
-const consentPromptBlock = (setting: string) =>
-	[
-		"",
-		"PROJECT EDITS ARE CURRENTLY DISABLED by the user, who asked to be consulted before the timeline changes.",
-		"- Read freely: getCurrentDocument and getTranscript work as usual.",
-		"- Do NOT call any tool that writes (removeWords, addTrim, setTrim, setClipRange, moveClip, replaceTimeline, add*/set* effects and settings, putCaptionTranslation, remove*). Every one of them will be refused, so calling them wastes the turn and tells the user nothing.",
-		"- Instead: say precisely what you would change — which tool, which times, which ids — and ask the user to confirm. Be specific enough that they can say yes to it.",
-		`- Never state or imply that an edit was applied. If the user confirms and you are still refused, tell them to turn on ${setting} first.`,
-	].join("\n");
-
-// ponytail: exported so a test can assert that what the model receives is this
-// string and NOTHING else — the deepagents regression was invisible precisely
-// because the middlewares appended their prompts downstream of this constant.
-const BASE_SYSTEM_PROMPT = [
-	"You are an AI video editor working inside OpenScreen. The user is editing a recording.",
-	"Help them cut silences, tighten pacing, add captions, and rewrite titles.",
-	"Be concise, action-oriented, and reference the timeline or transcript by time when relevant.",
-	"You can call the tools below against the live document snapshot; the runtime executes each edit and feeds the result back into the loop.",
-	"The AxcutDocument is the single source of truth. The timeline, the transcript editor, and the chat panel are all direct editors of the same document — when the user places a clip on the timeline, the document updates immediately, and when the timeline is empty, the document has no clips. Your edits operate on the live document, so preserve the user's placed clips.",
+// The editing guidance an MCP client is handed as the tail of the server's instructions
+// (`mcpInstructions`): how the tools map to intent, the two time-bases, and what a tool
+// that could not look does and does not prove.
+const EDITING_GUIDANCE = [
+	"Editing a project: the user is making a video from a recording. Help them cut silences, tighten pacing, add captions, and rewrite titles, and refer to the timeline or transcript by time when relevant.",
+	"A project's document is its single source of truth. The editor's timeline, its transcript pane and these tools all edit that same document — when the user places a clip on the timeline, the document updates immediately, and when the timeline is empty, the document has no clips. Your edits land on the document as it is now, so preserve the user's placed clips.",
 	"",
 	"Time-bases (do not mix them up): clips and trims are in SOURCE-time seconds of an asset; zooms, speed regions, annotations, camera-fullscreen regions and effects are in VIRTUAL (edited-timeline) seconds — the position on the editor's ruler, where the clips sit end to end. A trim leaves a hole in that ruler rather than shortening it, and a speed region does not stretch it, so the exported video's own clock differs from it as soon as there is a trim or a speed region: always place effects in ruler seconds. getCurrentDocument returns all of them, clearly labelled.",
 	"",
@@ -214,26 +135,11 @@ const BASE_SYSTEM_PROMPT = [
 const honestyRules = (canExport: boolean) =>
 	`Honesty rules: if a request has NO matching tool (e.g. deleting an asset/recording${canExport ? "" : ", exporting"}), say so plainly — do not substitute a different edit and report it as the requested one. After your edits, if you are at all unsure the document ended up as intended, call getCurrentDocument and reconcile what you claim with the real state; each tool result already tells you exactly what it did, so never report a change the results don't support.`;
 
-/** The system prompt for a turn: whether the user currently allows writes, and through
- *  which setting. The MCP server reuses it as its instructions, naming its own setting
- *  and, over stdio, the export tool it serves. Exported so the wording can be tested
- *  without a provider. */
-export function buildSystemPrompt(options: {
-	editsAllowed: boolean;
-	/** Where the user turns writes back on. Default: the in-app agent's switch. */
-	editsSetting?: string;
-	/** The caller also has a tool that exports the video. */
-	canExport?: boolean;
-}): string {
-	const prompt = BASE_SYSTEM_PROMPT + honestyRules(options.canExport === true);
-	return options.editsAllowed
-		? prompt
-		: prompt + consentPromptBlock(options.editsSetting ?? AGENT_EDITS_SETTING);
+/** The editing guidance for a server: `canExport` says whether it also serves a tool that
+ *  exports the video. Exported so the wording can be tested. */
+export function editingGuidance(options: { canExport?: boolean } = {}): string {
+	return EDITING_GUIDANCE + honestyRules(options.canExport === true);
 }
-
-/** The prompt of a normal (edits-allowed) turn — the overwhelmingly common
- *  case, and the string the surface tests measure the wire against. */
-export const SYSTEM_PROMPT = buildSystemPrompt({ editsAllowed: true });
 
 // #1028: a zoom's camera moves sit OUTSIDE its span, where nothing on the ruler shows them.
 // The editor's "3D camera" control, in the agent's words.
@@ -326,12 +232,6 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 	setVocabulary: `Set the project's vocabulary: the names and technical terms Whisper is primed with on every transcription of this project, so it spells them right (at most ${VOCABULARY_MAX_CHARS} characters, read as a plain list such as "OpenScreen, Vulkan, whisper.cpp"). An empty string clears it. It changes no existing transcript: transcribe the asset again for that. getCurrentDocument reports it as vocabulary.`,
 };
 
-// ponytail: mutable document holder so a write-tool that updates the snapshot
-// is observed by the NEXT tool call inside the same agent turn. LangChain's
-// `tool()` factory captures the document by reference via the holder, so
-// each tool sees the latest mutated snapshot.
-type DocumentHolder = { current: AxcutDocument };
-
 /**
  * The runtime's door onto recorded cursor telemetry.
  *
@@ -347,14 +247,13 @@ type DocumentHolder = { current: AxcutDocument };
  */
 export interface CursorTelemetryReader {
 	read(input: { assetId: string; originalPath: string | null }): Promise<CursorTelemetryLoad>;
-	/** Cheap "is there a sidecar?" check, run once per turn for every asset so
+	/** Cheap "is there a sidecar?" check, run once per call for every asset so
 	 *  `getCurrentDocument` can report `hasCursorTelemetry` without reading the
 	 *  file. A reader may omit it; the snapshot then reports null (not checked). */
 	probe?(input: { assetId: string; originalPath: string | null }): Promise<boolean>;
 }
 
 export interface ToolRuntime {
-	signal?: AbortSignal;
 	cursor?: CursorTelemetryReader;
 	availableByAssetId?: Record<string, boolean>;
 	/** Asks the compositor whether this machine can cut out the camera background. */
@@ -396,96 +295,9 @@ const TOOLS_READING_CURSOR: ReadonlySet<string> = new Set([
 	"setZoom",
 ]);
 
-// One document tool: run it through the shared executor, advance the holder so
-// the next tool in the turn sees the edit, and emit exactly ONE start/end pair
-// carrying the executor's REAL verdict.
-//
-// ponytail: reads go through here too, and that is the point. The read tools
-// used to emit nothing of their own and be announced only by the `on_tool_end`
-// branch of the stream loop, which hard-coded `ok: true` — so a `getTranscript`
-// that came back `{"error":"No transcript for asset …"}` was reported as a
-// success, and every write was announced twice (once truthfully here, once as
-// `ok: true` there). One factory, one pair, one verdict. `executeAgentTool`
-// never throws, so `execution.ok` is the only honest signal available.
-function documentTool<S extends z.ZodType>(
-	holder: DocumentHolder,
-	sink: OpenScreenAgentSink,
-	name: string,
-	schema: S,
-	editsAllowed: boolean,
-	runtime: ToolRuntime,
-	inTurn: TurnQueue,
-) {
-	return tool(
-		(args: z.infer<S>, config?: ToolRunnableConfig) =>
-			inTurn(async () => {
-				runtime.signal?.throwIfAborted();
-				const step = toolExecutionStep(name, args);
-				step.id = config?.toolCall?.id ?? step.id;
-				sink.executionStep?.(step);
-				sink.toolStart(name, args);
-				try {
-					const execution = await runDocumentTool(
-						holder.current,
-						name,
-						args,
-						editsAllowed,
-						runtime,
-					);
-					runtime.signal?.throwIfAborted();
-					if (execution.document) {
-						holder.current = execution.document;
-						sink.document?.(execution.document);
-					}
-					sink.toolEnd(name, execution.ok, execution.summary);
-					sink.executionStep?.({
-						...step,
-						status: execution.ok ? "succeeded" : "failed",
-						durationMs: Math.max(0, Date.now() - step.startedAt),
-						summary: executionSummary(execution),
-					});
-					return execution.resultJson;
-				} catch (error) {
-					sink.executionStep?.({
-						...step,
-						status: runtime.signal?.aborted ? "stopped" : "failed",
-						durationMs: Math.max(0, Date.now() - step.startedAt),
-						summary: runtime.signal?.aborted
-							? undefined
-							: executionText(error instanceof Error ? error.message : String(error)),
-					});
-					throw error;
-				}
-			}),
-		{ name, description: TOOL_DESCRIPTIONS[name], schema },
-	);
-}
-
-type TurnQueue = <T>(run: () => Promise<T>) => Promise<T>;
-
-/**
- * Runs a turn's tool calls one at a time, in the order the agent starts them.
- *
- * The agent starts every call of one model step at once (each is its own `Send`
- * to the tools node). Each call reads the holder, awaits, then writes the holder,
- * so two at once both start from the same document and the last to finish keeps
- * only its own edit, while every one of them reports success. A zoom reads the
- * cursor track before it executes, so it finishes after the trims sent beside it:
- * that is how a turn reported "added 3 trims" over a document holding none.
- */
-function turnQueue(): TurnQueue {
-	let queue: Promise<unknown> = Promise.resolve();
-	return (run) => {
-		const next = queue.then(run, run);
-		queue = next.catch(() => undefined);
-		return next;
-	};
-}
-
 /**
  * Run one tool against a document: the cursor read it may need, then the shared
- * executor. The in-app agent (`documentTool`) and the MCP server both call this,
- * so a tool behaves the same whichever agent is driving it.
+ * executor. The MCP tool runner calls this for every document tool.
  *
  * ponytail: the ONE async step the pure executor cannot take. Reading a sidecar
  * is IO; `executeAgentTool` is synchronous by design (it is the gate every
@@ -497,19 +309,15 @@ export async function runDocumentTool(
 	document: AxcutDocument,
 	name: string,
 	args: unknown,
-	editsAllowed: boolean,
 	runtime: ToolRuntime,
 ): Promise<AgentToolExecution> {
-	runtime.signal?.throwIfAborted();
 	const load = TOOLS_READING_CURSOR.has(name)
 		? await loadCursorTelemetry(document, args, runtime)
 		: undefined;
-	const autoZooms =
-		name === "addAutoZooms" && editsAllowed ? await planAutoZooms(document, runtime) : undefined;
+	const autoZooms = name === "addAutoZooms" ? await planAutoZooms(document, runtime) : undefined;
 	// The compositor compiles an effect's code for real, off the main thread: asked here, before
 	// the synchronous executor reads the answer.
-	const effectSource =
-		editsAllowed && runtime.checkShaderEffect ? shaderEffectToCheck(document, name, args) : null;
+	const effectSource = runtime.checkShaderEffect ? shaderEffectToCheck(document, name, args) : null;
 	const checkShaderEffect =
 		effectSource && runtime.checkShaderEffect
 			? shaderEffectCheckLookup(
@@ -523,7 +331,7 @@ export async function runDocumentTool(
 			: undefined;
 	// The image an effect reads is copied into the project's own folder: file work, done here
 	// for the same reason. A file that is no image is the executor's refusal to word.
-	const imageSource = editsAllowed ? effectImageToStore(name, args) : null;
+	const imageSource = effectImageToStore(name, args);
 	const effectImage: ShaderEffectImageStored | undefined =
 		imageSource !== null && runtime.storeEffectImage
 			? await runtime.storeEffectImage(imageSource).then(
@@ -541,11 +349,7 @@ export async function runDocumentTool(
 					return undefined;
 				})
 			: undefined;
-	// Async work above is read-only. An abort discards its result before the
-	// synchronous executor or document holder can commit anything.
-	runtime.signal?.throwIfAborted();
 	return executeAgentTool(document, name, JSON.stringify(args ?? {}), {
-		editsAllowed,
 		cursorTelemetry: { availableByAssetId: runtime.availableByAssetId, load },
 		cameraSegmentation: runtime.cameraSegmentation,
 		checkShaderEffect,
@@ -612,31 +416,8 @@ async function readCursor(
 }
 
 /**
- * The complete tool surface handed to the model. Exported so a test can assert
- * its exact shape — the count is the cheapest tripwire for a dependency that
- * starts injecting tools of its own again.
- *
- * ponytail: the write tools are built even when `editsAllowed` is false, and
- * that is deliberate. Withholding them would make the model answer "I have no
- * tool for that" — a lie, and one that hides the setting instead of surfacing
- * it. It has to be able to NAME the edit it is asking permission for.
- */
-export function buildTools(
-	holder: DocumentHolder,
-	sink: OpenScreenAgentSink,
-	editsAllowed = true,
-	runtime: ToolRuntime = {},
-) {
-	const inTurn = turnQueue();
-	return TOOL_ARG_SCHEMAS.map(([name, schema]) =>
-		documentTool(holder, sink, name, schema, editsAllowed, runtime, inTurn),
-	);
-}
-
-/**
- * Every tool's name and argument schema, in the order the model is handed them.
- * `buildTools` wraps these for the in-app agent and `electron/mcp/` exposes the
- * same list over MCP, so the two surfaces cannot drift apart.
+ * Every tool's name and argument schema, in the order the model is handed them:
+ * `electron/mcp/` registers this list on the server.
  */
 export const TOOL_ARG_SCHEMAS: ReadonlyArray<readonly [string, z.ZodObject]> = [
 	["getCurrentDocument", z.object({})],
@@ -685,54 +466,8 @@ export const TOOL_ARG_SCHEMAS: ReadonlyArray<readonly [string, z.ZodObject]> = [
 	["setVocabulary", setVocabularyArgs],
 ];
 
-/**
- * Prompt caching for the Anthropic-wire providers, which `createDeepAgent`
- * used to add for us (`isAnthropicModel` → `anthropicPromptCachingMiddleware`).
- * Dropping it silently would have made every Anthropic and MiniMax turn re-pay
- * for the full prompt — a cost and latency regression invisible to the offline
- * tests, which all run on the OpenAI-compatible path.
- *
- * The class-name probe is deepagents' own test, kept verbatim so MiniMax (which
- * rides `ChatAnthropic` because its wire format is Anthropic's) keeps caching.
- * `unsupportedModelBehavior: "ignore"` means a model that turns out not to
- * support cache breakpoints degrades instead of throwing.
- */
-export function anthropicCachingMiddleware(chatModel: { getName?: () => string }) {
-	if (chatModel.getName?.() !== "ChatAnthropic") return [];
-	return [
-		anthropicPromptCachingMiddleware({
-			unsupportedModelBehavior: "ignore",
-			minMessagesToCache: 1,
-		}),
-	];
-}
-
-export interface InvokeArgs {
-	signal?: AbortSignal;
-	document: AxcutDocument;
-	model: OpenScreenChatModelConfig;
-	history: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-	userMessage: string;
-	sink: OpenScreenAgentSink;
-	/** `config.allowAgentEdits !== false`, resolved by the chat-service. When
-	 *  false the write tools refuse and the prompt tells the model to ask.
-	 *  Defaults to allowed so a caller that predates the flag behaves as before. */
-	editsAllowed?: boolean;
-	/** Injected by `chat-service` from the Electron layer. Absent in tests and in
-	 *  the workbench unless one is supplied on purpose. */
-	cursor?: CursorTelemetryReader;
-	/** Injected the same way: whether this machine can cut out the camera background. */
-	cameraSegmentation?: () => SegmentationSupport;
-	/** Injected the same way: the compositor's check of an effect's WGSL. */
-	checkShaderEffect?: ShaderEffectChecker;
-	/** Injected the same way: the copy kept of the image an effect reads. */
-	storeEffectImage?: ShaderEffectImageStore;
-	/** Injected the same way: the user's saved style presets. */
-	stylePresets?: () => Promise<StylePreset[]>;
-}
-
-/** One cheap probe per asset, run before the tools are built so the very first
- *  `getCurrentDocument` can already say whether telemetry exists. */
+/** One cheap probe per asset, run before a call executes so `getCurrentDocument` can
+ *  already say whether telemetry exists. */
 export async function probeCursorTelemetry(
 	document: AxcutDocument,
 	cursor: CursorTelemetryReader | undefined,
@@ -759,248 +494,3 @@ export async function probeCursorTelemetry(
 	}
 	return map;
 }
-
-/**
- * ponytail: `on_tool_start` / `on_tool_end` are observed and DROPPED, not
- * forwarded to the sink. `documentTool` already announced the call with the
- * real arguments and the executor's real verdict; this branch has no access to
- * the tool's return value, so it could only ever invent `ok: true` — which is
- * exactly how a REFUSED `replaceTimeline` and a `getTranscript` that returned
- * `{"error":"No transcript…"}` both came out green. Every write was announced
- * twice, the second time as a success. A stream branch must never fabricate a
- * verdict: a tool built outside `documentTool` should be silent here (and get
- * caught by the "one pair per call" test) rather than quietly mislabelled.
- *
- * They are excluded from `nonChatEvents` as well, so the empty-response
- * diagnostic keeps listing only genuinely unhandled events.
- */
-const SILENT_TOOL_EVENTS: ReadonlySet<string> = new Set(["on_tool_start", "on_tool_end"]);
-
-/**
- * The text one stream chunk adds to the turn. A turn is several model calls, one per round of
- * tool results, and their texts used to be glued: "…transcript first.Transcript read: …", or a
- * list item run into the sentence before it. The first text of each later call starts a new
- * paragraph.
- */
-export function modelCallText(turnText: string, delta: string, startsCall: boolean): string {
-	return startsCall && turnText.trim() && !turnText.endsWith("\n\n") ? `\n\n${delta}` : delta;
-}
-
-export interface InvokeResult {
-	cancelled?: boolean;
-	usage: AgentTurnUsage;
-	text: string;
-	document: AxcutDocument;
-	mutated: boolean;
-	/** Set when the stream finished without producing a final text (e.g. all
-	 * chunks had empty `content`, or the provider returned no
-	 * `content_block_delta` events). Carries a short diagnostic describing
-	 * what the LangChain layer actually saw. */
-	reason?: string;
-}
-
-export async function invokeOpenScreenAgent(args: InvokeArgs): Promise<InvokeResult> {
-	const { document, model, history, userMessage, sink } = args;
-	const editsAllowed = args.editsAllowed !== false;
-	const toolExecutions = createToolExecutionObserver((step) => sink.executionStep?.(step));
-	const lifetime = new AbortController();
-	const signal = args.signal ? AbortSignal.any([args.signal, lifetime.signal]) : lifetime.signal;
-	let finalText = "";
-	let callHasText = false;
-	let chatModelChunks: unknown[] = [];
-
-	const usage = createTurnUsageAccumulator();
-	const holder: DocumentHolder = { current: document };
-	const initialDocumentJSON = JSON.stringify(document);
-
-	// ponytail: build a fresh agent per turn (same pattern as axcut). The
-	// runtime side-effects (langgraph thread) are tied to the agent instance —
-	// checkpoint-based stateful threads can land later by passing a
-	// `checkpointer`; for v1 each turn is single-shot.
-	try {
-		signal.throwIfAborted();
-		const chatModel = await abortable(createOpenScreenChatModel(model), signal);
-		const availableByAssetId = await abortable(probeCursorTelemetry(document, args.cursor), signal);
-		const tools = buildTools(
-			holder,
-			{ ...sink, executionStep: toolExecutions.publish },
-			editsAllowed,
-			{
-				signal,
-				cursor: args.cursor,
-				availableByAssetId,
-				cameraSegmentation: args.cameraSegmentation,
-				checkShaderEffect: args.checkShaderEffect,
-				storeEffectImage: args.storeEffectImage,
-				stylePresets: args.stylePresets,
-			},
-		);
-		const agent = createAgent({
-			signal,
-			model: chatModel,
-			tools,
-			systemPrompt: buildSystemPrompt({ editsAllowed }),
-			middleware: anthropicCachingMiddleware(chatModel),
-		}).withConfig({
-			// ponytail: NOT optional. LangGraph's default is 25 steps, and an
-			// auto-enhance turn spends one step per silence — it would die mid-turn
-			// with a GraphRecursionError, which this file's catch block relabels
-			// "Empty response from model" (the same words a mute provider gets).
-			// Keep the existing bound as well as user-initiated cancellation.
-			recursionLimit: 1000,
-		});
-
-		const messages = [...history, { role: "user" as const, content: userMessage }];
-
-		// ponytail: streamEvents (legacy mode, no `version: "v3"`) returns the
-		// same on_chat_model_stream / on_tool_start / on_tool_end / on_chain_end
-		// event stream axcut consumes. We use it both for live text deltas and
-		// to know when the run has produced its final assistant message.
-		const stream = (
-			agent as unknown as {
-				streamEvents: (state: unknown, config?: unknown) => AsyncIterable<Record<string, unknown>>;
-			}
-		).streamEvents({ messages }, { signal });
-		const nonChatEvents: Array<{ event: string; name: string }> = [];
-
-		const iterator = stream[Symbol.asyncIterator]();
-		while (true) {
-			const next = await abortable(iterator.next(), signal);
-			signal.throwIfAborted();
-			if (next.done) break;
-			const event = next.value;
-			usage.observe(event);
-			if (event.event === "on_chat_model_end" || event.event === "on_chat_model_error") {
-				sink.usage?.(usage.snapshot());
-			}
-			const eventType = typeof event.event === "string" ? event.event : "";
-			const data = event.data as Record<string, unknown> | undefined;
-			const name = typeof event.name === "string" ? (event.name as string) : "";
-
-			if (eventType === "on_chat_model_start") {
-				toolExecutions.reset();
-				callHasText = false;
-			}
-			if (eventType === "on_chat_model_end") {
-				const output = data?.output as
-					| { tool_calls?: Array<{ id?: string; name: string; args: unknown }> }
-					| undefined;
-				for (const call of output?.tool_calls ?? [])
-					if (call.id) toolExecutions.begin(call.id, call.name, call.args);
-			}
-			if (eventType === "on_chain_end") {
-				const output = data?.output as
-					| { messages?: Array<{ tool_call_id?: string; status?: string; content?: unknown }> }
-					| undefined;
-				// The SDK omits status on schema errors. Successful document tools already emitted a terminal verdict.
-				for (const message of output?.messages ?? [])
-					if (message.tool_call_id)
-						toolExecutions.result(message.tool_call_id, messageContentToText(message.content));
-			}
-			if (eventType === "on_chat_model_stream") {
-				const chunk = data?.chunk as Record<string, unknown> | undefined;
-				if (chunk) chatModelChunks.push(chunk);
-				const content = chunk?.content;
-				const thinkingDelta = messageContentToThinking(content);
-				if (thinkingDelta) {
-					sink.thinking(thinkingDelta);
-				}
-				const delta = messageContentToText(content);
-				if (delta) {
-					const text = modelCallText(finalText, delta, !callHasText);
-					callHasText = true;
-					sink.text(text);
-					finalText += text;
-				}
-			} else if (eventType === "on_tool_error") {
-				// Kept as a safety net rather than as a live path. `executeAgentTool`
-				// never throws, and LangChain's ToolNode catches what does (an unknown
-				// tool name, arguments the zod binding rejects) and feeds it back as
-				// the tool RESULT instead of raising. This branch only fires for a
-				// failure that escapes both — and then the stream is the only witness,
-				// so it reports `ok: false` from evidence, never a fabricated verdict.
-				sink.toolEnd(name, false, extractError(data));
-			} else if (eventType && !SILENT_TOOL_EVENTS.has(eventType)) {
-				nonChatEvents.push({ event: eventType, name });
-			}
-		}
-
-		const mutated = JSON.stringify(holder.current) !== initialDocumentJSON;
-		if (!finalText.trim()) {
-			// ponytail: surface the upstream payload so we can see why MiniMax
-			// (or any other anthropic-shaped provider) is producing no text.
-			// The chat-model chunks are the post-parse LangChain views of
-			// each SSE event; their `content`/`additional_kwargs`/
-			// `response_metadata` fields tell us whether the issue is in the
-			// wire format, the parser, or our `messageContentToText` shape.
-			// Capped at
-			// 1 chunk + a 1kB slice to keep the toast readable.
-			const lastChunk = chatModelChunks[chatModelChunks.length - 1];
-			const sample = lastChunk
-				? JSON.stringify(lastChunk).slice(0, 1024)
-				: "(no on_chat_model_stream events)";
-			const reason =
-				`Empty response from model (provider=${model.provider}, ` +
-				`model=${model.model}, chat_model_chunks=${chatModelChunks.length}, ` +
-				`other_events=${nonChatEvents.length}:${nonChatEvents
-					.slice(0, 5)
-					.map((e) => e.event)
-					.join(",")}). Last chunk: ${sample}`;
-			sink.error(reason);
-			return { text: "", document: holder.current, mutated, reason, usage: usage.snapshot() };
-		}
-		return { text: finalText, document: holder.current, mutated, usage: usage.snapshot() };
-	} catch (err) {
-		if (args.signal?.aborted) {
-			return {
-				text: finalText,
-				document: holder.current,
-				mutated: JSON.stringify(holder.current) !== initialDocumentJSON,
-				cancelled: true,
-				usage: usage.snapshot(),
-			};
-		}
-		// ponytail: surface the LangChain/HTTP error (with name + truncated
-		// stack) so we can tell whether the stream threw (e.g. MiniMax
-		// returning a non-Anthropic JSON envelope that the SDK rejects) or
-		// completed with empty content. Mirrors the diagnostic shape used in
-		// the success-but-empty path above.
-		const e = err instanceof Error ? err : new Error(String(err));
-		const stackHead = (e.stack ?? "").split("\n").slice(0, 3).join(" | ");
-		const reason =
-			`Empty response from model (provider=${model.provider}, ` +
-			`model=${model.model}, error=${e.name}: ${e.message}` +
-			(stackHead ? ` stack=${stackHead}` : "") +
-			`). Last chunk: ${(
-				chatModelChunks[chatModelChunks.length - 1]
-					? JSON.stringify(chatModelChunks[chatModelChunks.length - 1])
-					: "(no on_chat_model_stream events)"
-			).slice(0, 1024)}`;
-		sink.error(reason);
-		return {
-			text: "",
-			document: holder.current,
-			mutated: JSON.stringify(holder.current) !== initialDocumentJSON,
-			reason,
-			usage: usage.snapshot(),
-		};
-	} finally {
-		// Seal queued/in-flight tools on every exit, including normal completion.
-		lifetime.abort();
-	}
-}
-
-function extractError(data: Record<string, unknown> | undefined): string | undefined {
-	if (!data) return undefined;
-	const error = data.error;
-	if (error instanceof Error) return error.message;
-	if (typeof error === "string") return error;
-	return undefined;
-}
-
-// ponytail: re-exported for the agent-facing surface, but be honest about who
-// uses it — no production code calls it. Its only real consumers are the
-// workbench (`lib/wire.ts`, `lib/oracles.ts`), which import it straight from
-// agent-tools anyway, and the tests. It is kept because the mutating/non-mutating
-// split is a property of the agent surface, and this module is that surface.
-export { isMutatingTool };

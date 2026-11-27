@@ -2,7 +2,7 @@
 id: captions
 title: Subtítulos y transcripción
 sidebar_position: 7
-description: "Transcribe en local con Whisper (100 idiomas), incrusta subtítulos con estilo, tradúcelos con tu propia clave de LLM y corta la grabación borrando palabras."
+description: "Transcribe en local con Whisper (100 idiomas), incrusta subtítulos con estilo, haz que tu propio agente los traduzca y corta la grabación borrando palabras."
 keywords:
   - subtítulos automáticos
   - subtitular video
@@ -36,7 +36,7 @@ En el panel **Transcripción** del inspector, haz clic en **Subtítulos**:
 | Sección | Controles |
 |---|---|
 | **Mostrar subtítulos** | Interruptor general para la vista previa y la exportación. |
-| **Idioma** | *Original (transcripción)* o cualquier capa de traducción que hayas generado. |
+| **Idioma** | *Original (transcripción)* o cualquier capa de traducción que tenga el proyecto. |
 | **Texto** | Fuente, tamaño, negrita, color del texto. |
 | **Fondo** | Placa **Ninguna**, **Oscura** o **Clara** detrás del texto, y su opacidad. |
 | **Posición** | **Abajo** o **Arriba**, con la distancia desde ese borde (0–50 % del cuadro); **Izquierda**, **Centro** o **Derecha**, con la distancia desde ese lado (0–25 %, ninguna para Centro). |
@@ -48,9 +48,9 @@ El tamaño se expresa en píxeles sobre un cuadro de 1080 píxeles de alto y se 
 
 ### Traducción {#translation}
 
-Elige un idioma de destino y haz clic en **Traducir**. El menú desplegable incluye quince idiomas de destino: inglés, francés, español, alemán, italiano, portugués, neerlandés, polaco, turco, ruso, árabe, hindi, japonés, coreano y chino.
+El editor no tiene botón de traducir: los subtítulos los traduce tu propio agente, a través del servidor MCP de OpenScreen (consulta [Edición con IA](./ai-editing.md)). Pídele el idioma que quieras, "agrega una versión en francés de los subtítulos": lee las frases de los subtítulos, las traduce con su propio modelo y guarda el resultado en el proyecto como una capa de traducción. El texto que lee va al proveedor de ese agente, con tu cuenta en él. OpenScreen por sí mismo no envía nada.
 
-La traducción pasa por el proveedor de LLM que hayas conectado (consulta [Edición con IA](./ai-editing.md)): es la única función de subtítulos que necesita red. Se guarda **junto a** la transcripción, nunca dentro de ella: el texto original y sus tiempos no se tocan, puedes volver a *Original* en cualquier momento, y eliminar una traducción deja la grabación exactamente como estaba. Volver a traducir después de agregar material solo cuesta el material nuevo, y lo que el modelo no devuelva se queda con las palabras originales en lugar de inventarse.
+Una traducción se guarda **junto a** la transcripción, nunca dentro de ella: el texto original y sus tiempos no se tocan. El panel Subtítulos muestra las capas que tiene un proyecto: elige una en **Visualización**, vuelve a *Original* en cualquier momento, o elimina una traducción, lo que deja la grabación exactamente como estaba. Después de agregar material, el agente solo tiene que traducir las frases nuevas, y una frase sin traducción muestra sus palabras originales en lugar de unas inventadas.
 
 :::note
 Los proyectos creados con el antiguo flujo de "generar subtítulos" guardan el texto de los subtítulos como anotaciones reales, que se dibujarían encima de la capa en vivo. El panel Subtítulos las detecta y ofrece quitarlas; antes pregunta, porque elimina datos.

@@ -167,14 +167,14 @@ openscreen export demo.openscreen -o demo.mp4   # captions are burned into the v
 ```
 
 - `--min-words` 和 `--max-words` 设置每条字幕的词数。取值范围均为 1 到 12，与编辑器一致。默认值分别为 2 和 7。
-- 字幕就是绘制在视频上的转录文本，因此在编辑器中，你可以像处理其他字幕一样调整它们的样式、更正和翻译它们。再次运行会保留转录文本，只设置每条字幕的词数。
+- 字幕就是绘制在视频上的转录文本，因此在编辑器中，你可以像处理其他字幕一样调整它们的样式并更正它们。再次运行会保留转录文本，只设置每条字幕的词数。
 - 项目会以编辑器自己的格式保存。像[下文](#example-an-automated-product-demo)所示那样编辑项目 JSON 的脚本，会在 `captions` 之前完成编辑，而且 `pack` 目前还不能读取这种格式。
 - 项目的屏幕视频必须带有音轨，例如由 `record --mic` 录制的视频。
 - 字幕会烧录进导出的视频中，不会输出字幕文件。请参阅[字幕](./captions.md)。
 
 ### `openscreen mcp` {#openscreen-mcp}
 
-通过 stdin 和 stdout 提供 OpenScreen 的 MCP 工具，供启动它的 AI 编程代理使用：包括编辑工具，以及录制、导出和静态帧工具。你不需要亲自运行它；按照[让 AI 代理制作整段视频](./ai-editing.md#letting-an-agent-make-the-whole-video)中的说明设置好之后，由你的 AI 代理来运行。
+通过 stdin 和 stdout 提供 OpenScreen 的 MCP 工具，供启动它的 AI 编程代理使用：包括编辑工具，以及录制、导出和静态帧工具。你不需要亲自运行它；按照 [AI 编辑](./ai-editing.md#setting-it-up)中的说明设置好之后，由你的 AI 代理来运行。
 
 ### `openscreen pack` {#openscreen-pack}
 

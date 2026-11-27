@@ -167,11 +167,11 @@ export function getFeatures(): Feature[] {
 			body: translate({
 				id: "showcase.agent.body",
 				message:
-					"The wizard further up this page places zooms by watching where your cursor went. The agent goes further: it reads the actual transcript and the actual timeline, so it answers with timecodes you can go and check — which spans it will cut, and how much that saves. Every edit it makes is an ordinary undoable one, and it needs a provider key you supply. Nothing runs until you connect one.",
+					"The wizard further up this page places zooms by watching where your cursor went. Your own agent goes further: it reads the actual transcript and the actual timeline, so it answers with timecodes you can go and check — which spans it will cut, and how much that saves. Every edit it makes is an ordinary undoable one. It is Claude Code, Codex or any MCP client, signed in with its own account: OpenScreen has no key to ask you for.",
 			}),
 			fact: translate({
 				id: "showcase.agent.fact",
-				message: "bring your own key · off by default · every edit is undoable",
+				message: "your own agent · no key in the app · every edit is undoable",
 			}),
 			// The body opens on the zoom wizard, so its page is the second link.
 			links: [

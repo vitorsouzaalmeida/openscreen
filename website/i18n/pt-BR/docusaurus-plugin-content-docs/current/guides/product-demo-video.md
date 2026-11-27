@@ -77,7 +77,7 @@ Mais sobre como os zooms são posicionados: [Zoom automático](/features/auto-zo
 
 **Junte várias tomadas.** Mude para **Mídia**, use **Importar mídia** se uma tomada ainda não estiver na lista e arraste o cartão dela para a fileira de clipes. Ele entra no fim da linha do tempo, e você o arrasta para o lugar certo. Veja [Biblioteca de mídia](../media-library.md).
 
-Se você conectou seu próprio provedor de LLM, **Melhoria automática → Cortes inteligentes** passa os cortes para o agente de IA. É opcional e fica desativado até você adicionar uma chave ([Edição com IA](../ai-editing.md)). O histórico de desfazer guarda as últimas 50 ações, incluindo as edições do agente.
+Se você usa um agente de IA, como o Claude Code ou o Codex, pode passar os cortes para ele: ele edita o projeto pelo servidor MCP do OpenScreen ([Edição com IA](../ai-editing.md)). É opcional. O histórico de desfazer guarda as últimas 50 ações, incluindo as edições do agente.
 
 ## 6. Desfoque dados privados, faça anotações, adicione som {#6-blur-private-data-annotate-add-sound}
 
@@ -96,7 +96,7 @@ A aba **Cursor** muda o estilo do ponteiro gravado no passo 2. Todas as ferramen
 
 Na aba **Transcrição**, clique em **Legendas** e ative **Mostrar legendas**. Elas são desenhadas ao vivo a partir da transcrição, então os cortes do passo 5 valem para elas sem nenhuma etapa extra. Defina a fonte, o tamanho, o negrito, a cor, a caixa de fundo, a posição e de 1 a 12 palavras por linha. Confira o posicionamento na pré-visualização depois de qualquer mudança de formato.
 
-O Whisper detecta o idioma falado, ou você pode forçar um dos 100 idiomas com **Regenerar em** na área Mídia. Para publicar em outro idioma, use **Traduzir** para um dos 15 idiomas de destino e selecione esse idioma em **Exibição** antes de exportar. A tradução passa pelo seu próprio provedor de LLM, então precisa de uma chave.
+O Whisper detecta o idioma falado, ou você pode forçar um dos 100 idiomas com **Regenerar em** na área Mídia. Para publicar em outro idioma, peça uma tradução ao seu próprio agente ([Tradução](../captions.md#translation)) e selecione esse idioma em **Exibição** antes de exportar. O editor em si não tem botão de tradução.
 
 As legendas são embutidas no vídeo. O editor e a CLI não gravam nenhum arquivo `.srt` ou `.vtt`, então um player não consegue desativá-las. Um agente pode gravar um com `exportCaptions`. Detalhes: [Legendas e transcrição](../captions.md) e [como funciona o recurso de legendas](/features/captions/).
 

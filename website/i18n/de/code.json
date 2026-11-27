@@ -157,7 +157,7 @@
     "message": "Nichts wird hochgeladen"
   },
   "home.features.local.body": {
-    "message": "Aufnahme, Transkription und Rendering laufen komplett auf deinem Rechner, und dein Video verlässt ihn nie. Text verlässt ihn nur, wenn du es willst: im Chat-Bereich und bei der Untertitelübersetzung, jeweils mit einem Schlüssel, den du selbst angibst. Die Transkription lädt ihr 264 MB großes Whisper-Modell einmalig beim ersten Durchlauf herunter."
+    "message": "Aufnahme, Transkription und Rendering laufen komplett auf deinem Rechner, und dein Video verlässt ihn nie. OpenScreen sendet nichts an ein KI-Modell: Ein Agent, den du selbst verbindest, liest das Projekt unter deinem eigenen Konto bei ihm. Die Transkription lädt ihr 264 MB großes Whisper-Modell einmalig beim ersten Durchlauf herunter."
   },
   "home.features.platforms.title": {
     "message": "Windows, macOS, Linux"
@@ -327,10 +327,10 @@
     "message": "Beschreib die Änderung. Der Agent setzt sie um."
   },
   "showcase.agent.body": {
-    "message": "Der Zauberstab weiter oben auf dieser Seite setzt Zooms, indem er verfolgt, wohin dein Cursor ging. Der Agent geht weiter: Er liest das tatsächliche Transkript und die tatsächliche Zeitleiste und antwortet deshalb mit Timecodes, die du nachprüfen kannst, also welche Abschnitte er schneiden wird und wie viel das spart. Jede seiner Änderungen ist eine gewöhnliche, rückgängig machbare Änderung, und er braucht einen Anbieterschlüssel, den du selbst angibst. Nichts läuft, bis du einen verbindest."
+    "message": "Der Zauberstab weiter oben auf dieser Seite setzt Zooms, indem er verfolgt, wohin dein Cursor ging. Dein eigener Agent geht weiter: Er liest das tatsächliche Transkript und die tatsächliche Zeitleiste und antwortet deshalb mit Timecodes, die du nachprüfen kannst, also welche Abschnitte er schneiden wird und wie viel das spart. Jede seiner Änderungen ist eine gewöhnliche, rückgängig machbare Änderung. Er ist Claude Code, Codex oder ein beliebiger MCP-Client, angemeldet mit seinem eigenen Konto: OpenScreen hat keinen Schlüssel, nach dem es dich fragen müsste."
   },
   "showcase.agent.fact": {
-    "message": "eigener Schlüssel · standardmäßig aus · jede Änderung rückgängig machbar"
+    "message": "dein eigener Agent · kein Schlüssel in der App · jede Änderung rückgängig machbar"
   },
   "showcase.agent.link.docs": {
     "message": "Doku zur KI-Bearbeitung"
@@ -821,7 +821,7 @@
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "demoLoop.ask-the-agent": {
-    "message": "Eine im Chat-Panel des Editors eingegebene Anfrage, und die Änderungen des Agenten, die in der Zeitleiste erscheinen.",
+    "message": "Eine an einen Agenten getippte Anfrage, und seine Änderungen, die in der Zeitleiste erscheinen.",
     "description": "Describes a short silent video loop of the app for screen readers."
   },
   "films.default.kicker": {
@@ -1045,7 +1045,7 @@
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "demoLoop.title.ask-the-agent": {
-    "message": "Den Agenten des Editors um eine Änderung bitten",
+    "message": "Einen Agenten um eine Änderung bitten",
     "description": "The name of a short silent video of the app, given to search engines (schema.org VideoObject)."
   },
   "home.hero.kicker": {

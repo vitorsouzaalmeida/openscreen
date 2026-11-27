@@ -34,7 +34,7 @@ Uma barra flutuante de ícones fica sobre a pré-visualização. São cinco abas
 | **Layout da câmera** | Composição da webcam: picture-in-picture, empilhamento vertical, quadro duplo ou sem webcam. Espelhamento e "encolher ao ampliar". No picture-in-picture: formato da câmera (quadrado, ou original: as proporções da própria câmera, então uma câmera vertical continua vertical), arredondamento (toda arredondada, uma câmera quadrada vira um círculo), tamanho e posição: um de oito pontos junto à borda, sempre à mesma distância dela. Arraste a webcam no canvas e ela se encaixa no ponto mais próximo. |
 | **Áudio** | O nível de saída, aplicado da mesma forma na pré-visualização e na exportação. |
 | **Cursor** | Só faz sentido para gravações feitas no modo de cursor editável, no Windows, no macOS ou no Linux. Mostrar/ocultar e ocultar automaticamente, o estilo do cursor com a chave **Cursor 3D**, os tipos de cursor (cada tipo que o vídeo mostra, desenhado como foi gravado ou como a seta), controles deslizantes de tamanho (até oito vezes o cursor do sistema), suavização e desfoque de movimento, o rebote ao clicar (Nenhum, Leve, Forte) e **Impacto do clique**, que empurra a tela para trás a cada clique, com qualquer câmera. |
-| **Transcrição** | A transcrição agregada de todos os clipes, editável — veja [Edição da transcrição](./captions.md#transcript-editing). O botão **Legendas** ativa as legendas, define o estilo delas e as traduz — veja [Legendas e transcrição](./captions.md#captions). |
+| **Transcrição** | A transcrição agregada de todos os clipes, editável — veja [Edição da transcrição](./captions.md#transcript-editing). O botão **Legendas** ativa as legendas, define o estilo delas e escolhe o idioma em que aparecem — veja [Legendas e transcrição](./captions.md#captions). |
 
 O botão de **lápis** na mesma barra abre a janela **Editar clipe** para o clipe selecionado: um retângulo de corte arrastável com campos numéricos X/Y/L/A e proporções predefinidas, além dos pontos de entrada/saída do clipe. O corte da imagem é por clipe, não por projeto.
 
@@ -42,9 +42,7 @@ Selecionar uma região na linha do tempo (um bloco de zoom, recorte, anotação,
 
 ## Barra de ferramentas da linha do tempo {#timeline-toolbar}
 
-- **Melhoria automática** (ícone de varinha) — um menu com duas ações pontuais:
-  - **Zooms automáticos** — lê os cliques gravados e dá zoom neles. Sem rede, sem modelo. [Zoom automático](/features/auto-zoom/) explica como os zooms são posicionados.
-  - **Cortes inteligentes** (marcado *Com IA*) — em vez disso, passa o trabalho para o agente de IA, que precisa de um [provedor conectado](./ai-editing.md).
+- **Melhoria automática** (ícone de varinha) — um menu com uma ação pontual, **Zooms automáticos**: ela lê os cliques gravados e dá zoom neles. Sem rede, sem modelo. [Zoom automático](/features/auto-zoom/) explica como os zooms são posicionados.
 - **Velocidade** (`S`) — adiciona uma região de mudança de velocidade no cursor de reprodução.
 - **Comentário** (`A`) — adiciona uma anotação no cursor de reprodução.
 - **Recorte** (`T`) — coloca um corte de dois segundos ("região de recorte") no cursor de reprodução. Arraste as bordas para redimensioná-lo, como qualquer outra região.

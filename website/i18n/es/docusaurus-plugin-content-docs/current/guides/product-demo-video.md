@@ -77,7 +77,7 @@ Más información sobre cómo se colocan los zooms: [Zoom automático](/features
 
 **Une varias tomas.** Cambia a **Multimedia**, usa **Importar contenido** si una toma todavía no aparece y luego arrastra su tarjeta a la fila de clips. Se coloca al final de la línea de tiempo y luego la arrastras a su lugar. Consulta [Biblioteca multimedia](../media-library.md).
 
-Si conectaste tu propio proveedor de LLM, **Mejora automática → Cortes inteligentes** le encarga los cortes al agente de IA. Es opcional y está desactivado hasta que agregues una clave ([Edición con IA](../ai-editing.md)). Deshacer conserva los últimos 50 pasos, incluidas las ediciones del agente.
+Si usas un agente de IA como Claude Code o Codex, puedes encargarle los cortes: edita el proyecto a través del servidor MCP de OpenScreen ([Edición con IA](../ai-editing.md)). Es opcional. Deshacer conserva los últimos 50 pasos, incluidas las ediciones del agente.
 
 ## 6. Desenfoca los datos privados, anota y agrega sonido {#6-blur-private-data-annotate-add-sound}
 
@@ -96,7 +96,7 @@ El panel **Cursor** cambia el estilo del puntero grabado en el paso 2. Todas las
 
 En el panel **Transcripción**, haz clic en **Subtítulos** y activa **Mostrar subtítulos**. Se dibujan en vivo a partir de la transcripción, así que los cortes del paso 5 se aplican sin ningún paso extra. Define la fuente, el tamaño, la negrita, el color, la placa de fondo, la posición y de 1 a 12 palabras por línea. Revisa la ubicación en la vista previa después de cualquier cambio de proporción.
 
-Whisper detecta el idioma hablado, o puedes forzar uno de los 100 idiomas con **Regenerar en** en la vista Multimedia. Para publicar en otro idioma, usa **Traducir** hacia uno de los 15 idiomas de destino y selecciona ese idioma en **Visualización** antes de exportar. La traducción pasa por tu propio proveedor de LLM, así que necesita una clave.
+Whisper detecta el idioma hablado, o puedes forzar uno de los 100 idiomas con **Regenerar en** en la vista Multimedia. Para publicar en otro idioma, pídele una traducción a tu propio agente ([Traducción](../captions.md#translation)) y luego selecciona ese idioma en **Visualización** antes de exportar. El editor por sí mismo no tiene botón de traducir.
 
 Los subtítulos se incrustan en el video. El editor y la CLI no escriben ningún archivo `.srt` ni `.vtt`, así que un reproductor no puede desactivarlos. Un agente puede escribir uno con `exportCaptions`. Detalles: [Subtítulos y transcripción](../captions.md) y [cómo funciona la función de subtítulos](/features/captions/).
 

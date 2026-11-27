@@ -26,7 +26,7 @@ This page is published by the OpenScreen project. The Cap details come from cap.
 | Sign-in | Never needed | Needed for share links and Instant Mode |
 | Automatic zooms | Yes, planned from recorded clicks | Yes, generated from recorded clicks |
 | Captions | On-device Whisper, one model of about 264 MB, downloaded once. Burned into the video | On-device Whisper or Parakeet, in beta. Burned into the video, or saved as SRT or WebVTT |
-| AI features | Optional chat editing and caption translation into 15 languages, with your own provider key | Hosted in Cap Pro: titles, summaries, chapters, transcriptions and caption translation. No key needed |
+| AI features | Optional editing and caption translation by your own agent, through OpenScreen's MCP server. No key in the app | Hosted in Cap Pro: titles, summaries, chapters, transcriptions and caption translation. No key needed |
 | Export | MP4 (H.264) at 720p, 1080p or source size, 24, 30 or 60 fps. GIF at 15 to 30 fps. No watermark | MP4 at 720p, 1080p or 4K, 15, 30 or 60 fps. GIF at 10 to 30 fps. Transparent cursor-only MOV. No watermark |
 | Teams and compliance | None | Team workspaces. SAML SSO add-on at $199/month. SOC 2 Type II, ISO 27001 and HIPAA, with a signed BAA at $99/month (as of September 2026) |
 | Command-line interface | Yes, with JSON output | Yes, with JSON output |
@@ -59,7 +59,7 @@ If you are choosing between the two, check the license first. The others come fr
 ### A desktop app, not a service
 
 - **Nothing to sign in to.** OpenScreen records and edits on your machine and hands you a file. There is no hosted link, no account and no plan. Cap pairs its local Studio Mode with Instant Mode, which uploads while you record, and its share links require signing in.
-- **Chat editing with your own key.** It is optional: connect Claude, OpenAI, Gemini, Mistral, OpenRouter, MiniMax or any OpenAI-compatible endpoint, and describe cuts, zooms, speed changes or annotations in plain language. It is off until you connect a provider, and each change lands as an ordinary undoable edit. The same provider translates captions into 15 languages. Cap's hosted AI features, such as titles, summaries and chapters, come with Cap Pro. See [AI editing](/docs/ai-editing/).
+- **Editing with your own agent.** It is optional: Claude Code, Codex or any other MCP client starts OpenScreen's MCP server, and you describe cuts, zooms, speed changes or annotations in plain language. The agent signs in with its own account, which OpenScreen never sees, and each change lands as an ordinary undoable edit. The same agent translates the captions. Cap's hosted AI features, such as titles, summaries and chapters, come with Cap Pro. See [AI editing](/docs/ai-editing/).
 
 ### Editing and export
 

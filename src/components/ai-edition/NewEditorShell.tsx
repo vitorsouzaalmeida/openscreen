@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { toFileUrl } from "@/components/video-editor/projectPersistence";
-import { useEditorDialogActions } from "@/contexts/EditorDialogsContext";
 import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
 import {
@@ -37,7 +36,6 @@ import {
 } from "@/lib/ai-edition/store/transcriptionStore";
 import { useUndoRedoShortcuts } from "@/lib/ai-edition/store/undo";
 import { future as redoStack, past as undoStack } from "@/lib/ai-edition/store/undoStack";
-import { useChatPromptBus } from "@/lib/ai-edition/store/useChatPromptBus";
 import { useSequentialTimelineOps } from "@/lib/ai-edition/store/useSequentialTimelineOps";
 import { useTimeline } from "@/lib/ai-edition/store/useTimeline";
 import { isGeneratedAssetId } from "@/lib/ai-edition/timeline/clip-parts";
@@ -62,7 +60,6 @@ import { useNativePlaybackSync } from "@/native/useNativePlaybackSync";
 import { ExportDialog } from "./ExportDialog";
 import { importProjectFile } from "./importProjectFile";
 import { insertionsEnabled } from "./insertionsEnabled";
-import { ChatStripPanel } from "./LeftPanel";
 import {
 	EditClipModal,
 	NewProjectModal,
@@ -228,19 +225,9 @@ export function NewEditorShell() {
 	const voiceoverActiveRef = useRef(false);
 	const voiceoverSessionRef = useRef(0);
 	const cancelPendingPlaybackRef = useRef<(() => void) | null>(null);
-	// v4 shell: three modes (Media / Edit / Rec), a collapsible agent (chat)
-	// column, and a floating facet inspector over the stage.
+	// v4 shell: three modes (Media / Edit / Rec) and a floating facet inspector
+	// over the stage.
 	const [mode, setMode] = useState<EditorMode>("edit");
-	const [chatOpen, setChatOpen] = useState(false);
-	const pendingChatPrompt = useChatPromptBus((s) => s.pending);
-	useEffect(() => {
-		if (pendingChatPrompt && !chatOpen) {
-			setChatOpen(true);
-		}
-	}, [pendingChatPrompt, chatOpen]);
-	const [chatWidthPx, setChatWidthPx] = useState(
-		() => Number(localStorage.getItem("os-editor-chat-width")) || 392,
-	);
 	const [timelineBaseHeightPx, setTimelineBaseHeightPx] = useState(() => {
 		const raw = localStorage.getItem("os-editor-timeline-height");
 		// One-time migration: if legacy 308px default exists without the migration marker,
@@ -297,13 +284,8 @@ export function NewEditorShell() {
 	} | null>(null);
 	const unsavedPromptRef = useRef<typeof unsavedPrompt>(null);
 	const { shortcuts, isMac, openConfig: openShortcutsConfig } = useShortcuts();
-	// The actions half of the dialog context, not the section: this component only ever *opens*
-	// one, and subscribing it to the open state would re-render the whole editor — timeline,
-	// preview, transport — twice per dialog interaction. Whether a dialog is open is a question
-	// for `isModalOpen`, which answers for every modal rather than for this context's one.
-	const { openDialog } = useEditorDialogActions();
-	// Transcription is local and every transcript-driven feature (Smart cuts,
-	// captions, the transcript pane) needs one, so the editor produces them by
+	// Transcription is local and every transcript-driven feature (captions,
+	// the transcript pane) needs one, so the editor produces them by
 	// itself instead of waiting for the user to find the button. This hook is
 	// the ONLY place the background pass is driven from — see transcriptionStore.
 	useAutoTranscription();
@@ -1609,35 +1591,11 @@ export function NewEditorShell() {
 
 	const showTimeline = mode !== "rec";
 	const timelineRow = mode === "media" ? "188px" : `${timelineHeightPx}px`;
-	const bodyColumns = mode === "edit" && chatOpen ? `${chatWidthPx}px 1fr` : "1fr";
-
-	// Drag the chat/stage divider (col-resize) or the timeline's top edge
-	// (row-resize) to resize. Pointer-driven like V4Timeline's pill/nav/clip
-	// drags — pointerdown arms a window-level pointermove/pointerup pair, no
-	// drag library. Persisted to localStorage (a UI layout preference, not
-	// project content, so it doesn't belong in the document/useEditorSettings
-	// round-trip).
-	const startChatResize = useCallback(
-		(e: React.PointerEvent) => {
-			e.preventDefault();
-			const startX = e.clientX;
-			const startWidth = chatWidthPx;
-			let latest = startWidth;
-			const move = (ev: PointerEvent) => {
-				latest = Math.min(560, Math.max(280, startWidth + (ev.clientX - startX)));
-				setChatWidthPx(latest);
-			};
-			const up = () => {
-				window.removeEventListener("pointermove", move);
-				window.removeEventListener("pointerup", up);
-				localStorage.setItem("os-editor-chat-width", String(latest));
-			};
-			window.addEventListener("pointermove", move);
-			window.addEventListener("pointerup", up);
-		},
-		[chatWidthPx],
-	);
-
+	// Drag the timeline's top edge (row-resize) to resize. Pointer-driven like
+	// V4Timeline's pill/nav/clip drags — pointerdown arms a window-level
+	// pointermove/pointerup pair, no drag library. Persisted to localStorage (a UI
+	// layout preference, not project content, so it doesn't belong in the
+	// document/useEditorSettings round-trip).
 	const startTimelineResize = useCallback(
 		(e: React.PointerEvent) => {
 			e.preventDefault();
@@ -1714,7 +1672,6 @@ export function NewEditorShell() {
 				// write, which re-renders this shell, so reading them here is never stale.
 				canUndo={undoStack.length > 0}
 				canRedo={redoStack.length > 0}
-				chatOpen={chatOpen}
 				actions={{
 					openProject: () => void requestProjectDialog("open"),
 					newProject: () => void requestProjectDialog("new"),
@@ -1722,8 +1679,6 @@ export function NewEditorShell() {
 					export: handleExport,
 					openSettings: handleOpenSettings,
 					renameProject: handleRenameProject,
-					toggleChat: () => setChatOpen((v) => !v),
-					openProviderSettings: () => openDialog("providers"),
 					showAbout: handleShowAbout,
 					checkForUpdates: handleCheckForUpdates,
 					undo: runUndo,
@@ -1731,23 +1686,7 @@ export function NewEditorShell() {
 				}}
 			/>
 
-			<div className={v4.body} style={{ gridTemplateColumns: bodyColumns }}>
-				{mode === "edit" && chatOpen ? (
-					<>
-						<aside className={v4.agent} aria-label={te("shell.aiEditor")}>
-							<ChatStripPanel />
-						</aside>
-						<div
-							className={v4.chatResizeHandle}
-							style={{ left: chatWidthPx }}
-							role="separator"
-							aria-orientation="vertical"
-							aria-label={te("shell.resizeChatPanel")}
-							onPointerDown={startChatResize}
-						/>
-					</>
-				) : null}
-
+			<div className={v4.body}>
 				<section className={v4.stage} aria-label={te("shell.previewStage")}>
 					{mode === "edit" ? (
 						<>

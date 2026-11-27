@@ -1,6 +1,6 @@
 ---
 title: Enregistreur d'écran, sous-titres Whisper locaux
-description: "Enregistreur d'écran gratuit avec sous-titres : Whisper transcrit sur votre machine, puis vous stylisez, traduisez et incrustez les sous-titres."
+description: "Enregistreur d'écran gratuit avec sous-titres : Whisper transcrit sur votre machine, puis vous stylisez les sous-titres et les incrustez dans la vidéo."
 keywords:
   - enregistreur d'écran avec sous-titres
   - sous-titres automatiques hors ligne enregistreur d'écran
@@ -32,7 +32,7 @@ Cette page est publiée par le projet OpenScreen. Les informations sur Cap, Camt
 | Style | Police, taille, gras, couleur du texte, fond, position, et 1 à 12 mots par ligne |
 | Sortie | Incrustés dans la vidéo exportée |
 | Montage de la transcription | Supprimez des mots pour les couper de la vidéo. Les silences sont marqués et peuvent aussi être coupés |
-| Traduction | 15 langues, via un fournisseur d'IA que vous connectez avec votre propre clé |
+| Traduction | Par votre propre agent IA, par le serveur MCP d'OpenScreen. Pas de bouton de traduction dans l'application |
 | Ligne de commande | La commande `captions` ajoute des sous-titres à un projet |
 | Prix | Gratuit, y compris pour un usage commercial. Aucun compte |
 
@@ -70,9 +70,9 @@ Whisper place le début des mots un peu trop tard. OpenScreen ramène chaque lim
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### Traduction avec votre propre clé {#translation-with-your-own-key}
+### Traduction par votre propre agent {#translation-by-your-own-agent}
 
-La traduction couvre 15 langues : anglais, français, espagnol, allemand, italien, portugais, néerlandais, polonais, turc, russe, arabe, hindi, japonais, coréen et chinois. Elle passe par le fournisseur d'IA que vous connectez pour le montage par chat, avec votre propre clé. Tant que vous n'avez pas connecté de fournisseur, rien n'est envoyé. La traduction est stockée à côté de la transcription, donc les mots et le minutage d'origine restent intacts, et vous pouvez revenir en arrière à tout moment. Voir [Traduction](/docs/captions/#translation) et [Montage par IA](/docs/ai-editing/).
+L'application n'a pas de bouton de traduction. Les sous-titres sont traduits par un agent IA que vous utilisez déjà, comme Claude Code ou Codex, par le serveur MCP d'OpenScreen : il lit les phrases des sous-titres, les traduit avec son propre modèle, et enregistre le résultat dans le projet comme couche de langue. La traduction est stockée à côté de la transcription, donc les mots et le minutage d'origine restent intacts. Dans le panneau Sous-titres, vous choisissez la langue qu'affichent les sous-titres, revenez en arrière à tout moment, ou supprimez une couche. Voir [Traduction](/docs/captions/#translation) et [Montage par IA](/docs/ai-editing/).
 
 ### Depuis la ligne de commande {#from-the-command-line}
 
@@ -80,7 +80,7 @@ La commande `captions` de la [CLI](/docs/cli/) transcrit un projet avec le même
 
 ### Ce qui passe sur le réseau {#what-goes-over-the-network}
 
-L'audio reste sur votre ordinateur. En dehors des téléchargements uniques des modèles, seule la traduction atteint le réseau : elle envoie le texte de la transcription au fournisseur que vous avez choisi. Pour l'application dans son ensemble : OpenScreen n'a aucun compte et aucun serveur propre. Il ne transmet qu'un comptage quotidien anonyme des installations actives, que vous pouvez désactiver. La [FAQ](/docs/faq/#does-openscreen-work-offline) liste les rares connexions qu'il établit encore.
+L'audio reste sur votre ordinateur. En dehors des téléchargements uniques des modèles, les sous-titres n'utilisent pas le réseau. La traduction n'est pas faite par OpenScreen : l'agent qui traduit envoie le texte des sous-titres qu'il lit à son propre fournisseur, sous votre compte chez lui. Pour l'application dans son ensemble : OpenScreen n'a aucun compte et aucun serveur propre. Il ne transmet qu'un comptage quotidien anonyme des installations actives, que vous pouvez désactiver. La [FAQ](/docs/faq/#does-openscreen-work-offline) liste les rares connexions qu'il établit encore.
 
 ## D'autres enregistreurs avec sous-titres locaux {#other-recorders-with-local-captions}
 
@@ -95,7 +95,7 @@ Whisper en local n'est pas propre à OpenScreen. En septembre 2026 :
 - **Gratuit, y compris pour un usage commercial.** Aucune formule et aucun compte. La page de tarifs de Cap indique que sa version gratuite est réservée à un usage personnel. Screen Studio nécessite un abonnement actif pour exporter des fichiers vidéo. L'éditeur de bureau de Camtasia appose un filigrane sur les exports jusqu'à ce que vous passiez à une formule payante Essentials, Create ou Pro ou une licence Business. Les trois en septembre 2026.
 - **Windows, macOS et Linux.** OpenScreen tourne sous Windows 10 (1903 ou ultérieur) et 11, x64 et ARM64. macOS 13 ou ultérieur, Apple Silicon et Intel. Linux, x64. En septembre 2026, Screen Studio ne tourne que sous macOS, l'éditeur de bureau de Camtasia tourne sous Windows et macOS, et Cap propose des applications pour les trois. Voir [Linux](/screen-recorder-linux/), [Windows](/screen-recorder-windows/) et [macOS](/screen-recorder-mac/).
 - **Montage de la transcription sans abonnement.** Couper en supprimant des mots fait partie de l'application gratuite. Camtasia réserve le montage par texte à ses formules payantes (en septembre 2026). Cap a ajouté la coupe par transcription à son éditeur web en juillet 2026. Le guide de son mode Studio de bureau couvre la correction du texte et du minutage des sous-titres, et ne décrit pas la coupe de la vidéo depuis la transcription.
-- **Traduction via un fournisseur que vous choisissez.** N'importe quel fournisseur pris en charge par OpenScreen, avec votre propre clé, et aucun abonnement à acheter à OpenScreen. La traduction elle-même n'est pas propre à OpenScreen : Cap Pro liste aussi la traduction des sous-titres (en septembre 2026).
+- **Traduction par un agent que vous choisissez.** N'importe quel agent qui parle MCP, connecté avec son propre compte, et aucun abonnement à acheter à OpenScreen. Il faut un agent, là où Cap Pro liste la traduction des sous-titres comme une fonction du produit (en septembre 2026).
 
 ## Quand OpenScreen n'est pas le bon outil {#when-openscreen-is-not-the-right-tool}
 

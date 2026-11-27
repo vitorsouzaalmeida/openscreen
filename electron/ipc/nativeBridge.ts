@@ -1,5 +1,4 @@
 import { BrowserWindow, ipcMain, shell } from "electron";
-import type { AiEditionChatEvent } from "../../src/native/contracts";
 import {
 	NATIVE_BRIDGE_CHANNEL,
 	NATIVE_BRIDGE_VERSION,
@@ -10,10 +9,8 @@ import {
 	type ProjectFileResult,
 	type ProjectPathResult,
 } from "../../src/native/contracts";
-import { type ChatEventSink, deleteProjectChat } from "../ai-edition/chat-service";
 import type { DocumentService } from "../ai-edition/document-service";
 import { StylePresetError, type StylePresetService } from "../ai-edition/style-preset-service";
-import { isValidMcpPort } from "../mcp/mcp-settings-store";
 import {
 	type CursorTelemetryLoadResult,
 	TelemetryCursorAdapter,
@@ -24,7 +21,6 @@ import { CursorService } from "../native-bridge/services/cursorService";
 import { ProjectService } from "../native-bridge/services/projectService";
 import { SystemService } from "../native-bridge/services/systemService";
 import { createNativeBridgeState } from "../native-bridge/store";
-import { ChatRuns } from "./chatRuns";
 import { ExportJobs, isExportId } from "./exportJobs";
 
 export interface NativeBridgeContext {
@@ -65,58 +61,6 @@ export interface NativeBridgeContext {
 	getRecordingsDirs?: () => { dirs: string[]; registryDir: string };
 	/** The one shared style preset service — it serialises writes per instance. */
 	getStylePresets: () => StylePresetService;
-	getAiEditionLlmConfig: () => import("../ai-edition/llm-config-store").LlmConfigStore;
-	/** The local MCP server's controller. Absent in the headless CLI. */
-	getMcpController?: () => import("../mcp/mcp-controller").McpController;
-	runAiEditionChat: (
-		projectId: string,
-		sessionId: string,
-		message: string,
-		document?: unknown,
-		sink?: ChatEventSink,
-		signal?: AbortSignal,
-	) => Promise<import("../../src/native/contracts").AiEditionChatResult>;
-	undoAiEditionToolBatch: (
-		projectId: string,
-		sessionId: string,
-	) => import("../../src/native/contracts").AiEditionChatResult;
-	rewindToMessage: (
-		projectId: string,
-		sessionId: string,
-		messageId: string,
-	) =>
-		| {
-				success: true;
-				prompt: string;
-				document: unknown;
-				messages: import("../../src/native/contracts").AiEditionChatMessage[];
-		  }
-		| { success: false; error: string };
-	compactNow: (
-		projectId: string,
-		sessionId: string,
-	) => Promise<import("../../src/native/contracts").AiEditionChatCompactResult | null>;
-	getContextUsage: (
-		projectId: string,
-		sessionId: string,
-	) => import("../../src/native/contracts").AiEditionChatBudget | null;
-	listAiEditionChatSessions: (
-		projectId: string,
-	) => import("../../src/native/contracts").AiEditionChatSessionSummary[];
-	createAiEditionChatSession: (
-		projectId: string,
-		title?: string,
-	) => import("../../src/native/contracts").AiEditionChatSessionSummary;
-	selectAiEditionChatSession: (
-		projectId: string,
-		sessionId: string,
-	) => import("../../src/native/contracts").AiEditionChatSession | null;
-	renameAiEditionChatSession: (
-		projectId: string,
-		sessionId: string,
-		title: string,
-	) => import("../../src/native/contracts").AiEditionChatSessionSummary | null;
-	deleteAiEditionChatSession: (projectId: string, sessionId: string) => boolean;
 }
 
 function normalizePlatform(platform: NodeJS.Platform): NativePlatform {
@@ -164,7 +108,7 @@ function createErrorResponse(
  * Strips absolute filesystem paths out of an error message before it crosses to
  * the renderer. Main-process errors quote the path they failed on (`ENOENT: no
  * such file or directory, open 'C:\Users\alice\…'`), and that string is rendered
- * verbatim in toasts and the chat error rail. Keeps the basename, which is the
+ * verbatim in toasts. Keeps the basename, which is the
  * part a user can act on. The full message still goes to the main-process log.
  */
 function redactPaths(message: string): string {
@@ -180,36 +124,6 @@ function isBridgeRequest(value: unknown): value is NativeBridgeRequest {
 
 	const candidate = value as Partial<NativeBridgeRequest>;
 	return typeof candidate.domain === "string" && typeof candidate.action === "string";
-}
-
-// Route progress only to the requesting renderer and only while its turn is
-// active. Window teardown aborts the run; a send racing teardown is harmless.
-function buildChatEventSink(
-	sender: Electron.WebContents,
-	projectId: string,
-	sessionId: string,
-	runId: string,
-	signal: AbortSignal,
-): ChatEventSink {
-	const identity = { projectId, runId };
-	const send = (payload: AiEditionChatEvent) => {
-		try {
-			if (!signal.aborted) sender.send("ai-edition.chat-event", payload);
-		} catch {
-			// webContents gone — keep the loop running silently.
-		}
-	};
-	return {
-		executionStep: (step) => send({ ...identity, kind: "executionStep", sessionId, step }),
-		document: (document) => send({ ...identity, kind: "document", sessionId, document }),
-		text: (delta) => send({ ...identity, kind: "text", sessionId, delta }),
-		thinking: (delta) => send({ ...identity, kind: "thinking", sessionId, delta }),
-		toolStart: (name, args) => send({ ...identity, kind: "toolStart", sessionId, name, args }),
-		toolEnd: (name, ok, summary) =>
-			send({ ...identity, kind: "toolEnd", sessionId, name, ok, summary }),
-		error: (message) => send({ ...identity, kind: "error", sessionId, message }),
-		usage: (usage) => send({ ...identity, kind: "usage", sessionId, usage }),
-	};
 }
 
 export function registerNativeBridgeHandlers(context: NativeBridgeContext) {
@@ -246,11 +160,6 @@ export function registerNativeBridgeHandlers(context: NativeBridgeContext) {
 	const compositorViewService = new CompositorViewService();
 	const aiEditionService = new AiEditionService({
 		documents: context.getAiEditionDocuments(),
-		deleteChatHistory: deleteProjectChat,
-		// Passed uncalled on purpose — invoking it here would build the store (and
-		// hit the macOS Keychain) while wiring the bridge at startup.
-		llmConfig: context.getAiEditionLlmConfig,
-		mcp: context.getMcpController?.(),
 		recordings: context.getRecordingsDirs
 			? {
 					dirs: () => context.getRecordingsDirs?.().dirs ?? [],
@@ -258,20 +167,9 @@ export function registerNativeBridgeHandlers(context: NativeBridgeContext) {
 					trashItem: (filePath) => shell.trashItem(filePath),
 				}
 			: undefined,
-		runChat: context.runAiEditionChat,
-		undoLastToolBatch: context.undoAiEditionToolBatch,
-		rewindToMessage: context.rewindToMessage,
-		compactNow: context.compactNow,
-		getContextUsage: context.getContextUsage,
-		listSessions: context.listAiEditionChatSessions,
-		createSession: context.createAiEditionChatSession,
-		selectSession: context.selectAiEditionChatSession,
-		renameSession: context.renameAiEditionChatSession,
-		deleteSession: context.deleteAiEditionChatSession,
 	});
 
 	const exportJobs = new ExportJobs();
-	const chatRuns = new ChatRuns<Electron.WebContents>();
 	ipcMain.handle(NATIVE_BRIDGE_CHANNEL, async (event, request: unknown) => {
 		if (!isBridgeRequest(request)) {
 			return createErrorResponse(undefined, "INVALID_REQUEST", "Invalid native bridge request.");
@@ -618,233 +516,6 @@ export function registerNativeBridgeHandlers(context: NativeBridgeContext) {
 									request.payload.projectId,
 									request.payload.assetId,
 								),
-							);
-						case "llm.getSnapshot":
-							return createSuccessResponse(requestId, await aiEditionService.llmGetSnapshot());
-						case "llm.setConfig":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.llmSetConfig(request.payload.config),
-							);
-						case "llm.setApiKey":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.llmSetApiKey(
-									request.payload.providerId,
-									request.payload.apiKey,
-								),
-							);
-						case "llm.removeApiKey":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.llmRemoveApiKey(request.payload.providerId),
-							);
-						case "llm.disconnect":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.llmDisconnect(request.payload.providerId),
-							);
-						case "llm.listProviderModels":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.llmListProviderModels(request.payload.providerId),
-							);
-						case "mcp.getStatus":
-							return createSuccessResponse(requestId, await aiEditionService.mcpGetStatus());
-						// Renderer input: check the types here, so a bad value is reported as
-						// the bad request it is rather than failing later as an internal error.
-						case "mcp.setEnabled":
-							if (typeof request.payload?.enabled !== "boolean") {
-								return createErrorResponse(
-									requestId,
-									"INVALID_REQUEST",
-									"Invalid MCP enabled flag.",
-								);
-							}
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.mcpSetEnabled(request.payload.enabled),
-							);
-						case "mcp.setPort":
-							if (!isValidMcpPort(request.payload?.port)) {
-								return createErrorResponse(
-									requestId,
-									"INVALID_REQUEST",
-									"MCP port must be a whole number between 1024 and 65535.",
-								);
-							}
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.mcpSetPort(request.payload.port),
-							);
-						case "mcp.setAllowEdits":
-							if (typeof request.payload?.allowEdits !== "boolean") {
-								return createErrorResponse(
-									requestId,
-									"INVALID_REQUEST",
-									"Invalid MCP edit permission.",
-								);
-							}
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.mcpSetAllowEdits(request.payload.allowEdits),
-							);
-						case "mcp.regenerateToken":
-							return createSuccessResponse(requestId, await aiEditionService.mcpRegenerateToken());
-						case "chat.cancel":
-						case "chat.run": {
-							const payload = request.payload;
-							const validId = (id: unknown): id is string =>
-								typeof id === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(id);
-							if (
-								!payload ||
-								!validId(payload.projectId) ||
-								!validId(payload.sessionId) ||
-								!validId(payload.runId)
-							) {
-								return createErrorResponse(
-									requestId,
-									"INVALID_REQUEST",
-									"Invalid chat turn identity.",
-								);
-							}
-							const { projectId, sessionId, runId } = payload;
-							if (request.action === "chat.cancel") {
-								return createSuccessResponse(requestId, {
-									accepted: chatRuns.cancel(event.sender, projectId, sessionId, runId),
-								});
-							}
-							if (typeof request.payload.message !== "string" || !request.payload.message.trim()) {
-								return createErrorResponse(requestId, "INVALID_REQUEST", "Invalid chat message.");
-							}
-							const documentProjectId = (
-								request.payload.document as { project?: { id?: unknown } } | null
-							)?.project?.id;
-							if (documentProjectId !== undefined && documentProjectId !== projectId) {
-								return createErrorResponse(
-									requestId,
-									"INVALID_REQUEST",
-									"The document belongs to another project.",
-								);
-							}
-							const turn = chatRuns.start(event.sender, projectId, sessionId, runId);
-							if (!turn)
-								return createErrorResponse(
-									requestId,
-									"UNAVAILABLE",
-									"An agent turn is already running for this project.",
-								);
-							const abandon = () => chatRuns.cancel(event.sender, projectId, sessionId, runId);
-							event.sender.once("destroyed", abandon);
-							try {
-								return createSuccessResponse(
-									requestId,
-									await aiEditionService.chatRun(
-										projectId,
-										sessionId,
-										request.payload.message,
-										request.payload.document,
-										buildChatEventSink(event.sender, projectId, sessionId, runId, turn.signal),
-										turn.signal,
-									),
-								);
-							} finally {
-								event.sender.removeListener("destroyed", abandon);
-								turn.finish();
-							}
-						}
-						case "chat.undoLastBatch":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatUndoLastBatch(
-									request.payload.projectId,
-									request.payload.sessionId,
-								),
-							);
-						case "chat.listSessions":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatListSessions(request.payload.projectId),
-							);
-						case "chat.createSession":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatCreateSession(
-									request.payload.projectId,
-									request.payload.title,
-								),
-							);
-						case "chat.selectSession":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatSelectSession(
-									request.payload.projectId,
-									request.payload.sessionId,
-								),
-							);
-						case "chat.renameSession":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatRenameSession(
-									request.payload.projectId,
-									request.payload.sessionId,
-									request.payload.title,
-								),
-							);
-						case "chat.deleteSession":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatDeleteSession(
-									request.payload.projectId,
-									request.payload.sessionId,
-								),
-							);
-						case "chat.budget":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatBudget(request.payload.projectId, request.payload.sessionId),
-							);
-						case "chat.compact":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.chatCompact(
-									request.payload.projectId,
-									request.payload.sessionId,
-								),
-							);
-						case "chat.rewind":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatRewindToMessage(
-									request.payload.projectId,
-									request.payload.sessionId,
-									request.payload.messageId,
-								),
-							);
-						case "chat.contextUsage":
-							return createSuccessResponse(
-								requestId,
-								aiEditionService.chatContextUsage(
-									request.payload.projectId,
-									request.payload.sessionId,
-								),
-							);
-						case "chat.compactNow":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.chatCompactNow(
-									request.payload.projectId,
-									request.payload.sessionId,
-								),
-							);
-						case "captions.translate":
-							return createSuccessResponse(
-								requestId,
-								await aiEditionService.captionsTranslate({
-									segments: request.payload.segments,
-									targetLanguage: request.payload.targetLanguage,
-									sourceLanguage: request.payload.sourceLanguage,
-								}),
 							);
 						default:
 							return createErrorResponse(

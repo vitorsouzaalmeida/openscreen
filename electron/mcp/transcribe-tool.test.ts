@@ -79,7 +79,6 @@ function runnerWith(whisper: (request: SttTranscribeRequest) => Promise<SttTrans
 		transport: "stdio",
 		host,
 		projects,
-		editsAllowed: () => true,
 		transcribe,
 		version: "0.0.0",
 	});
@@ -138,14 +137,11 @@ describe("transcribe, on a project's file", () => {
 		expect(saved.assets[0]?.transcriptionFailure?.kind).toBe("no-audio");
 	});
 
-	it("refuses an unknown asset, and while MCP edits are off", async () => {
+	it("refuses an unknown asset", async () => {
 		await projects.saveProject(fixtureDocument("proj_1"));
 		const { run, transcribe } = runnerWith(async () => SPEECH);
 		const unknown = await run(TRANSCRIBE_TOOL, { projectId: "proj_1", assetId: "nope" });
 		expect(String(payload(unknown).error)).toContain("asset_1");
-
-		const off = await run(TRANSCRIBE_TOOL, { projectId: "proj_1" }, { editsAllowed: false });
-		expect(payload(off).code).toBe("consent_required");
 		expect(transcribe).not.toHaveBeenCalled();
 	});
 
@@ -232,12 +228,10 @@ describe("transcribe, on a project's file", () => {
 
 describe("the instructions", () => {
 	it("name the transcribe tool only where it is served", () => {
-		expect(mcpInstructions({ transport: "stdio", editsAllowed: true, transcribe: true })).toContain(
+		expect(mcpInstructions({ transcribe: true })).toContain(
 			"transcribe makes an asset's transcript",
 		);
-		expect(mcpInstructions({ transport: "stdio", editsAllowed: true })).not.toContain(
-			"transcribe makes",
-		);
+		expect(mcpInstructions({})).not.toContain("transcribe makes");
 	});
 });
 

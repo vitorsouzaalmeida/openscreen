@@ -1,6 +1,6 @@
 ---
 title: Gravador de tela com legendas locais via Whisper
-description: "O OpenScreen é um gravador de tela grátis com legendas: o Whisper transcreve na sua máquina, e você estiliza, traduz e embute as legendas no vídeo."
+description: "O OpenScreen é um gravador de tela grátis com legendas: o Whisper transcreve na sua máquina, e você estiliza as legendas e as embute no vídeo."
 keywords:
   - gravador de tela com legendas
   - gravador de tela com legendas automáticas offline
@@ -32,7 +32,7 @@ Esta página é publicada pelo projeto OpenScreen. Os dados sobre Cap, Camtasia 
 | Estilização | Fonte, tamanho, negrito, cor do texto, fundo, posição, e 1 a 12 palavras por linha |
 | Saída | Embutida no vídeo exportado |
 | Edição da transcrição | Apague palavras para cortá-las do vídeo. Silêncios são marcados e também podem ser cortados |
-| Tradução | 15 idiomas, por um provedor de IA que você conecta com sua própria chave |
+| Tradução | Pelo seu próprio agente de IA, pelo servidor MCP do OpenScreen. Sem botão de tradução no app |
 | Linha de comando | O comando `captions` adiciona legendas a um projeto |
 | Preço | Grátis, inclusive para uso comercial. Sem conta |
 
@@ -70,9 +70,9 @@ O Whisper informa os tempos das palavras com um pequeno atraso. O OpenScreen pux
   <DemoLoop name="tighten-pauses" />
 </DemoLoopPair>
 
-### Tradução com sua própria chave {#translation-with-your-own-key}
+### Tradução pelo seu próprio agente {#translation-by-your-own-agent}
 
-A tradução cobre 15 idiomas: inglês, francês, espanhol, alemão, italiano, português, holandês, polonês, turco, russo, árabe, hindi, japonês, coreano e chinês. Ela passa pelo provedor de IA que você conecta para edição por chat, com sua própria chave. Até você conectar um provedor, nada é enviado. A tradução é armazenada ao lado da transcrição, então as palavras e os tempos originais continuam como estavam, e você pode voltar a qualquer momento. Veja [Tradução](/docs/captions/#translation) e [Edição com IA](/docs/ai-editing/).
+O app não tem botão de tradução. As legendas são traduzidas por um agente de IA que você já usa, como o Claude Code ou o Codex, pelo servidor MCP do OpenScreen: ele lê as frases das legendas, traduz com o próprio modelo e armazena o resultado no projeto como uma camada de idioma. A tradução é armazenada ao lado da transcrição, então as palavras e os tempos originais continuam como estavam. No painel de legendas, você escolhe o idioma em que as legendas aparecem, volta a qualquer momento ou exclui uma camada. Veja [Tradução](/docs/captions/#translation) e [Edição com IA](/docs/ai-editing/).
 
 ### Pela linha de comando {#from-the-command-line}
 
@@ -80,7 +80,7 @@ O comando `captions` da [CLI](/docs/cli/) transcreve um projeto com o mesmo mode
 
 ### O que passa pela rede {#what-goes-over-the-network}
 
-O áudio fica no seu computador. Além dos downloads únicos de modelos, só a tradução alcança a rede: ela envia o texto da transcrição ao provedor que você escolheu. Para o app como um todo: o OpenScreen não tem conta nem servidor próprio. Ele só envia uma contagem diária anônima de instalações ativas, que você pode desativar. As [Perguntas frequentes](/docs/faq/#does-openscreen-work-offline) listam as poucas conexões que ele ainda faz.
+O áudio fica no seu computador. Além dos downloads únicos de modelos, as legendas não usam a rede. A tradução não é feita pelo OpenScreen: o agente que traduz envia o texto das legendas que lê ao próprio provedor, na conta que você tem com ele. Para o app como um todo: o OpenScreen não tem conta nem servidor próprio. Ele só envia uma contagem diária anônima de instalações ativas, que você pode desativar. As [Perguntas frequentes](/docs/faq/#does-openscreen-work-offline) listam as poucas conexões que ele ainda faz.
 
 ## Outros gravadores com legendas locais {#other-recorders-with-local-captions}
 
@@ -95,7 +95,7 @@ O Whisper no dispositivo não é exclusivo do OpenScreen. Em setembro de 2026:
 - **Grátis, inclusive para uso comercial.** Nenhum plano e nenhuma conta. A página de preços do Cap diz que a versão gratuita dele é só para uso pessoal. O Screen Studio precisa de um plano ativo para exportar arquivos de vídeo. O editor de desktop do Camtasia coloca marca d'água nas exportações até você migrar para um plano pago Essentials, Create ou Pro, ou uma licença empresarial. Os três em setembro de 2026.
 - **Windows, macOS e Linux.** O OpenScreen roda em Windows 10 (1903 ou posterior) e 11, x64 e ARM64. macOS 13 ou posterior, Apple Silicon e Intel. Linux, x64. Em setembro de 2026, o Screen Studio roda só no macOS, o editor de desktop do Camtasia roda no Windows e no macOS, e o Cap oferece apps para os três. Veja [Linux](/screen-recorder-linux/), [Windows](/screen-recorder-windows/) e [macOS](/screen-recorder-mac/).
 - **Edição da transcrição sem assinatura.** Cortar apagando palavras faz parte do app gratuito. O Camtasia lista edição baseada em texto nos planos pagos (em setembro de 2026). O Cap adicionou corte por transcrição ao editor web dele em julho de 2026. O guia do Studio Mode de desktop dele cobre a correção do texto e do tempo das legendas, e não descreve cortar vídeo pela transcrição.
-- **Tradução por um provedor que você escolhe.** Qualquer provedor compatível com o OpenScreen, com sua própria chave, e nenhum plano para comprar do OpenScreen. A tradução em si não é exclusiva: o Cap Pro também lista tradução de legendas (em setembro de 2026).
+- **Tradução por um agente que você escolhe.** Qualquer agente que fale MCP, conectado com a própria conta, e nenhum plano para comprar do OpenScreen. Ela exige um agente, enquanto o Cap Pro lista a tradução de legendas como um recurso do produto (em setembro de 2026).
 
 ## Quando o OpenScreen não é a ferramenta certa {#when-openscreen-is-not-the-right-tool}
 

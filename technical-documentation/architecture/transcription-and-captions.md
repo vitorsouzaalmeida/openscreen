@@ -44,11 +44,11 @@ asset in the document gets a transcript on its own. The queue lives in
 mounted once by the shell through `useAutoTranscription()`, and it is the only
 thing that calls `transcribeAsset`.
 
-Why it exists at all: "Smart cuts with AI" (and captions, and the transcript
-pane) need a transcript, but nothing produced one until the user found the
-Media tab or the transcript pane and pressed a button. The obvious first click
-was therefore also the one that could not work. Now the button is either ready,
-or it says what it is waiting for.
+Why it exists at all: the captions and the transcript pane need a transcript,
+but nothing produced one until the user found the Media tab or the transcript
+pane and pressed a button. The obvious first click was therefore also the one
+that could not work. Now a pane that needs a transcript either has one, or says
+what it is waiting for.
 
 What the store owns and what it does not:
 
@@ -61,8 +61,8 @@ What the store owns and what it does not:
   blocked verdict that enables or disables a transcript-dependent action.
   A stored transcript **outranks a failed job**: a regenerate that dies on a
   whisper restart leaves the previous transcript in place and usable, and
-  reading that asset as "failed" would have disabled Smart cuts for the rest of
-  the session over a transcript sitting right there.
+  reading that asset as "failed" would have disabled every transcript-dependent
+  action for the rest of the session over a transcript sitting right there.
 - **Gates are resolved over the assets the TIMELINE plays**
   (`transcriptRelevantAssetIds`), never over `project.primaryAssetId`. In a
   recording project the primary asset is the screen capture — frequently the
@@ -96,8 +96,8 @@ What each state means in the UI: a spinner and "Transcribing…" while queued or
 running, the media-card dot green (ready) / amber (silent or no speech) / red
 (failed) via
 [`TranscriptionStatus.tsx`](../../src/components/ai-edition/TranscriptionStatus.tsx),
-and — the point of the whole thing — a disabled "Smart cuts" entry whose
-subtitle is the reason rather than "With AI".
+and — the point of the whole thing — transcript and captions panes that state
+the reason while there is nothing to show.
 
 ### One phase, including the first-run model download
 
@@ -719,19 +719,25 @@ segment id; a predecessor revision that keyed per segment would otherwise
 let one of those word-sized translations be read back as a whole phrase's
 text.
 
-The translation itself runs through
-[`electron/ai-edition/caption-translate.ts`](../../electron/ai-edition/caption-translate.ts),
-a one-shot LLM call against the chat model (not the agent loop — caption
-translation is a pure text transform with no reason to mutate the
-document). It takes the pending units, returns a `segmentId → translated
-text` map, and the renderer writes the map into the layer via
+OpenScreen does not translate. It has no model of its own, so the translation
+is written by the user's agent over MCP
+([`electron/ai-edition/caption-tools.ts`](../../electron/ai-edition/caption-tools.ts),
+see [mcp-server.md](mcp-server.md#captions-and-their-translation)):
+`getCaptionTranslationUnits` returns the units that have no text yet in a
+language, the agent translates them with its own model, and
+`putCaptionTranslation` stores its `{ id, text }` pairs through the document's
 `putCaptionTranslation`
 ([`src/lib/ai-edition/captions/translations.ts:85`](../../src/lib/ai-edition/captions/translations.ts:85)),
-which merges into the existing layer per asset. A re-run after adding
-footage therefore costs just the missing units, not the whole video;
-nothing the model fails to return is silently invented — the untranslated
-unit falls back to the original words (`untranslatedUnits`,
-[`src/lib/ai-edition/captions/translations.ts:233`](../../src/lib/ai-edition/captions/translations.ts:233)).
+which merges into the existing layer per asset. Unknown unit ids refuse the
+whole call. A re-run after adding footage therefore costs just the missing
+units, not the whole video; a unit the agent did not send is never invented —
+it falls back to the original words with their real timestamps, as in
+[How cues are built](#how-cues-are-built). `removeCaptionTranslation` deletes a
+layer.
+
+The Captions pane has no Translate button. It lists the layers the document
+holds, deletes one, and picks which language the captions show
+(`settings.language`).
 
 ### Settings
 

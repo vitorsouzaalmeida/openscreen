@@ -30,15 +30,15 @@ OpenScreen 发布频繁。在两个版本之间，`.openscreen` 项目格式和 
 - 连同系统音频、麦克风和摄像头，[录制](./recording.md)某个窗口或整个屏幕，可以从悬浮的 HUD 开始，也可以直接在编辑器里开始。
 - 用多个来源组建一个项目：在同一条时间轴上[导入、修剪、裁剪和重新排序片段](./media-library.md)。
 - 用缩放、删减区间、分区间变速、全屏摄像头区间、文本/图片/箭头/模糊标注、光标效果、摄像头布局以及背景和效果来[编辑](./editing-timeline.md)。
-- 用 Whisper 在本机转录，然后[烧录字幕](./captions.md)：字幕样式可实时调整，也可以通过你自己的 LLM 提供方翻译成 15 种语言；你还可以在转录文本中删除词语来剪切录制内容。
-- 可以选择连接你自己的 LLM 密钥，[通过聊天来编辑](./ai-editing.md)：此功能默认关闭，任何时候都不是必需的。
-- 让你自己的编程 AI 代理通过 OpenScreen 的 MCP 服务器[完成整个视频](./ai-editing.md#letting-an-agent-make-the-whole-video)：录制、编辑、导出。
+- 用 Whisper 在本机转录，然后[烧录字幕](./captions.md)：字幕样式可实时调整，也可以由你自己的 AI 代理翻译；你还可以在转录文本中删除词语来剪切录制内容。
+- 可以选择[用你自己的 AI 代理来编辑](./ai-editing.md)：Claude Code、Codex 或任何 MCP 客户端启动 `openscreen mcp`，实时编辑你打开的项目。任何时候都不是必需的。
+- 让这个 AI 代理[完成整个视频](./ai-editing.md#letting-an-agent-make-the-whole-video)：录制、编辑、导出。
 - [导出](./export.md)为 MP4（720p/1080p/Source，H.264）或 GIF 动图。
 
 关于许可证、水印以及哪些内容会通过网络传输的问题，请参阅[常见问题](/docs/faq/)。OpenScreen 与其他录屏软件的对比，见 [Screen Studio](/alternatives/screen-studio/)、[Cap](/compare/openscreen-vs-cap/) 和 [OBS Studio](/compare/openscreen-vs-obs/) 页面。
 
 :::note
-录制、编辑、转录、字幕和导出都不需要账号，没有网络连接也能照常使用。转录需要先下载一次：首次运行时会获取它的模型（Whisper 模型约 264 MB）。有网络连接时，从 GitHub Releases 安装的版本会向 GitHub 检查更新。AI 聊天编辑和字幕翻译只有在你亲自连接提供方之后才会联网，并且只连接该提供方。
+录制、编辑、转录、字幕和导出都不需要账号，没有网络连接也能照常使用。转录需要先下载一次：首次运行时会获取它的模型（Whisper 模型约 264 MB）。有网络连接时，从 GitHub Releases 安装的版本会向 GitHub 检查更新。OpenScreen 不会向任何 AI 模型发送任何内容：如果你添加了自己的 AI 代理，它通过 OpenScreen 的 MCP 服务器读取的内容，会在你在该代理处的账号下，发送给该代理的提供方。
 :::
 
 ## 项目概况 {#project-facts}

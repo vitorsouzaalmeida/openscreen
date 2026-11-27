@@ -1,4 +1,3 @@
-import type { AxcutDocument } from "../schema";
 import { ensureDocument } from "../schema";
 import { useProjectStore } from "./projectStore";
 
@@ -63,42 +62,4 @@ export async function applyAgentDocumentIfCurrent(
 		useProjectStore.setState({ document: previous, dirty: previousDirty });
 	}
 	return "save-failed";
-}
-
-export interface AgentTurn<T> {
-	result: T;
-	/**
-	 * Apply this turn's document, if it produced one, against the revision the agent
-	 * was actually given. `ignoreConflict` is the user answering the conflict toast.
-	 */
-	applyDocument: (options?: { ignoreConflict?: boolean }) => Promise<AgentDocumentApplyResult>;
-}
-
-/**
- * Run one agent turn against the live document and hand back a way to apply its result.
- *
- * This exists to make the ordering structural. The guard is only worth anything if the
- * revision is the one the agent was handed, read from the SAME store snapshot as the
- * document and BEFORE the turn is awaited -- and none of that is visible at the call
- * site, where the read and the `await` are twenty lines apart in a 2,000-line component.
- * Moving the read below the await leaves every assertion about the guard passing while
- * the bug is fully restored. In here it is three adjacent lines, and a test can hold a
- * turn open, edit the store underneath it, and watch the apply refuse.
- */
-export async function runAgentTurn<T extends { document?: unknown }>(
-	run: (documentSnapshot: AxcutDocument | undefined) => Promise<T>,
-): Promise<AgentTurn<T>> {
-	const { document, revision } = useProjectStore.getState();
-	const snapshot = document ?? undefined;
-	const result = await run(snapshot);
-	return {
-		result,
-		applyDocument: async ({ ignoreConflict = false } = {}) => {
-			// No document open means the agent ran text-only, against an empty stand-in that
-			// still carries the real project id. If it edited that and the revision happened
-			// to match, applying would write a near-empty document over a real project.
-			if (!snapshot) return "no-live-document";
-			return applyAgentDocumentIfCurrent(result.document, ignoreConflict ? undefined : revision);
-		},
-	};
 }
