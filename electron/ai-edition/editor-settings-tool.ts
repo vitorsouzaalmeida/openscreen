@@ -142,6 +142,8 @@ export const setEditorSettingsArgs = z
 		webcamBlurIntensity: bounded("webcamBlurIntensity"),
 		audioGainDb: z.number().min(-AUDIO_GAIN_DB_LIMIT).max(AUDIO_GAIN_DB_LIMIT),
 		recordingMuted: z.boolean(),
+		keySound: z.boolean(),
+		keySoundGainDb: bounded("cursorClickSoundGainDb"),
 		autoFocusAll: z.boolean(),
 		cursor: z
 			.object({
@@ -204,6 +206,8 @@ function settingsForModel(document: AxcutDocument) {
 		webcamBlurIntensity: s.webcamBlurIntensity,
 		audioGainDb: s.audioGainDb,
 		recordingMuted: s.recordingMuted,
+		keySound: s.keySound,
+		keySoundGainDb: s.keySoundGainDb,
 		autoFocusAll: s.autoFocusAll,
 		cursor: {
 			show: s.cursorShow,
@@ -312,6 +316,9 @@ export function inactiveSettings(
 		out["cursor.clickSoundGainDb"] = why;
 	} else if (!s.cursor.clickSound) {
 		out["cursor.clickSoundGainDb"] = "The click sound is off (cursor.clickSound is false).";
+	}
+	if (!s.keySound) {
+		out.keySoundGainDb = "The key sound is off (keySound is false).";
 	}
 	return out;
 }

@@ -2250,3 +2250,18 @@
 	border-radius: 999px;
 	background: var(--danger);
 }
+
+/* The take's key presses, as ticks along the foot of its clip card (ClipKeyTicks.tsx). Drawn in
+   the card's own dark ink, like the waveform, and never in the way of a click. */
+.tlClipKeyTicks {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 6px;
+	pointer-events: none;
+	stroke: currentColor;
+	stroke-width: 1px;
+	opacity: 0.55;
+}

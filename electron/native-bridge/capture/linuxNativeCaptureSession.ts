@@ -424,6 +424,15 @@ export class LinuxNativeCaptureSession {
 	}
 
 	/**
+	 * The take's zero on the wall clock and its paused stretches, for telemetry gathered
+	 * outside the helper (key timing) that has to land on the cursor's clock. Complete
+	 * once the take has stopped.
+	 */
+	get recordingClock(): { startMs: number; pauseRanges: CursorPauseRange[] } {
+		return { startMs: this.cursorRecordingStartMs, pauseRanges: [...this.cursorPauseRanges] };
+	}
+
+	/**
 	 * What the portal granted. Known from `stream-started`, so it is populated by
 	 * the time [`waitUntilCapturing`] resolves.
 	 *

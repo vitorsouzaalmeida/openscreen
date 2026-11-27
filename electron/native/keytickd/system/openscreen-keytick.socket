@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenScreen key timing socket
+Documentation=https://github.com/getopenscreen/openscreen
+
+[Socket]
+ListenStream=/run/openscreen-keytick.sock
+# Anyone may connect; what a client gets is decided by polkit, per connection.
+SocketMode=0666
+Accept=no
+
+[Install]
+WantedBy=sockets.target

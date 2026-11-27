@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>OpenScreen</vendor>
+  <vendor_url>https://github.com/getopenscreen/openscreen</vendor_url>
+
+  <action id="org.openscreen.keytick.capture">
+    <description>Record key press timing</description>
+    <message>Authentication is required for OpenScreen to record when keys are pressed (for key sounds). Which keys you press is never shared.</message>
+    <defaults>
+      <!-- Only the person at the screen, and only with their password. A remote
+           or background session is refused outright. -->
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_self_keep</allow_active>
+    </defaults>
+    <!-- Lets the service account, which is not root, ask polkit about a
+         process that belongs to the user. -->
+    <annotate key="org.freedesktop.policykit.owner">unix-user:openscreen-keytick</annotate>
+  </action>
+</policyconfig>

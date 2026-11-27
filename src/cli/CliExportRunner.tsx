@@ -13,6 +13,7 @@ import {
 	pickExtremeDims,
 	resolveAspectRatioValue,
 } from "@/lib/ai-edition/document/outputFormat";
+import { prepareKeySound } from "@/lib/ai-edition/keySound";
 import { getEditorSettings } from "@/lib/ai-edition/store/editorSettings";
 import {
 	appendAutoZoomSuggestions,
@@ -140,9 +141,10 @@ async function runExport(request: CliExportRequest): Promise<CliDoneResult> {
 	// scene build cannot await — without this a cold CLI export builds its scene from empty
 	// caches and comes out silent. Clicks that will not load must not cost the export.
 	if (!soloTrack) await prepareClickSound(axcutDocument).catch(() => undefined);
+	if (!soloTrack) await prepareKeySound(axcutDocument).catch(() => undefined);
 	const built = buildSceneDescription(axcutDocument);
-	// A track alone is heard without the take's sound and the clicks.
-	const sceneDesc = soloTrack ? { ...built, clickSound: undefined } : built;
+	// A track alone is heard without the take's sound, the clicks and the keys.
+	const sceneDesc = soloTrack ? { ...built, clickSound: undefined, keySound: undefined } : built;
 	if (soloTrack && sceneDesc.audioTracks.length === 0) {
 		throw new Error(`The audio track "${request.audioTrackId}" plays nowhere in the export`);
 	}

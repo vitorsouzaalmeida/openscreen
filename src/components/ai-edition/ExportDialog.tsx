@@ -18,6 +18,7 @@ import {
 	referenceClipDims,
 	resolveAspectRatioValue,
 } from "@/lib/ai-edition/document/outputFormat";
+import { prepareKeySound } from "@/lib/ai-edition/keySound";
 import type { AxcutDocument } from "@/lib/ai-edition/schema";
 import { getEditorSettings } from "@/lib/ai-edition/store/editorSettings";
 import { assetCameraSource } from "@/lib/ai-edition/timeline/camera";
@@ -375,6 +376,8 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 		// reads synchronously, so the read happens here — before anything is composed. Clicks
 		// that will not load must not cost the user their export.
 		await prepareClickSound(document).catch(() => undefined);
+		// The key sound's hits, read and staged the same way and just as optional.
+		await prepareKeySound(document).catch(() => undefined);
 		// A close during that read has already run the cleanup, which had no job to cancel yet.
 		if (generation !== pickerGeneration.current) return;
 		{

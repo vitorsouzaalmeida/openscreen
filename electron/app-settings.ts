@@ -30,6 +30,11 @@ export interface RecordingPreferences {
 	 * behaviour it gates has been on for every such installation.
 	 */
 	autoZoomEnabled: boolean;
+	/**
+	 * Record key press timing with the take, for key sounds in the editor. Linux only, and
+	 * only with the key timing service installed; elsewhere it is stored and does nothing.
+	 */
+	keySoundsEnabled: boolean;
 }
 
 export const DEFAULT_RECORDING_PREFERENCES: RecordingPreferences = {
@@ -44,6 +49,7 @@ export const DEFAULT_RECORDING_PREFERENCES: RecordingPreferences = {
 	cursorCaptureMode: "editable-overlay",
 	hideDesktopIcons: false,
 	autoZoomEnabled: true,
+	keySoundsEnabled: false,
 };
 
 export interface RecordingSourceDescriptor {
@@ -123,6 +129,7 @@ function parseRecording(raw: RawSettings): RecordingPreferences {
 				: DEFAULT_RECORDING_PREFERENCES.cursorCaptureMode,
 		hideDesktopIcons: bool(raw.hideDesktopIcons, DEFAULT_RECORDING_PREFERENCES.hideDesktopIcons),
 		autoZoomEnabled: bool(raw.autoZoomEnabled, DEFAULT_RECORDING_PREFERENCES.autoZoomEnabled),
+		keySoundsEnabled: bool(raw.keySoundsEnabled, DEFAULT_RECORDING_PREFERENCES.keySoundsEnabled),
 	};
 }
 

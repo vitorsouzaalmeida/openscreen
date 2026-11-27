@@ -7,6 +7,7 @@ use crate::ffi::*;
 use crate::regions::SpeedSegment;
 use crate::scene::{
     SceneAudio, SceneAudioTrack, SceneAudioTrackKind, SceneClickHit, SceneClickSound,
+    SceneKeyHit, SceneKeySound,
 };
 use anyhow::{bail, Result};
 use std::collections::{HashMap, VecDeque};
@@ -1965,6 +1966,50 @@ fn overlay_click_hits(
     }
 }
 
+/// Sum the take's key hits over the assembled programme, the way `mix_click_hits` sums the
+/// clicks: one decode per sample some hit plays, then one add per hit. The hits arrive already
+/// placed on the programme by the app.
+pub fn mix_key_hits(mut programme: PlanarPcm, keys: &SceneKeySound) -> PlanarPcm {
+    if keys.hits.is_empty()
+        || keys.samples.is_empty()
+        || programme.first().map_or(true, Vec::is_empty)
+    {
+        return programme;
+    }
+    // A sample no hit plays is never opened; one that will not decode stays empty and costs
+    // its own hits, not the rest of the keyboard.
+    let samples: Vec<PlanarPcm> = keys
+        .samples
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            if keys.hits.iter().any(|hit| hit.sample == index) {
+                decode_click_hit(path)
+            } else {
+                PlanarPcm::default()
+            }
+        })
+        .collect();
+    if samples.iter().all(|sample| sample.is_empty()) {
+        eprintln!("[audio] key hits undecodable; export keeps the rest of the sound");
+        return programme;
+    }
+    overlay_key_hits(&mut programme, &samples, &keys.hits);
+    programme
+}
+
+/// Placement and level, with no ffmpeg in sight. A hit naming a sample that is not there, or
+/// that did not decode, is skipped.
+fn overlay_key_hits(programme: &mut PlanarPcm, samples: &[PlanarPcm], hits: &[SceneKeyHit]) {
+    for hit in hits {
+        let Some(sample) = samples.get(hit.sample).filter(|sample| !sample.is_empty()) else {
+            continue;
+        };
+        let offset = (hit.time_sec.max(0.0) * AUDIO_OUTPUT_SAMPLE_RATE as f64).round() as usize;
+        overlay_track_pcm(programme, sample, offset, hit.gain.clamp(0.0, 4.0), 0.0, 0.0, 0, &[]);
+    }
+}
+
 /// How far a music bed dips while someone speaks.
 pub const DUCK_DEPTH_DB: f32 = -10.0;
 /// A 10 ms stretch of the voice counts as speech above this RMS level. The voice is already
@@ -2558,6 +2603,45 @@ mod tests {
         assert_eq!(
             out[0].iter().map(|v| (v * 100.0).round() / 100.0).collect::<Vec<_>>(),
             vec![0.5, 0.75, 0.25, 0.0]
+        );
+    }
+
+    #[test]
+    fn key_hits_sum_at_their_time_and_pick_their_sample() {
+        let samples = vec![planar(&[1.0]), planar(&[0.5]), PlanarPcm::default()];
+        let tick = 1.0 / AUDIO_OUTPUT_SAMPLE_RATE as f64;
+        let key = |time_sec: f64, gain: f32, sample: usize| SceneKeyHit { time_sec, gain, sample };
+        let mut programme = planar(&[0.0, 0.0, 0.0, 0.0]);
+        overlay_key_hits(
+            &mut programme,
+            &samples,
+            &[
+                key(0.0, 1.0, 0),
+                key(tick, 1.0, 1),
+                key(2.0 * tick, 0.5, 0),
+                // An undecoded sample and an index past the list are both silent, not a panic.
+                key(3.0 * tick, 1.0, 2),
+                key(3.0 * tick, 1.0, 9),
+            ],
+        );
+        assert_eq!(programme[0], vec![1.0, 0.5, 0.5, 0.0]);
+    }
+
+    #[test]
+    fn key_hits_are_decoded_from_files_and_only_the_samples_in_use() {
+        let dir = std::env::temp_dir();
+        let used = dir.join(format!("openscreen-key-used-{}.wav", std::process::id()));
+        write_wav(&used, &planar(&[0.5, 0.5]));
+        let keys = SceneKeySound {
+            // The first path does not exist. No hit plays it, so it must never be opened.
+            samples: vec!["/nope/key-1.wav".into(), used.to_str().unwrap().into()],
+            hits: vec![SceneKeyHit { time_sec: 1.0 / 48_000.0, gain: 1.0, sample: 1 }],
+        };
+        let out = mix_key_hits(planar(&[0.0; 4]), &keys);
+        let _ = std::fs::remove_file(&used);
+        assert_eq!(
+            out[0].iter().map(|v| (v * 100.0).round() / 100.0).collect::<Vec<_>>(),
+            vec![0.0, 0.5, 0.5, 0.0]
         );
     }
 

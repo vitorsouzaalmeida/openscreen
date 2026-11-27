@@ -40,6 +40,7 @@ import {
 	readSpeedRegions,
 	resolvePlaybackSegments,
 } from "@/lib/ai-edition/document/timeline";
+import { keySoundForDocument } from "@/lib/ai-edition/keySound";
 import type { AxcutAudioTrack, AxcutClip, AxcutDocument } from "@/lib/ai-edition/schema";
 import {
 	type NativeShaderKeyframe,
@@ -615,6 +616,16 @@ export interface SceneDescription {
 		hits: Array<{ timeSec: number; gain: number; release: boolean }>;
 	};
 	/**
+	 * Key press sounds (see `src/lib/ai-edition/keySound.ts`): the take's recorded key presses
+	 * and releases as hits on the OUTPUT programme, summed by `audio::mix_key_hits`. Laid out
+	 * like `clickSound` and for the same reason; `sample` indexes `samples`. Omitted when the
+	 * sound is off, the take recorded no key timing, or the cues have not been read yet.
+	 */
+	keySound?: {
+		samples: string[];
+		hits: Array<{ timeSec: number; gain: number; sample: number }>;
+	};
+	/**
 	 * Per-clip screen crop (fractions of the frame), or null for the identity
 	 * (full-frame) crop. One entry per clip in the same order as `clips`, so a
 	 * clip that owns its own cropRegion is rendered with that crop and a clip
@@ -936,6 +947,11 @@ export function buildSceneDescription(
 	const clickSound = clickSoundForDocument(document, {
 		clickSound: settings.cursorShow && settings.cursor.clickSound,
 		clickSoundGainDb: settings.cursor.clickSoundGainDb,
+	});
+	// Key hits, the same way. Not under "Show cursor": a keyboard makes its sound either way.
+	const keySound = keySoundForDocument(document, {
+		keySound: settings.keySound,
+		keySoundGainDb: settings.keySoundGainDb,
 	});
 	const audioTracks = document.audioTracks.flatMap((fragment) => {
 		const track = takes.get(fragment.id);
@@ -1569,6 +1585,7 @@ export function buildSceneDescription(
 		},
 		audioTracks,
 		...(clickSound ? { clickSound } : {}),
+		...(keySound ? { keySound } : {}),
 		background: sceneBackground(settings.wallpaper, settings.wallpaperMotion),
 		zoomRegions: projectedZoomRegions.map((region) => ({
 			id: region.id,

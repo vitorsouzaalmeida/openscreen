@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useI18n, useScopedT } from "@/contexts/I18nContext";
 import { getAvailableLocales, getLocaleName } from "@/i18n/loader";
 import { offersEditableCursor } from "@/lib/editableCursorAvailability";
@@ -9,6 +10,7 @@ import { canRecordMicrophone, getPlatform } from "@/utils/platformUtils";
 import { type CameraDevice } from "../../hooks/useCameraDevices";
 import { useCameraHudSync } from "../../hooks/useCameraHudSync";
 import { useFloatingCameraPreview } from "../../hooks/useFloatingCameraPreview";
+import { useKeySounds } from "../../hooks/useKeySounds";
 import {
 	isPlaceholderMicrophoneLabel,
 	type MicrophoneDevice,
@@ -27,6 +29,7 @@ import {
 	HudCursorButton,
 	HudDivider,
 	HudDragHandle,
+	HudKeySoundsButton,
 	HudLanguageButton,
 	HudLanguageMenu,
 	HudLayoutProvider,
@@ -983,6 +986,10 @@ export function LaunchWindow() {
 		[],
 	);
 
+	const keySounds = useKeySounds((reason) => {
+		toast.error(tEditor(reason === "denied" ? "rec.keySoundsDenied" : "rec.keySoundsUnavailable"));
+	});
+
 	const toggleSystemAudio = useCallback(() => {
 		if (controlsLocked) return;
 		const next = !systemAudioEnabled;
@@ -1366,6 +1373,20 @@ export function LaunchWindow() {
 										: t("cursor.systemTip")
 								}
 								onClick={toggleCursorMode}
+							/>
+						)}
+
+						{keySounds.supported && (
+							<HudKeySoundsButton
+								enabled={keySounds.enabled}
+								locked={controlsLocked}
+								name={tEditor("rec.keySounds")}
+								tooltip={
+									keySounds.installed
+										? tEditor("rec.keySoundsTip")
+										: tEditor("rec.keySoundsNotInstalled")
+								}
+								onClick={keySounds.toggle}
 							/>
 						)}
 

@@ -29,6 +29,7 @@ import type { ShaderEffectImageStore } from "../../src/lib/ai-edition/shaderEffe
 import type { CliSourcesResult } from "../../src/lib/cliContracts";
 import { pickRecordingSource } from "../../src/lib/cliSourcePick";
 import { desktopSourceTimeoutMessage } from "../../src/lib/desktopSourceTimeout";
+import { KEY_SOUND_SAMPLES, keySampleFile } from "../../src/lib/keystrokes/keySoundSamples";
 import {
 	type NativeLinuxCaptureSource,
 	type NativeLinuxRecordingRequest,
@@ -83,6 +84,8 @@ import { isDiagnosticModeEnabled, mainLogFile } from "../diagnostics/main-log-fi
 import { createZip } from "../diagnostics/zip";
 import { mainT } from "../i18n";
 import { getInstallChannel } from "../install-channel";
+import { readKeySidecar } from "../keystrokes/keySidecar";
+import { KeySoundsRecording } from "../keystrokes/keySoundsRecording";
 import {
 	DEFAULT_RECORDINGS_DIR,
 	getRecordingsDirInfo,
@@ -243,10 +246,27 @@ const MAX_RECORDED_VOICEOVER_BYTES = 512 * 1024 * 1024;
 // The bundled click-sound samples, staged for the compositor, which reads audio by path and not
 // by renderer URL. These are the only names the staging handler accepts, and they match
 // HIT_FILES in src/lib/ai-edition/clickSound.ts.
+// The key sound samples (src/lib/ai-edition/keySound.ts) are staged the same way.
 const CLICK_SOUND_DIR = path.join(app.getPath("userData"), "click-sfx");
-const CLICK_SOUND_HIT_FILES: string[] = ["click-down.wav", "click-up.wav"];
+const CLICK_SOUND_HIT_FILES: string[] = [
+	"click-down.wav",
+	"click-up.wav",
+	...KEY_SOUND_SAMPLES.map(keySampleFile),
+];
+// A file of one of those names in this folder replaces the bundled sample, in the preview and
+// in the export: how a user brings their own click and key sounds.
+const SOUND_OVERRIDE_DIR = path.join(app.getPath("userData"), "sounds");
 const MAX_CLICK_HIT_BYTES = 4 * 1024 * 1024;
 const nativeMacCaptureEvents = new EventEmitter();
+
+/** The user's own sample for `name`, when they dropped a usable one in the sounds folder. */
+async function soundOverridePath(name: string): Promise<string | null> {
+	if (!CLICK_SOUND_HIT_FILES.includes(name)) return null;
+	const candidate = path.join(SOUND_OVERRIDE_DIR, name);
+	const stats = await fs.stat(candidate).catch(() => null);
+	if (!stats?.isFile() || stats.size === 0 || stats.size > MAX_CLICK_HIT_BYTES) return null;
+	return candidate;
+}
 
 // Enumeration walks every display and window and grabs a thumbnail of each, so it
 // is allowed to be slow on a loaded machine. It is not allowed to be unbounded.
@@ -759,6 +779,8 @@ export interface RecordingPrefs {
 	hideDesktopIcons: boolean;
 	/** Whether a fresh take gets automatic zooms on import. Persisted; defaults on. */
 	autoZoomEnabled: boolean;
+	/** Record key press timing with the take (Linux, key timing service). Defaults off. */
+	keySoundsEnabled: boolean;
 }
 const defaultRecordingPrefs: RecordingPrefs = {
 	micEnabled: false,
@@ -772,7 +794,11 @@ const defaultRecordingPrefs: RecordingPrefs = {
 	cursorCaptureMode: "editable-overlay",
 	hideDesktopIcons: false,
 	autoZoomEnabled: true,
+	keySoundsEnabled: false,
 };
+
+/** Key press timing for takes (Linux). Inert wherever the timing service is absent. */
+const keySounds = new KeySoundsRecording();
 
 // Cached source from the user's pick. Used by setDisplayMediaRequestHandler in main.ts for cursor-free capture.
 export function getSelectedDesktopSource(): DesktopCapturerSource | null {
@@ -2418,8 +2444,32 @@ export function registerIpcHandlers(
 					.askForSystemAudioOnce()
 					.catch((error) => console.warn("[permissions] system audio request failed:", error));
 			}
+			// Same reasoning for key sounds: the service's password prompt is answered when
+			// the toggle turns on, never over a take. A toggle the service cannot honour goes
+			// back off, with the reason, instead of staying on and recording nothing.
+			if (!previous.keySoundsEnabled && next.keySoundsEnabled) {
+				void keySounds.authorize().then((answer) => {
+					if (answer === "ok") return;
+					recordingPrefs.set({ keySoundsEnabled: false });
+					for (const window of BrowserWindow.getAllWindows()) {
+						if (!window.isDestroyed()) {
+							window.webContents.send("key-sounds-unavailable", answer);
+						}
+					}
+				});
+			}
 		},
 	);
+
+	ipcMain.handle("get-key-sounds-status", () => keySounds.status());
+
+	ipcMain.handle("get-key-recording", async (_, videoPath?: string) => {
+		const targetVideoPath = resolveApprovedVideoPath(
+			videoPath ?? currentRecordingSession?.screenVideoPath,
+		);
+		if (!targetVideoPath) return null;
+		return readKeySidecar(targetVideoPath, { recordingsDir: DEFAULT_RECORDINGS_DIR });
+	});
 
 	// Asked before every take starts. A disk that fills up mid-take used to be found only
 	// when the take was saved, and the take was lost with it.
@@ -2808,6 +2858,12 @@ export function registerIpcHandlers(
 
 				await fs.mkdir(RECORDINGS_DIR, { recursive: true });
 
+				// Ahead of the picker and the countdown: a connection that still owes the key
+				// timing service its prompt gets it now, not over the first frames.
+				if (recordingPrefs.get().keySoundsEnabled) {
+					await keySounds.authorize();
+				}
+
 				const session = new LinuxNativeCaptureSession({
 					outputPath,
 					cursorMode: portalCursorMode(cursorCaptureMode),
@@ -2950,6 +3006,8 @@ export function registerIpcHandlers(
 					await session.waitUntilSourceSelected();
 				}
 				cameraPreview.setCaptureAllowed(session.grantedSourceKind === "window");
+				// Before the capture is armed, so a prompt still owed is not in the take.
+				await keySounds.begin(recordingPrefs.get().keySoundsEnabled);
 				// Idempotent, and a no-op for a session that was not deferred.
 				session.arm();
 				await session.waitUntilCapturing();
@@ -2979,6 +3037,7 @@ export function registerIpcHandlers(
 				return { success: true, recordingId, path: outputPath };
 			} catch (error) {
 				console.error("Failed to start native Linux recording:", error);
+				await keySounds.cancel();
 				resetLinuxCaptureBackendProbe();
 				cameraPreview.setCaptureAllowed(true);
 				linuxNativeCaptureSession = null;
@@ -3027,6 +3086,7 @@ export function registerIpcHandlers(
 				await Promise.all([
 					fs.rm(discarded, { force: true }),
 					fs.rm(`${discarded}.cursor.json`, { force: true }),
+					keySounds.cancel(discarded),
 				]);
 				return { success: true, discarded: true };
 			}
@@ -3070,6 +3130,17 @@ export function registerIpcHandlers(
 				);
 			}
 
+			// Key timing was gathered outside the helper, on the wall clock: it is put on the
+			// take's clock here, with the same zero and the same pauses as the cursor's. A
+			// failure costs the take its key sounds, never the take.
+			const { startMs, pauseRanges } = session.recordingClock;
+			const keyRecording = await keySounds
+				.finish(result.path, startMs, pauseRanges)
+				.catch((error) => {
+					console.warn("[key-sounds] could not save key timing:", error);
+					return null;
+				});
+
 			const session_: RecordingSession = {
 				screenVideoPath: result.path,
 				createdAt: recordingId,
@@ -3092,6 +3163,7 @@ export function registerIpcHandlers(
 				durationMs: result.durationMs,
 				videoEncoder: result.videoEncoder,
 				cursorSamples: result.cursor.samples.length,
+				keySamples: keyRecording?.samples.length ?? 0,
 			});
 
 			return {
@@ -3105,6 +3177,8 @@ export function registerIpcHandlers(
 			console.error("Failed to stop native Linux recording:", error);
 			return { success: false, error: String(error) };
 		} finally {
+			// A stop that failed before the key timing was saved must still stop the listening.
+			await keySounds.cancel();
 			linuxNativeCaptureSession = null;
 			linuxNativeCaptureRecordingId = null;
 			linuxNativeCaptureCursorMode = "editable-overlay";
@@ -4751,6 +4825,9 @@ export function registerIpcHandlers(
 			if (data.byteLength > MAX_CLICK_HIT_BYTES) {
 				return { success: false, message: "Click hit too large" };
 			}
+			// The user's own sample of that name wins: the compositor reads it where it lies.
+			const override = await soundOverridePath(name);
+			if (override) return { success: true, path: override };
 			const target = path.join(CLICK_SOUND_DIR, name);
 			await fs.mkdir(CLICK_SOUND_DIR, { recursive: true });
 			// Written fresh each time rather than checked for existence: the file the app shipped
@@ -4760,6 +4837,19 @@ export function registerIpcHandlers(
 		} catch (error) {
 			console.error("Failed to stage click sound hit:", error);
 			return { success: false, message: "Failed to stage click sound hit", error: String(error) };
+		}
+	});
+
+	// The user's replacement for one bundled sample, for the preview to play what the export
+	// will mix. Null when there is none, which is the usual case.
+	ipcMain.handle("read-sound-override", async (_event, name: string) => {
+		try {
+			const override = await soundOverridePath(name);
+			if (!override) return null;
+			const bytes = await fs.readFile(override);
+			return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+		} catch {
+			return null;
 		}
 	});
 

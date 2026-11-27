@@ -3,6 +3,7 @@ import {
 	CircleArrowDown,
 	Eye,
 	EyeOff,
+	Keyboard,
 	Languages,
 	NotepadText,
 	Settings,
@@ -274,6 +275,37 @@ export const HudSystemAudioButton = memo(function HudSystemAudioButton({
 				onClick={locked ? undefined : onClick}
 			>
 				<VolumeIcon muted={!enabled} className={enabled ? "text-[#10b981]" : ""} />
+			</button>
+		</HudTooltip>
+	);
+});
+
+/** Linux only: record key press timing with the take, for key sounds in the editor. */
+export const HudKeySoundsButton = memo(function HudKeySoundsButton({
+	enabled,
+	locked,
+	name,
+	tooltip,
+	onClick,
+}: {
+	enabled: boolean;
+	locked: boolean;
+	name: string;
+	tooltip: string;
+	onClick: () => void;
+}) {
+	return (
+		<HudTooltip content={tooltip}>
+			<button
+				type="button"
+				data-testid="launch-key-sounds-button"
+				className={`${hudIconBtnClasses} ${hudLockedClasses}`}
+				aria-label={name}
+				aria-pressed={enabled}
+				aria-disabled={locked || undefined}
+				onClick={locked ? undefined : onClick}
+			>
+				<Keyboard size={ICON_SIZE} className={enabled ? "text-[#10b981]" : ""} />
 			</button>
 		</HudTooltip>
 	);

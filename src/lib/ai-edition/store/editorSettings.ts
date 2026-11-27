@@ -126,6 +126,9 @@ export interface EditorSettingsSnapshot {
 	audioGainDb: number;
 	/** The recording's own sound is left out of the preview and the export; added tracks play. */
 	recordingMuted: boolean;
+	/** Key press sounds, for a take recorded with key timing (see keySound.ts). */
+	keySound: boolean;
+	keySoundGainDb: number;
 	webcamBackgroundMode: WebcamBackgroundMode;
 	webcamWallpaper: string;
 	webcamBlurIntensity: number;
@@ -148,6 +151,10 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettingsSnapshot = {
 	webcamCropPan: DEFAULT_CROP_PAN,
 	audioGainDb: 0,
 	recordingMuted: false,
+	// On by default: a take only carries key timing when the user asked for it at record time,
+	// so the sound they asked for is there when the editor opens. Without it this changes nothing.
+	keySound: true,
+	keySoundGainDb: 0,
 	formatFollowCursor: null,
 };
 
@@ -182,6 +189,8 @@ interface LegacyShape {
 	webcamCropPan?: CropPan;
 	audioGainDb?: number;
 	recordingMuted?: boolean;
+	keySound?: boolean;
+	keySoundGainDb?: number;
 	webcamBackgroundMode?: WebcamBackgroundMode;
 	webcamWallpaper?: string;
 	webcamBlurIntensity?: number;
@@ -331,6 +340,13 @@ export function getEditorSettings(doc: AxcutDocument | null | undefined): Editor
 			Math.max(-AUDIO_GAIN_DB_LIMIT, num(legacy?.audioGainDb, 0)),
 		),
 		recordingMuted: bool(legacy?.recordingMuted, DEFAULT_EDITOR_SETTINGS.recordingMuted),
+		keySound: bool(legacy?.keySound, DEFAULT_EDITOR_SETTINGS.keySound),
+		// The click sound's own range: both are short hits levelled the same way.
+		keySoundGainDb: readBounded(
+			legacy?.keySoundGainDb,
+			"cursorClickSoundGainDb",
+			defaults.keySoundGainDb,
+		),
 		webcamBackgroundMode: isWebcamBackgroundMode(legacy?.webcamBackgroundMode)
 			? legacy.webcamBackgroundMode
 			: DEFAULT_EDITOR_SETTINGS.webcamBackgroundMode,
@@ -378,6 +394,8 @@ export interface EditorSettingsPatch {
 	webcamCropPan?: CropPan;
 	audioGainDb?: number;
 	recordingMuted?: boolean;
+	keySound?: boolean;
+	keySoundGainDb?: number;
 	webcamBackgroundMode?: WebcamBackgroundMode;
 	webcamWallpaper?: string;
 	webcamBlurIntensity?: number;

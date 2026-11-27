@@ -252,7 +252,7 @@ export function clickSoundForDocument(
 function clickPlacement(
 	document: AxcutDocument,
 	take: AxcutAsset,
-): (cue: ClickCue) => Array<{ clipId: string; sec: number }> {
+): (cue: { timeSec: number }) => Array<{ clipId: string; sec: number }> {
 	const clips = document.timeline.clips;
 	const trims = document.timeline.trimRanges;
 	const speeds = readSpeedRegions(document);
@@ -280,14 +280,18 @@ function clickPlacement(
 	};
 }
 
-/** The take's clicks this edit plays, each with the clip that plays it and its programme second. */
-export function placedClickHits(
+/**
+ * The take's clicks this edit plays, each with the clip that plays it and its programme second.
+ * Generic over the cue: anything recorded on the take's own clock is placed the same way, which
+ * is how key sounds (keySound.ts) follow cuts and speed regions exactly as clicks do.
+ */
+export function placedClickHits<C extends { timeSec: number }>(
 	document: AxcutDocument,
 	take: AxcutAsset,
-	cues: ClickCue[],
-): Array<{ clipId: string; sec: number; cue: ClickCue }> {
+	cues: C[],
+): Array<{ clipId: string; sec: number; cue: C }> {
 	const place = clickPlacement(document, take);
-	const placed: Array<{ clipId: string; sec: number; cue: ClickCue }> = [];
+	const placed: Array<{ clipId: string; sec: number; cue: C }> = [];
 	for (const cue of cues) {
 		for (const at of place(cue)) placed.push({ ...at, cue });
 	}
@@ -402,11 +406,11 @@ export function clickCuesFitTake(
  * across it; a move backwards is a rewind, and since nothing is consumed the same clicks are
  * crossed again.
  */
-export function crossedClickHits(
-	cues: ClickCue[],
+export function crossedClickHits<C extends { timeSec: number }>(
+	cues: C[],
 	fromSourceSec: number,
 	toSourceSec: number,
-): ClickCue[] {
+): C[] {
 	if (
 		!(fromSourceSec >= 0) ||
 		toSourceSec <= fromSourceSec ||
@@ -434,13 +438,20 @@ export function clickHitBuffers(context: AudioContext): Promise<AudioBuffer[]> {
 	let pending = hitBuffers.get(context);
 	if (!pending) {
 		const urls = clickHitUrls();
-		pending = Promise.all([decodeHit(context, urls.down), decodeHit(context, urls.up)]);
+		pending = Promise.all([
+			decodeHit(context, urls.down, HIT_FILES.down),
+			decodeHit(context, urls.up, HIT_FILES.up),
+		]);
 		hitBuffers.set(context, pending);
 	}
 	return pending;
 }
 
-async function decodeHit(context: AudioContext, url: string): Promise<AudioBuffer> {
+async function decodeHit(context: AudioContext, url: string, name: string): Promise<AudioBuffer> {
+	// A sample the user replaced (see `read-sound-override`) is what the export mixes, so the
+	// preview plays it too; the bundled one is the fallback.
+	const custom = await window.electronAPI?.readSoundOverride?.(name).catch(() => null);
+	if (custom) return context.decodeAudioData(custom);
 	const response = await fetch(url);
 	if (!response.ok) throw new Error(`Failed to fetch ${url}`);
 	return context.decodeAudioData(await response.arrayBuffer());

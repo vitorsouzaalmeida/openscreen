@@ -36,6 +36,7 @@ import { ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
 import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
 import { useAudioPeaks } from "@/hooks/useAudioPeaks";
+import { useKeySoundCues } from "@/hooks/useKeySoundCues";
 import {
 	AUDIO_LANE_PAD_PX,
 	AUDIO_ROW_GAP_PX,
@@ -88,6 +89,7 @@ import { formatBinding } from "@/lib/shortcuts";
 import { nativeBridgeClient } from "@/native/client";
 import { TransportBar } from "../TransportBar";
 import type { VideoSource } from "../VirtualPreview";
+import { ClipKeyTicks } from "./ClipKeyTicks";
 import styles from "./EditorShellV4.module.css";
 import { LayoutLane } from "./LayoutLane";
 import { LayoutPicker } from "./LayoutPicker";
@@ -719,6 +721,8 @@ export function V4Timeline({
 		shiftPx: number;
 	} | null>(null);
 	const { settings, set: setSettings } = useEditorSettings();
+	// The take's key presses, drawn as ticks on its clip cards.
+	const keySound = useKeySoundCues();
 
 	const [autoEnhanceOpen, setAutoEnhanceOpen] = useState(false);
 	const [audioMenuOpen, setAudioMenuOpen] = useState(false);
@@ -2686,6 +2690,13 @@ export function V4Timeline({
 											sourceEndSec={c.sourceEndSec ?? c.sourceStartSec + dur}
 											gain={settings.recordingMuted ? 0 : audioGainScalar(settings.audioGainDb)}
 										/>
+										{c.assetId === keySound.takeAssetId ? (
+											<ClipKeyTicks
+												pressTimesSec={keySound.pressTimesSec}
+												sourceStartSec={c.sourceStartSec}
+												sourceEndSec={c.sourceEndSec ?? c.sourceStartSec + dur}
+											/>
+										) : null}
 										<div className={styles.tlClipLabel}>
 											<button
 												type="button"
