@@ -26,7 +26,6 @@ vi.mock("@/lib/ai-edition/store/transcriptionStore", async (importOriginal) => {
 
 // An echoing translator: the assertions read against keys, not prose that drifts with copy edits.
 vi.mock("@/contexts/I18nContext", () => ({
-	useI18n: () => ({ locale: "en", setLocale: vi.fn() }),
 	useScopedT: () => (key: string) => key,
 }));
 

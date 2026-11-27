@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { assetSchema, clipSchema, createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { type NativeCursorType, nativeBridgeClient } from "@/native";
 import { CursorPane } from "./RightPanes";
 
 beforeEach(() => {
-	const store = new Map<string, string>([[LOCALE_STORAGE_KEY, "en"]]);
+	const store = new Map<string, string>();
 	Object.defineProperty(globalThis, "localStorage", {
 		configurable: true,
 		value: {
@@ -33,11 +31,7 @@ afterEach(() => {
 function renderWithCursor(legacyEditor: Record<string, unknown>) {
 	const document = createEmptyDocument({ projectId: "p", title: "t" });
 	useProjectStore.setState({ projectId: "p", document: { ...document, legacyEditor } });
-	render(
-		<I18nProvider>
-			<CursorPane />
-		</I18nProvider>,
-	);
+	render(<CursorPane />);
 }
 
 const pressed = (group: string) =>
@@ -100,11 +94,7 @@ describe("CursorPane cursor types", () => {
 				legacyEditor,
 			},
 		});
-		render(
-			<I18nProvider>
-				<CursorPane />
-			</I18nProvider>,
-		);
+		render(<CursorPane />);
 	}
 
 	afterEach(() => {

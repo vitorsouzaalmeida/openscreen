@@ -5,7 +5,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { getCaptionSettings } from "@/lib/ai-edition/captions";
 import { type AxcutDocument, createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -21,11 +20,7 @@ function show(legacyEditor: Record<string, unknown> = {}) {
 	useProjectStore.setState({
 		document: { ...base, legacyEditor: { captions: { enabled: true }, ...legacyEditor } },
 	});
-	render(
-		<I18nProvider>
-			<CaptionsPane />
-		</I18nProvider>,
-	);
+	render(<CaptionsPane />);
 }
 
 const stored = () => getCaptionSettings(useProjectStore.getState().document as AxcutDocument);

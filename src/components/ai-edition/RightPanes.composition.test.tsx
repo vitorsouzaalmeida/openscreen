@@ -5,8 +5,6 @@
 import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { addLayoutChange, layoutRuns, setLayoutPreset } from "@/lib/ai-edition/document/layout";
 import type { AxcutDocument } from "@/lib/ai-edition/schema";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
@@ -54,14 +52,9 @@ function documentWithShapes(shapes: Array<[number, number]>): AxcutDocument {
 	} as unknown as AxcutDocument;
 }
 
-function mount(doc: AxcutDocument, locale?: string) {
-	if (locale) localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+function mount(doc: AxcutDocument) {
 	useProjectStore.setState({ document: doc });
-	return render(
-		<I18nProvider>
-			<VideoEffectsPane />
-		</I18nProvider>,
-	);
+	return render(<VideoEffectsPane />);
 }
 
 /** What a pick actually wrote, read back off the document it wrote to. */
@@ -194,19 +187,14 @@ describe("the format row", () => {
 		).toEqual(["16:9 · 3840×2160"]);
 	});
 
-	it("counts each shape's clips on hover, in the form the count needs", () => {
-		// Russian has four plural categories, and 2-4 takes "клипа". Mapping everything that
-		// is not `one` onto a single plural rendered "2 клипов", which is wrong rather than
-		// merely coarse — the reason the count goes through Intl.PluralRules and not
-		// `count === 1`.
-		const titles = (locale?: string) => {
+	it("counts each shape's clips on hover, singular and plural", () => {
+		const titles = () => {
 			mount(
 				documentWithShapes([
 					[1920, 1080],
 					[1920, 1080],
 					[1080, 1920],
 				]),
-				locale,
 			);
 			// The shared tooltip, opened by a keyboard focus: the count is its accessible description.
 			const read = ["16:9 · 1920×1080", "9:16 · 1080×1920"].map((name) => {
@@ -222,7 +210,6 @@ describe("the format row", () => {
 			return read;
 		};
 		expect(titles()).toEqual(["16:9 · 1920×1080 · 2 clips", "9:16 · 1080×1920 · 1 clip"]);
-		expect(titles("ru")).toEqual(["16:9 · 1920×1080 · 2 клипа", "9:16 · 1080×1920 · 1 клип"]);
 	});
 
 	it("keeps Auto listed but dead while it is the format of a mixed timeline, and says why", () => {

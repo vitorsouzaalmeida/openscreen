@@ -15,8 +15,6 @@ flowchart TD
         CI --> Swift[macOS Swift tests and release build]
         CI --> BuildSmoke[Vite build]
         CI --> Semantic[semantic PR title]
-        Docs["docs.yml<br/>website changes or dispatch"] --> DocsBuild[website build artifact]
-        DocsBuild --> DocsDeploy[Cloudflare deploy on main]
     end
 
     subgraph T2["Tier 2 — native and release builds"]
@@ -46,9 +44,6 @@ flowchart TD
     Publish -->|stable release published| AUR
 
     subgraph T4["Tier 4 — automation and diagnostics"]
-        PRDiscord[discord-pr-notify.yml]
-        Roadmap[discord-roadmap-sync.yml]
-        Leaderboard[discord-weekly-leaderboard.yml]
         Bookkeeping[merged-pr-bookkeeping.yml]
         Diagnostic[diagnostic-artifact.yml] --> DiagWin[Windows diagnostic ZIP]
         Diagnostic --> DiagMac[macOS diagnostic archives]
@@ -62,7 +57,6 @@ The STT workflow uploads standalone archives for binary refresh and does not cur
 | Tier | Workflow | Trigger |
 |---|---|---|
 | 1 | `ci.yml` | Push and pull request to `main`, `feat/ai-edition`, `release/**` or `integration/**` |
-| 1 | `docs.yml` | Website/workflow changes on `main` or a PR; manual dispatch |
 | 2 | `build.yml` | Any `v*` tag; manual dispatch |
 | 2 | `build-whisper-stt.yml` | Native STT/build-script changes; manual dispatch |
 | 2.5 | `prerelease.yml` | Manual dispatch |
@@ -70,9 +64,6 @@ The STT workflow uploads standalone archives for binary refresh and does not cur
 | 3 | `update-homebrew-cask.yml` | Published release; manual dispatch |
 | 3 | `publish-winget.yml` | Published release; manual dispatch |
 | 3 | `aur-publish.yml` | Published release; manual dispatch |
-| 4 | `discord-pr-notify.yml` | PR target, review, and issue-comment events |
-| 4 | `discord-roadmap-sync.yml` | Merged PR to `main`; push to `main` |
-| 4 | `discord-weekly-leaderboard.yml` | Monday 12:00 UTC schedule; manual dispatch |
 | 4 | `merged-pr-bookkeeping.yml` | Closed pull request, conditional on merge to `main` |
 | 4 | `diagnostic-artifact.yml` | Push or PR to `main`; manual dispatch |
 
@@ -85,7 +76,7 @@ The STT workflow uploads standalone archives for binary refresh and does not cur
 | `lint` | Ubuntu | `npm run lint` |
 | `typecheck` | Ubuntu | `npx tsc --noEmit` |
 | `typecheck-tests` | Ubuntu | `npx tsc -p tsconfig.test.json --noEmit` |
-| `docs` | Ubuntu | `npm run docs:check` for `technical-documentation/` and `.harness/` |
+| `docs` | Ubuntu | `npm run docs:check` for `technical-documentation/` |
 | `test` | Ubuntu | `npm run test` (Vitest unit tests; no browser-mode step) |
 | `build` | Ubuntu | `npx vite build`; this is not electron-builder packaging |
 | `appstream` | Ubuntu | `appstreamcli validate` on `build/com.getopenscreen.OpenScreen.metainfo.xml` |
@@ -101,8 +92,6 @@ The Vitest job is Linux-only; the native jobs do not change that, so platform-co
 `build/com.getopenscreen.OpenScreen.metainfo.xml` is upstream AppStream metadata: the name, summary, description, licence, screenshots and release history a software centre shows instead of a bare icon. Nothing in this repository consumes it yet — the shipped deb installs a `.desktop` file and nine icon sizes and no `/usr/share/metainfo/` at all — so the `appstream` job is the only thing that can catch a broken edit before a Flathub reviewer does. Its component ID is `com.getopenscreen.OpenScreen`, deliberately not the Electron `appId` `com.etiennelescot.openscreen`: Flathub requires the ID to map to a domain the project controls, and `getopenscreen.com` is that domain.
 
 Jobs that need the root dependencies use `.github/actions/setup`, which requests Node 22 and runs `npm ci`; callers perform checkout themselves.
-
-`docs.yml` is separate from the technical-documentation checker. It installs dependencies in `website/`, type-checks and builds the site, uploads a Pages artifact, and deploys only after a push to `main`.
 
 ## Tier 2: native and release builds
 
@@ -124,7 +113,7 @@ This matrix builds `whisper-stt-server` and its ggml backend sidecars for macOS 
 
 ## Tier 2.5: release management
 
-`prerelease.yml` and `promote.yml` orchestrate the frozen release branch, version tags, milestones, build dispatch, and Discord announcements. Their version-bump commit also refreshes `npmDepsHash` in `nix/package.nix` (`.github/scripts/refresh-nix-npm-hash.sh`): the lockfile's root version is part of that hash, and the commit is `[skip ci]`, so refreshing it anywhere later left `nix build` red from every release until a separate bump PR landed. The full procedure, fallback, branch freeze, and credential requirements live in [release and secrets](release-and-secrets.md).
+`prerelease.yml` and `promote.yml` orchestrate the frozen release branch, version tags, milestones, and build dispatch. Their version-bump commit also refreshes `npmDepsHash` in `nix/package.nix` (`.github/scripts/refresh-nix-npm-hash.sh`): the lockfile's root version is part of that hash, and the commit is `[skip ci]`, so refreshing it anywhere later left `nix build` red from every release until a separate bump PR landed. The full procedure, fallback, branch freeze, and credential requirements live in [release and secrets](release-and-secrets.md).
 
 At a high level, the RC workflow creates or reuses `release/vX.Y.Z`, tags its tip, and dispatches `build.yml` at that tag. Promotion creates the stable version and tag from the same release branch, syncs it back through a PR, and dispatches the stable build at the tag.
 
@@ -140,9 +129,6 @@ Each workflow needs variables or credentials, and where it checks for them decid
 
 ## Tier 4: automation and diagnostics
 
-- `discord-pr-notify.yml` mirrors PR events, reviews, and comments into a Discord forum thread. It is `continue-on-error`, so Discord does not block PR work.
-- `discord-roadmap-sync.yml` updates a pinned Discord roadmap message after a merged PR or push to `main`.
-- `discord-weekly-leaderboard.yml` posts a weekly contributor leaderboard.
 - `merged-pr-bookkeeping.yml` finds closing issue references, applies pending-release labels and the rolling milestone, closes the issue, and adds an idempotent marker comment.
 - `diagnostic-artifact.yml` builds WGC and ScreenCaptureKit helpers and bundles platform diagnostics. Its Windows ZIP and two macOS archives are retained for 14 days.
 
@@ -150,4 +136,4 @@ Each workflow needs variables or credentials, and where it checks for them decid
 
 Release platform artifacts have 30-day Actions retention. `publish-release` copies the NSIS installer, two architecture-specific DMGs when present, and Linux packages into the GitHub release. It intentionally does not download the independently uploaded Store artifact. A stable published release then fans out to Homebrew, WinGet, and AUR.
 
-Diagnostic artifacts remain Actions-only for 14 days. Whisper archives remain Actions-only for 30 days and are used as a binary-refresh output rather than being downloaded by the release workflow. The website build artifact flows only into the Cloudflare deployment, which reads its token from the `website` environment, restricted to `main`.
+Diagnostic artifacts remain Actions-only for 14 days. Whisper archives remain Actions-only for 30 days and are used as a binary-refresh output rather than being downloaded by the release workflow.

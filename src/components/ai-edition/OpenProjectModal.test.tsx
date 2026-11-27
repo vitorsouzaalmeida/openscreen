@@ -3,7 +3,6 @@ import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AiEditionProjectRecordingsResult } from "@/native/contracts";
 import { OpenProjectModal } from "./Modals";
 
@@ -12,7 +11,7 @@ const platform = vi.hoisted(() => ({ current: "darwin" as NodeJS.Platform }));
 vi.mock("@/utils/platformUtils", () => ({ getPlatform: () => platform.current }));
 
 function renderWithI18n(ui: ReactElement) {
-	return render(<I18nProvider>{ui}</I18nProvider>);
+	return render(ui);
 }
 
 const projects = [

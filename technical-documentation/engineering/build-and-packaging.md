@@ -267,11 +267,7 @@ On Windows, `scripts/fetch-ffmpeg.mjs` stages two artifacts: the shared `av*.dll
 
 ### Locale pruning
 
-Chromium packages ~55 locale `.pak` files and macOS `.lproj` directories, totaling over 20 MB of unneeded translations. `electronLanguages` restricts the packaged locales to OpenScreen's supported languages.
-
-Because macOS `ElectronFramework` directory matching uses underscores (`pt_BR.lproj`, `zh_CN.lproj`, `zh_TW.lproj`) while Windows and Linux `.pak` files use hyphens (`pt-BR.pak`, `zh-CN.pak`, `zh-TW.pak`), both forms are declared in `electronLanguages` to prevent `removeUnusedLanguagesIfNeeded` from deleting supported locales on macOS.
-
-`scripts/i18n-check.mjs` (`npm run i18n:check`) verifies that `SUPPORTED_LOCALES` in `src/i18n/config.ts`, `appx.languages`, and `electronLanguages` in `electron-builder.json5` remain synchronized.
+Chromium packages ~55 locale `.pak` files and macOS `.lproj` directories, totaling over 20 MB of unneeded translations. OpenScreen is English-only, so `electronLanguages` is `["en-US"]`: that keeps `en-US.pak` on Windows and Linux and `en.lproj` on macOS, and `removeUnusedLanguagesIfNeeded` drops the rest. `appx.languages` declares the same single language to the Microsoft Store.
 
 ### Documentation assets outside `public/`
 

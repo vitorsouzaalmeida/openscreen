@@ -116,29 +116,27 @@ const ENGLISH_NAMES: Record<WhisperLanguageCode, string> = {
 	yue: "Cantonese",
 };
 
-// Caches both success AND failure (`null`) per locale, so a locale whose ICU
-// data can't build a language `Intl.DisplayNames` (e.g. a small-icu runtime)
-// pays the throwing constructor once per locale, not once per language code.
-const displayNamesCache = new Map<string, Intl.DisplayNames | null>();
+// The UI is English-only, so the names are English ones. Built once; `null` when this
+// runtime's ICU data can't build a language `Intl.DisplayNames` (e.g. small-icu), so the
+// throwing constructor is paid once and not once per language code.
+let displayNames: Intl.DisplayNames | null | undefined;
 
-function displayNamesFor(locale: string): Intl.DisplayNames | null {
-	if (displayNamesCache.has(locale)) return displayNamesCache.get(locale) ?? null;
-	let names: Intl.DisplayNames | null;
-	try {
-		names = new Intl.DisplayNames([locale], { type: "language" });
-	} catch {
-		names = null;
+function englishDisplayNames(): Intl.DisplayNames | null {
+	if (displayNames === undefined) {
+		try {
+			displayNames = new Intl.DisplayNames(["en"], { type: "language" });
+		} catch {
+			displayNames = null;
+		}
 	}
-	displayNamesCache.set(locale, names);
-	return names;
+	return displayNames;
 }
 
 /**
- * Localized name for a whisper.cpp language code, e.g. "jw" -> "Javanese" in
- * an English UI, "japonais" in a French one. Falls back to whisper's own
- * English name (`ENGLISH_NAMES`) when the active locale's ICU data can't
- * resolve one — `Intl.DisplayNames` echoes the input code back rather than
- * throwing when it doesn't recognize it.
+ * English name for a whisper.cpp language code, e.g. "jw" -> "Javanese". Falls back to
+ * whisper's own English name (`ENGLISH_NAMES`) when ICU can't resolve one —
+ * `Intl.DisplayNames` echoes the input code back rather than throwing when it doesn't
+ * recognize it.
  *
  * `code` is typed loosely (not `WhisperLanguageCode`): `AxcutTranscript.language`
  * is `z.string().min(1)`, not validated against the known code list, so a
@@ -146,9 +144,9 @@ function displayNamesFor(locale: string): Intl.DisplayNames | null {
  * the raw code itself — never `undefined` — when neither ICU nor
  * `ENGLISH_NAMES` recognizes it.
  */
-export function languageLabel(code: string, locale: string): string {
+export function languageLabel(code: string): string {
 	try {
-		const resolved = displayNamesFor(locale)?.of(code);
+		const resolved = englishDisplayNames()?.of(code);
 		if (resolved && resolved.toLowerCase() !== code.toLowerCase()) return resolved;
 	} catch {
 		// Malformed/unsupported subtag for this Intl implementation.
@@ -163,20 +161,20 @@ export interface LanguageOption {
 
 /**
  * Every language option for a "Regenerate as" picker: "auto" pinned first
- * with the caller's own translated label for it, the rest sorted by
- * localized name so a 100-language list is scannable instead of ordered by
- * whisper's internal language id.
+ * with the caller's own label for it, the rest sorted by name so a
+ * 100-language list is scannable instead of ordered by whisper's internal
+ * language id.
  */
-export function sortedLanguageOptions(locale: string, autoLabel: string): LanguageOption[] {
+export function sortedLanguageOptions(autoLabel: string): LanguageOption[] {
 	let compare: (a: string, b: string) => number;
 	try {
-		compare = new Intl.Collator(locale).compare;
+		compare = new Intl.Collator("en").compare;
 	} catch {
 		compare = (a, b) => a.localeCompare(b);
 	}
 	// TRANSCRIPT_LANGUAGE_CODES always starts with "auto" (see its own comment).
 	const rest = (TRANSCRIPT_LANGUAGE_CODES.slice(1) as WhisperLanguageCode[])
-		.map((code) => ({ code, label: languageLabel(code, locale) }))
+		.map((code) => ({ code, label: languageLabel(code) }))
 		.sort((a, b) => compare(a.label, b.label));
 	return [{ code: "auto", label: autoLabel }, ...rest];
 }

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useI18n, useScopedT } from "@/contexts/I18nContext";
-import { getAvailableLocales, getLocaleName } from "@/i18n/loader";
+import { useScopedT } from "@/contexts/I18nContext";
 import { offersEditableCursor } from "@/lib/editableCursorAvailability";
 import { canTurnMicrophoneOn } from "@/lib/microphoneAvailability";
 import { loadUserPreferences, saveUserPreferences } from "@/lib/userPreferences";
@@ -30,8 +29,6 @@ import {
 	HudDivider,
 	HudDragHandle,
 	HudKeySoundsButton,
-	HudLanguageButton,
-	HudLanguageMenu,
 	HudLayoutProvider,
 	HudMicButton,
 	HudNotesButton,
@@ -63,10 +60,6 @@ import {
 	hudGrowthReserve,
 } from "./hudGeometry";
 import styles from "./LaunchWindow.module.css";
-
-// Locale list is computed once at module load; keeping the reference stable lets
-// the language menu sit behind a memo boundary.
-const AVAILABLE_LOCALES = getAvailableLocales();
 
 // Set by the main process when Chromium draws through Wayland, where the HUD cannot move its
 // own window: see computeHudLinuxStack.
@@ -108,20 +101,6 @@ export function LaunchWindow() {
 			// The main process logs and reports its own failures.
 		});
 	}, []);
-	const {
-		locale,
-		setLocale,
-		systemLocaleSuggestion,
-		acceptSystemLocaleSuggestion,
-		dismissSystemLocaleSuggestion,
-		resolveSystemLocaleSuggestion,
-	} = useI18n();
-	const suggestedLanguageName = systemLocaleSuggestion ? getLocaleName(systemLocaleSuggestion) : "";
-	const activeLanguageLabel = getLocaleName(locale).split(/\s+/)[0] || locale.toUpperCase();
-	// Short code shown on the button itself (matches the design's "EN"/"FR"
-	// treatment) — activeLanguageLabel (the language's own name) goes into the
-	// tooltip/aria-label sentence ("Language: Deutsch").
-	const languageCode = locale.split("-")[0].toUpperCase();
 
 	const {
 		webcamPreviewStream,
@@ -173,7 +152,6 @@ export function LaunchWindow() {
 	// settings panel. Overloading one button with both jobs is what made turning a
 	// camera on take two clicks.
 	const [isDeviceSettingsOpen, setIsDeviceSettingsOpen] = useState(false);
-	const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
 	const [trayLayout, setTrayLayout] = useState<"horizontal" | "vertical">(
 		() => loadUserPreferences().trayLayout,
 	);
@@ -197,11 +175,9 @@ export function LaunchWindow() {
 	const portalOwnsSource = usePortalOwnsSource();
 
 	const isVertical = trayLayout === "vertical";
-	const isPopoverOpen = isLanguageMenuOpen || isDeviceSettingsOpen;
 	const controlsLocked = recording || saving;
 
 	const settingsTriggerRef = useRef<HTMLButtonElement | null>(null);
-	const languageTriggerRef = useRef<HTMLButtonElement | null>(null);
 	const hudAnchorRef = useRef<HTMLDivElement | null>(null);
 	const hudBarRef = useRef<HTMLDivElement | null>(null);
 	const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -354,23 +330,18 @@ export function LaunchWindow() {
 		});
 	}, []);
 
-	// One dismiss handler for both floating surfaces — they're mutually exclusive,
-	// so a single pointerdown/Escape/blur listener covers the pair instead of two.
-	const closePopovers = useCallback(() => {
+	const closeDeviceSettings = useCallback(() => {
 		setIsDeviceSettingsOpen(false);
-		setIsLanguageMenuOpen(false);
 	}, []);
 
 	useEffect(() => {
-		if (!isPopoverOpen) return;
+		if (!isDeviceSettingsOpen) return;
 
 		const handlePointerDown = (event: PointerEvent) => {
 			const target = event.target as Node;
-			const insideTrigger =
-				settingsTriggerRef.current?.contains(target) ||
-				languageTriggerRef.current?.contains(target);
+			const insideTrigger = settingsTriggerRef.current?.contains(target);
 			if (!insideTrigger && !popoverRef.current?.contains(target)) {
-				closePopovers();
+				closeDeviceSettings();
 			}
 		};
 
@@ -378,8 +349,8 @@ export function LaunchWindow() {
 			if (event.key === "Escape") {
 				// Back to the control that opened it, as the editor's menus do: with focus inside
 				// the popover, unmounting it would drop focus to <body>.
-				(isLanguageMenuOpen ? languageTriggerRef : settingsTriggerRef).current?.focus();
-				closePopovers();
+				settingsTriggerRef.current?.focus();
+				closeDeviceSettings();
 			}
 		};
 
@@ -390,18 +361,18 @@ export function LaunchWindow() {
 		// renderer as nothing at all — no pointerdown to hit-test — while still taking
 		// keyboard focus away. Escape is then undeliverable here, and the popover was
 		// stuck open until the trigger was found again. `blur` is the one signal that
-		// crosses, so it closes the pair; after this the "popover open in a window
+		// crosses, so it closes the panel; after this the "popover open in a window
 		// that has no focus" state simply doesn't exist. Bubble phase on purpose:
 		// element blur doesn't bubble, so this only ever fires for the window itself
 		// and never when focus moves between the menu's own buttons.
-		window.addEventListener("blur", closePopovers);
+		window.addEventListener("blur", closeDeviceSettings);
 
 		return () => {
 			window.removeEventListener("pointerdown", handlePointerDown);
 			window.removeEventListener("keydown", handleEscape);
-			window.removeEventListener("blur", closePopovers);
+			window.removeEventListener("blur", closeDeviceSettings);
 		};
-	}, [closePopovers, isPopoverOpen, isLanguageMenuOpen]);
+	}, [closeDeviceSettings, isDeviceSettingsOpen]);
 
 	// ---------------------------------------------------------------------------
 	// Overlay window sizing
@@ -459,7 +430,7 @@ export function LaunchWindow() {
 			? noticeEl.getBoundingClientRect().height || noticeEl.scrollHeight
 			: 0;
 
-		// The two floating surfaces get their own CSS caps (a 470px-tall language
+		// The two floating surfaces get their own CSS caps (a 470px-tall device
 		// list would look absurd). On Windows and macOS the *window* always reserves
 		// room for the taller of them: sizing the reserve to whichever happens to be
 		// open would mean the window grows when the panel opens — and since the stack
@@ -691,8 +662,8 @@ export function LaunchWindow() {
 	// interactive for as long as one is open, and hand control back to the
 	// pointer-move tracking once it closes.
 	useEffect(() => {
-		setHudMouseEventsEnabled(isPopoverOpen);
-	}, [isPopoverOpen, setHudMouseEventsEnabled]);
+		setHudMouseEventsEnabled(isDeviceSettingsOpen);
+	}, [isDeviceSettingsOpen, setHudMouseEventsEnabled]);
 
 	// The way back out of click-through. Every other route below — pointerenter and
 	// pointerdown on the bar, pointermove on the root — needs an event this document
@@ -952,13 +923,13 @@ export function LaunchWindow() {
 		// Popovers are laid out relative to the bar, so leaving one open across an
 		// orientation flip means resizing and re-flowing in the same frame. Closing
 		// first keeps the flip to a single, clean size change.
-		closePopovers();
+		closeDeviceSettings();
 		setTrayLayout((previous) => {
 			const nextLayout = previous === "horizontal" ? "vertical" : "horizontal";
 			saveUserPreferences({ trayLayout: nextLayout });
 			return nextLayout;
 		});
-	}, [closePopovers]);
+	}, [closeDeviceSettings]);
 
 	/**
 	 * Write a recording preference back to the main-process session store.
@@ -1081,28 +1052,8 @@ export function LaunchWindow() {
 
 	const toggleDeviceSettings = useCallback(() => {
 		if (controlsLocked) return;
-		setIsLanguageMenuOpen(false);
 		setIsDeviceSettingsOpen((open) => !open);
 	}, [controlsLocked]);
-
-	const closeDeviceSettings = useCallback(() => {
-		setIsDeviceSettingsOpen(false);
-	}, []);
-
-	const toggleLanguageMenu = useCallback(() => {
-		if (saving) return;
-		setIsDeviceSettingsOpen(false);
-		setIsLanguageMenuOpen((open) => !open);
-	}, [saving]);
-
-	const handleSelectLocale = useCallback(
-		(nextLocale: string) => {
-			setLocale(nextLocale as Parameters<typeof setLocale>[0]);
-			resolveSystemLocaleSuggestion();
-			setIsLanguageMenuOpen(false);
-		},
-		[resolveSystemLocaleSuggestion, setLocale],
-	);
 
 	const enableHudMouseEvents = useCallback(() => {
 		setHudMouseEventsEnabled(true);
@@ -1167,17 +1118,17 @@ export function LaunchWindow() {
 			if (isDraggingHudRef.current) return;
 			const target = event.target as HTMLElement | null;
 			setHudMouseEventsEnabled(
-				isPopoverOpen || Boolean(target?.closest("[data-hud-interactive='true']")),
+				isDeviceSettingsOpen || Boolean(target?.closest("[data-hud-interactive='true']")),
 			);
 		},
-		[isPopoverOpen, setHudMouseEventsEnabled],
+		[isDeviceSettingsOpen, setHudMouseEventsEnabled],
 	);
 
 	const handlePointerLeave = useCallback(() => {
-		if (!isPopoverOpen) {
+		if (!isDeviceSettingsOpen) {
 			setHudMouseEventsEnabled(false);
 		}
-	}, [isPopoverOpen, setHudMouseEventsEnabled]);
+	}, [isDeviceSettingsOpen, setHudMouseEventsEnabled]);
 
 	const dismissSoftwareFallbackForever = useCallback(() => {
 		dismissSoftwareEncoderFallbackNotice(true);
@@ -1235,10 +1186,7 @@ export function LaunchWindow() {
 	const versionLabel = appInfo ? t("deviceSettings.version", { version: appInfo.version }) : null;
 
 	const showPresenterOverlayWarning = Boolean(recording && presenterOverlay?.cameraInterrupted);
-	const hasNotices =
-		Boolean(systemLocaleSuggestion) ||
-		softwareEncoderFallbackNoticeVisible ||
-		showPresenterOverlayWarning;
+	const hasNotices = softwareEncoderFallbackNoticeVisible || showPresenterOverlayWarning;
 
 	return (
 		// Avoid w-screen/h-screen: 100vw can exceed the inner layout width when scrollbars
@@ -1433,25 +1381,17 @@ export function LaunchWindow() {
 						<div
 							className={`flex items-center gap-[5px] ${isVertical ? "flex-col" : ""} ${styles.electronNoDrag}`}
 						>
-							{/* Hidden mid-take: an update cannot install during one anyway. */}
+							{/* Hidden mid-take: an update cannot install during one anyway. The divider
+							    comes and goes with the button, or two dividers would sit side by side. */}
 							{updateBadge && !recording && (
-								<HudUpdateButton
-									label={tCommon("actions.updateTo", { version: updateBadge.version })}
-									onClick={applyUpdate}
-								/>
+								<>
+									<HudUpdateButton
+										label={tCommon("actions.updateTo", { version: updateBadge.version })}
+										onClick={applyUpdate}
+									/>
+									<HudDivider vertical={isVertical} />
+								</>
 							)}
-
-							<HudLanguageButton
-								buttonRef={languageTriggerRef}
-								vertical={isVertical}
-								code={languageCode}
-								label={t("languageWithName", { language: activeLanguageLabel })}
-								disabled={saving}
-								expanded={isLanguageMenuOpen}
-								onClick={toggleLanguageMenu}
-							/>
-
-							<HudDivider vertical={isVertical} />
 
 							<HudWindowControls
 								vertical={isVertical}
@@ -1466,7 +1406,7 @@ export function LaunchWindow() {
 					</div>
 				</HudLayoutProvider>
 
-				{(isPopoverOpen || hasNotices) && (
+				{(isDeviceSettingsOpen || hasNotices) && (
 					// column-reverse: first child sits closest to the bar.
 					<div className={styles.hudAbove}>
 						{isDeviceSettingsOpen && (
@@ -1496,17 +1436,6 @@ export function LaunchWindow() {
 							/>
 						)}
 
-						{isLanguageMenuOpen && (
-							<HudLanguageMenu
-								locales={AVAILABLE_LOCALES}
-								activeLocale={locale}
-								getName={getLocaleName as (loc: string) => string}
-								onSelect={handleSelectLocale}
-								panelRef={setPopoverEl}
-								onEnsureInteractive={enableHudMouseEvents}
-							/>
-						)}
-
 						{hasNotices && (
 							<div
 								ref={setHudNoticesEl}
@@ -1528,22 +1457,6 @@ export function LaunchWindow() {
 										</div>
 									</div>
 								)}
-								{systemLocaleSuggestion && (
-									<HudNotice
-										title={t("systemLanguagePrompt.title")}
-										description={t("systemLanguagePrompt.description", {
-											language: suggestedLanguageName,
-										})}
-										dismissLabel={t("systemLanguagePrompt.keepDefault")}
-										confirmLabel={t("systemLanguagePrompt.switch", {
-											language: suggestedLanguageName,
-										})}
-										onDismiss={dismissSystemLocaleSuggestion}
-										onConfirm={acceptSystemLocaleSuggestion}
-										confirmOnEnter={!isPopoverOpen}
-									/>
-								)}
-
 								{softwareEncoderFallbackNoticeVisible && (
 									<HudNotice
 										title={t("softwareEncoderFallback.title")}

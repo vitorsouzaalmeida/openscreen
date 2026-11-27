@@ -605,7 +605,7 @@ export function useTimeline() {
 			const newId = created[0]?.id ?? ann.id;
 			setMultiSelection([{ kind: "annotation", id: newId }]);
 			setSelection({ kind: "annotation", id: newId });
-			// `ts` is memoised on [locale, namespace] by useScopedT, so this does not
+			// `ts` is memoised on its namespace by useScopedT, so this does not
 			// churn the callback identity between renders.
 		},
 		[document, saveDocument, ts],

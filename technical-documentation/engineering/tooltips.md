@@ -50,7 +50,7 @@ If the icon has to swap and the wording has to follow (Play, Pause), it is an ac
 ## 4. Showing a shortcut
 
 * Read the live binding with `formatBinding` or `formatFixedShortcut` and pass it to the `Tooltip` `shortcut` prop. It renders a `<kbd dir="ltr">` chip after the text. One chip, the first binding. No chip when the action has no binding.
-* Never write "(Z)" in a string. Seven actions can be remapped, so a baked-in key lies after a remap, sits in 15 locales, and breaks the order of mixed-direction text in Arabic.
+* Never write "(Z)" in a string. Seven actions can be remapped, so a baked-in key lies after a remap.
 * A tooltip is not the only place a shortcut appears. The shortcuts dialog and the menus stay the reference.
 * Every control whose action has a binding shows it: Undo, Redo, Play and Pause, the Add buttons, Send.
 
@@ -86,18 +86,17 @@ If the icon has to swap and the wording has to follow (Play, Pause), it is an ac
 | HUD hide | "Hide recording bar" | add how to get it back: "Show it again from the tray icon." |
 | Segmented rows | every option has a title equal to its text | title only for an icon-only option |
 
-## 8. Writing and translating
+## 8. Writing
 
 * **Literal keys.** Write `t("timeline.buttons.addZoom")`. Not `t(on ? "a" : "b")` and not a key held in a map: `npm run i18n:check` only resolves literal calls, and a missing key shows as raw text.
-* **Every key in all 15 locales in the same PR.** Then run `npm run i18n:check`. A tooltip key is not shared with a heading: they change separately.
-* **Placeholders** are named (`{{language}}`) and copied unchanged into every locale. Pass a value that may be in another direction (a device name) as its own node or between Unicode isolates.
+* **Add the key to the English catalog** (`src/i18n/locales/en/`), the only one, then run `npm run i18n:check`. A tooltip key is not shared with a heading: they change separately.
+* **Placeholders** are named (`{{version}}`). Pass a value that may be in another direction (a device name) as its own node or between Unicode isolates.
 * **No shortcut and no key name in a string.** The one exception is a modifier passed as `{{modifier}}` (Alt or Option).
 * **No idioms, no phrasal verbs, no wordplay.** Use plain verbs: start, stop, remove, show, hide, choose, add. Write "Delete this recording and start a new one", not "Redo it from scratch". One idea per sentence, active voice.
 * **No em dash and no middle dot as a connector.** Use a colon or two sentences.
-* **One term per concept:** see [section 9](#9-terms). "Camera", not "webcam". "Recording", not "take". Reuse the locale's existing term for a term already translated.
-* **Do not build a tooltip from pieces.** One string per tooltip, so word order and punctuation stay right in every language.
-* **Length.** French, Italian, Spanish, Portuguese and Russian run up to 55 % longer than English. CJK runs shorter. The caps in section 5 leave room.
-* **Machine translation.** Fine for these short strings. Say in the PR that non-English locales were translated by machine, and keep the placeholder and length guard test (`src/i18n/__tests__/tooltipCopy.test.ts`) green. Add each new tooltip key to its list.
+* **One term per concept:** see [section 9](#9-terms). "Camera", not "webcam". "Recording", not "take".
+* **Do not build a tooltip from pieces.** One string per tooltip, so word order and punctuation stay right.
+* **Length.** Keep within the caps in section 5, and keep the length guard test (`src/i18n/__tests__/tooltipCopy.test.ts`) green. Add each new tooltip key to its list.
 * **Tests.** Assert the tooltip through its content and the accessible description, not through `title`. The HUD is click-through, so Playwright cannot hover it: check it by hand with real mouse moves (see [AGENTS.md](../../AGENTS.md) and the [manual checklist](../testing/manual-e2e-checklist.md)).
 
 ## 9. Terms

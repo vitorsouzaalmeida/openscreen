@@ -11,7 +11,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutAsset, AxcutDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { useTranscriptionStore } from "@/lib/ai-edition/store/transcriptionStore";
@@ -80,11 +79,7 @@ function load(document: AxcutDocument) {
 }
 
 function mount() {
-	render(
-		<I18nProvider>
-			<CaptionsPane />
-		</I18nProvider>,
-	);
+	render(<CaptionsPane />);
 }
 
 beforeEach(() => {

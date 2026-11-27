@@ -102,7 +102,7 @@
 }
 /* The brand doubles as the app-menu trigger, so it has to read as a button on hover without
    gaining any width: .modeSwitch is the only flex-shrink:1 element in the bar, so every pixel
-   a new control costs is paid out of the mode labels in the most verbose of 13 locales. The
+   a new control costs is paid out of the mode labels. The
    negative margin lets the hover plate bleed past the logo without moving it. */
 .brandBtn {
 	border: 0;
@@ -141,7 +141,7 @@
 	left: 0;
 	/* Sized to its widest row. Left to the default shrink-to-fit, an absolute box measures its
 	   available width against the anchor, which is only as wide as the wordmark, so it settled
-	   on min-width and long locales wrapped: "Changer de langue" on two lines, the version split
+	   on min-width and long rows wrapped: a label on two lines, the version split
 	   as "2.0.0-" / "rc.8" (#969). The max-width only keeps it inside the window. */
 	width: max-content;
 	min-width: 232px;
@@ -198,27 +198,6 @@
 	color: var(--muted);
 	font-variant-numeric: tabular-nums;
 	font-size: 11.5px;
-}
-/* The language row's chevron turns to show its list is open. */
-.appMenuChevron {
-	color: var(--muted);
-	flex-shrink: 0;
-	transition: transform var(--motion-fast) var(--ease);
-}
-.appMenuRow[aria-expanded="true"] .appMenuChevron {
-	transform: rotate(180deg);
-}
-/* The languages, unfolded under their row: indented to read as its children, and capped so
-   fifteen of them scroll inside the menu instead of running off the window. */
-.appMenuSub {
-	max-height: 220px;
-	overflow-y: auto;
-	padding-left: 25px;
-	scrollbar-width: thin;
-}
-.appMenuSub .appMenuRow[aria-checked="true"] {
-	color: var(--accent);
-	font-weight: 600;
 }
 .appMenuSep {
 	height: 1px;

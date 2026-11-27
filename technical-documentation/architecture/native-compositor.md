@@ -56,14 +56,10 @@ their prose describes (HLSL, D3D11VA, AMF, DirectWrite); the macOS half is:
 | [`crates/compositor/src/shaders.metal`](../../crates/compositor/src/shaders.metal) | the MSL port of `shaders.hlsl`, compiled at runtime via `newLibraryWithSource`. Same nine entry points; resources are entry-point parameters rather than globals, which is the one thing MSL does not let you transcribe from HLSL |
 | [`crates/compositor/src/timeline_walk.rs`](../../crates/compositor/src/timeline_walk.rs) | portable, not per-platform: the clip walk both exports (MP4, GIF) and both backends share, so "which source frame belongs at output frame N" is defined exactly once |
 
-Two more modules sit in the POC crate ([`crates/poc-d3d/`](../../crates/poc-d3d)) rather than the
-library. Nothing packages them — they drive the library for measurement and eyeballing:
-
-| source | responsibility |
-|---|---|
-| [`crates/poc-d3d/src/app.rs`](../../crates/poc-d3d/src/app.rs) | standalone Win32 GUI (combo preset, Play/Pause, Export, progress bar) — wraps the measured pipeline for interactive demo |
-| [`crates/poc-d3d/src/bench.rs`](../../crates/poc-d3d/src/bench.rs) | mode dispatcher (`--live` / `--cfg` bench / GUI) and the C0..C8 fps harness |
-| [`crates/poc-d3d/src/main.rs`](../../crates/poc-d3d/src/main.rs) | thin `main` that calls `bench::run()` |
+The standalone Win32 GUI and the C0..C8 fps harness that drove this library for measurement
+lived in a separate `poc-d3d` crate. Nothing packaged it, and it has been removed from the
+repository; the numbers it produced are kept in
+[rendering performance](../engineering/rendering-performance.md).
 
 ## The compositing pipeline
 

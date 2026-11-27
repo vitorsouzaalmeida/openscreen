@@ -99,7 +99,6 @@
 		"export": "Export",
 		"renameProject": "Rename project",
 		"noProject": "No project",
-		"changeLanguage": "Change language",
 		"editorMode": "Editor mode",
 		"modes": {
 			"media": "Media",

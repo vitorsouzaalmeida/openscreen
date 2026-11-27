@@ -118,8 +118,6 @@ An instance started on another userData folder (`--user-data-dir`) writes to `<u
 - [ ] Confirm the chosen bar layout remains coherent when the HUD grows to show recording controls.
 - [ ] Activate `[data-testid="hud-drag-handle"]`, drag the HUD across most of the primary display, and confirm it follows the pointer without drift.
 - [ ] Release the drag and confirm the HUD stays at the dropped position instead of jumping.
-- [ ] Activate the language button by its visible language code and confirm a menu of locale choices opens.
-- [ ] Press `Esc` with the language menu open and confirm it closes without changing the locale.
 - [ ] Activate the camera toggle `[data-testid="launch-webcam-button"]` and the microphone toggle `[data-testid="launch-microphone-button"]` (absent on macOS 13 and 14) and confirm each turns on with one click. On a Mac with no camera attached, confirm the webcam toggle stays off and reports that camera access is blocked or the camera is unavailable; recording remains available with the webcam off.
 - [ ] Open the gear `[data-testid="launch-device-settings-button"]` (*Device settings*) and confirm it lists the input devices with a level meter that moves when you speak, and the cameras with a live preview; pick another device, close with *Close* (the X), and confirm the toggle now records from it.
 - [ ] **v2.0.0** — With a camera attached and no saved choice, open the gear and confirm a *Camera quality* row sits under the camera list and above the preview, with three radio choices, `camera-quality-1080p`, `camera-quality-1440p` and `camera-quality-2160p`, labelled 1080p, 1440p and 4K, and that 4K is the one checked.
@@ -603,7 +601,7 @@ The percentage is computed in the renderer against a predicted frame total, and 
   - **The video stream's `duration` is one frame short** by the muxer's convention (it is the last frame's timestamp); the audio track lasts exactly frames ÷ fps. A 2451-frame 30 fps export reads 81.667 s video against 81.700 s audio, and that is in sync.
 - [ ] Cancel an export mid-render and confirm no audio decode threads outlive the attempt.
 
-## Settings, shortcuts, themes, i18n
+## Settings, shortcuts, themes
 
 The inspector's rail holds five facets: Composition (background, format, frame, motion), Camera layout, Audio, Cursor (only while a recording on the timeline has cursor data), and Transcript, whose *Captions* button opens the caption settings.
 
@@ -627,8 +625,6 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 - [ ] Pick each *Cursor style* and toggle *3D cursor*; confirm the preview cursor changes. Under *Cursor types*, switch a type off and confirm that type is drawn as the arrow.
 - [ ] Record a take with *Editable cursor* Off (the system cursor), open it in the editor, and confirm the rail has no Cursor facet; confirm a take recorded with it On shows the facet, and an imported video does not.
 - [ ] Open OpenScreen menu → *Switch to light theme* (or dark) and confirm the editor switches between dark and light themes.
-- [ ] Open OpenScreen menu → *Change language*, choose a non-English locale, and confirm visible UI strings change.
-- [ ] Switch back to English and confirm the top bar, transport, inspector, and export labels return to English.
 - [ ] In the Composition facet, pick another *Format* (16:9, 9:16, 1:1, 4:3, 4:5, 16:10, 10:16, or a timeline shape under *Original*) and confirm the preview frame changes shape.
 - [ ] With a Format whose shape differs from the recording's, confirm the *Recording* row offers *Whole* and *Follow cursor*; confirm Follow cursor fills the frame with a window on the recording that follows the cursor, and Whole shows all of it.
 - [ ] Pick **Auto** in the Format row, drag padding from 0 to 100, and confirm the frame reshapes live with one border thickness on all four sides; switch the camera layout to Dual frame, then Vertical stack, and confirm the frame widens, then turns portrait, with a square camera. Export and confirm the file has the preview frame's shape and the same even border. Then add a clip of another shape, a differently cropped clip, or a clip without a camera, and confirm the frame does not move and Auto stays listed, disabled with the reason shown ("Clips differ"); pick 16:9 and confirm Auto is no longer offered.
@@ -639,7 +635,7 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 - [ ] On macOS, open the application menu and confirm it lists About OpenScreen, Permissions…, Save Diagnostics, Star on GitHub and Check for Updates.
 - [ ] On Windows and Linux, right-click the tray icon and confirm it lists About OpenScreen, and Check for Updates on a self-updating install. The HUD is frameless and the editor has no menu bar there, its top bar being the title bar, so the only Help menu is the Notes window's, which auto-hides its menu bar until Alt is pressed.
 - [ ] On Windows and Linux, open the Notes window from the HUD, press Alt, and confirm its Help menu lists About OpenScreen and Save Diagnostics, and Check for Updates on a self-updating install. Alt does nothing in the editor.
-- [ ] In the editor, click the OpenScreen wordmark in the top bar and confirm it opens a menu listing New project, Open project and Save project; Keyboard Shortcuts, the theme switch and Change language; then About OpenScreen and Star on GitHub, with Check for Updates before them on a self-updating install. This is the discoverable path on Windows and Linux, where the two above are not.
+- [ ] In the editor, click the OpenScreen wordmark in the top bar and confirm it opens a menu listing New project, Open project and Save project; Keyboard Shortcuts and the theme switch; then About OpenScreen and Star on GitHub, with Check for Updates before them on a self-updating install. This is the discoverable path on Windows and Linux, where the two above are not.
 - [ ] Confirm the About row in that menu shows the running version, and that it matches what the About box then reports.
 - [ ] Open the wordmark menu and pick Keyboard Shortcuts; confirm the shortcuts configuration dialog opens and that only one dialog appears.
 - [ ] Open the wordmark menu, then press Escape, click elsewhere in the top bar, and click the wordmark again — confirm each closes it and that the window does not start dragging instead of registering the click.
@@ -647,7 +643,7 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 - [ ] **post-1.10.0** — Confirm a failed or unavailable download stops short of the restart prompt rather than offering to restart into an installer that was never fetched.
 - [ ] **post-1.10.0** — Reach **Save Diagnostics** from every place that offers it: the tray context menu while idle, the Notes window's Help menu (Alt) on Windows and Linux, the app menu on macOS, and the editor if it has an entry of its own. Confirm each writes a bundle.
 - [ ] With the wordmark menu open, walk it with the Down and Up arrows and confirm focus wraps at both ends.
-- [ ] Switch the app language and confirm the wordmark menu's labels follow — Keyboard Shortcuts matching the dialog it opens, Check for Updates and About OpenScreen the wording the macOS app menu and the tray use.
+- [ ] Confirm the wordmark menu's labels match what they open — Keyboard Shortcuts matching the dialog it opens, Check for Updates and About OpenScreen the wording the macOS app menu and the tray use.
 - [ ] Open About and confirm it names the running version, the Electron/Chromium/Node versions, and the install channel.
 - [ ] Confirm the About box opens in front of the HUD rather than behind it.
 - [ ] On Windows and Linux, press Copy in the About box and confirm the clipboard holds that same block.
@@ -695,7 +691,7 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 
 **What to watch.** The first check runs a minute after launch, so wait at least that, plus the download. Nothing logs the updater itself; a failed check or download logs one `[updates]` line, which tray → *Save Diagnostics* keeps.
 
-- [ ] **post-2.1.2** — Launch the installed build and wait. Confirm no dialog opens at any point. Once the download has finished, a blue update button appears in the HUD bar, just before the language button, and in the editor's top bar, just before Export, and the tray gains *Update to <version>*.
+- [ ] **post-2.1.2** — Launch the installed build and wait. Confirm no dialog opens at any point. Once the download has finished, a blue update button appears in the HUD bar, just before *Hide recording bar*, and in the editor's top bar, just before Export, and the tray gains *Update to <version>*.
 - [ ] **post-2.1.2** — Start a recording and confirm the button is gone for the length of the take, then back.
 - [ ] **post-2.1.2** — Quit with the button showing (*Quit OpenScreen* on the HUD, or tray → *Quit*), then relaunch. Confirm nothing installed on the way out: no installer, no UAC or password prompt, `app-update.yml` unchanged. The button is back a minute later. Only a click installs.
 - [ ] **post-2.1.2** — Click the button. Confirm the app restarts into the update. On a per-machine Windows install, and on deb, rpm or pacman, the system asks for an administrator first (UAC, or the password dialog), and the update installs once granted.

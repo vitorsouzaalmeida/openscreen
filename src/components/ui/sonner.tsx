@@ -36,8 +36,7 @@ const Toaster = ({ className, style, ...props }: ToasterProps) => {
 			// there too: from `classNames` they lose to sonner's own rule.
 			closeButton
 			toastOptions={{
-				// Sonner's default is the untranslated "Close toast"; the rest of the app
-				// speaks 13 languages.
+				// Sonner's default is "Close toast"; the app names it from its own catalog.
 				closeButtonAriaLabel: tc("actions.closeNotification"),
 				style: { boxShadow: "var(--elev-pop)" },
 				classNames: {

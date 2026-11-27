@@ -11,7 +11,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutAsset, AxcutClip, AxcutTranscript, AxcutWord } from "@/lib/ai-edition/schema";
 import { TranscriptPane } from "./RightPanes";
 
@@ -57,25 +56,23 @@ function renderPane(words: AxcutWord[] = WORDS, busyAssetIds: string[] = []) {
 		words,
 	};
 	const view = render(
-		<I18nProvider>
-			<TranscriptPane
-				clips={[CLIP]}
-				audioTracks={[]}
-				transcripts={[transcript]}
-				assets={[ASSET]}
-				trimRanges={[]}
-				busyAssetIds={busyAssetIds}
-				onSeek={vi.fn()}
-				onTrimTimelineSpan={onAddTrimRange}
-				onRemoveTrimRanges={vi.fn()}
-				onSetWordText={vi.fn()}
-				onInsertWord={onInsertWord}
-				onRemoveWords={onRemoveWords}
-				onTranscribe={vi.fn()}
-				canTranscribe
-				isTranscribing={false}
-			/>
-		</I18nProvider>,
+		<TranscriptPane
+			clips={[CLIP]}
+			audioTracks={[]}
+			transcripts={[transcript]}
+			assets={[ASSET]}
+			trimRanges={[]}
+			busyAssetIds={busyAssetIds}
+			onSeek={vi.fn()}
+			onTrimTimelineSpan={onAddTrimRange}
+			onRemoveTrimRanges={vi.fn()}
+			onSetWordText={vi.fn()}
+			onInsertWord={onInsertWord}
+			onRemoveWords={onRemoveWords}
+			onTranscribe={vi.fn()}
+			canTranscribe
+			isTranscribing={false}
+		/>,
 	);
 	const editor = view.container.querySelector<HTMLElement>('[role="textbox"]');
 	if (!editor) throw new Error("transcript editor not rendered");

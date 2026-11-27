@@ -8,8 +8,6 @@ import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { addLayoutChange, layoutRuns } from "@/lib/ai-edition/document/layout";
 import { type AxcutDocument, createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -72,18 +70,11 @@ function renderLayout(doc: AxcutDocument) {
 		revision: 1,
 		status: "ready",
 	});
-	return render(
-		<I18nProvider>
-			<LayoutPane />
-		</I18nProvider>,
-	);
+	return render(<LayoutPane />);
 }
 
 beforeEach(() => {
-	// The assertions below are on English copy; without pinning they would ride on
-	// jsdom's implicit en-US and pass vacuously if the fallback ever changed.
 	localStorage.clear();
-	localStorage.setItem(LOCALE_STORAGE_KEY, "en");
 });
 
 afterEach(() => {

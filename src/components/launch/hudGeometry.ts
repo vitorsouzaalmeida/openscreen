@@ -48,9 +48,9 @@ export const HUD_POPOVER_GAP = 8;
 export const HUD_TOOLTIP_STACK_HEIGHT = 86;
 /** Gap between stacked floating elements (popover, notices). */
 export const HUD_STACK_GAP = 10;
-/** Width of the device / language popovers. */
+/** Width of the device settings popover. */
 export const HUD_POPOVER_WIDTH = 220;
-/** Width of the top notices (locale suggestion, software-encoder fallback). */
+/** Width of the top notices (software-encoder fallback, presenter overlay). */
 export const HUD_NOTICE_WIDTH = 360;
 /**
  * Widest thing that can ever float above the bar. Always reserved, so a popover

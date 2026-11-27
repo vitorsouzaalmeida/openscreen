@@ -80,14 +80,6 @@
 		"stop": "Stop and save the recording",
 		"saving": "Saving..."
 	},
-	"language": "Language",
-	"languageWithName": "Language: {{language}}",
-	"systemLanguagePrompt": {
-		"title": "Use your system language?",
-		"description": "We detected {{language}} as your system language. Do you want to switch OpenScreen to {{language}}?",
-		"switch": "Switch to {{language}}",
-		"keepDefault": "Keep current language"
-	},
 	"softwareEncoderFallback": {
 		"title": "Switched to a backup encoder",
 		"description": "Your graphics card's encoder didn't start, so OpenScreen switched to a backup. Your recording is fine, though your computer may work a little harder.",

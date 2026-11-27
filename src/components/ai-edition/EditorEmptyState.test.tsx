@@ -3,13 +3,12 @@ import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { EditorEmptyState } from "./EditorEmptyState";
 
 function renderWithI18n(ui: ReactElement) {
-	return render(<I18nProvider>{ui}</I18nProvider>);
+	return render(ui);
 }
 
 const bridgeMocks = vi.hoisted(() => ({

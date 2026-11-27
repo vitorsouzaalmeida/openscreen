@@ -9,7 +9,6 @@
 import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutAsset, AxcutClip, AxcutTranscript } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { TranscriptPane } from "./RightPanes";
@@ -68,25 +67,23 @@ const TRANSCRIPT: AxcutTranscript = {
 
 function renderPane(onSeek: (sec: number) => void = vi.fn()) {
 	return render(
-		<I18nProvider>
-			<TranscriptPane
-				clips={CLIPS}
-				audioTracks={[]}
-				transcripts={[TRANSCRIPT]}
-				assets={[ASSET]}
-				trimRanges={[]}
-				busyAssetIds={[]}
-				onSeek={onSeek}
-				onTrimTimelineSpan={vi.fn()}
-				onRemoveTrimRanges={vi.fn()}
-				onSetWordText={vi.fn()}
-				onInsertWord={vi.fn()}
-				onRemoveWords={vi.fn()}
-				onTranscribe={vi.fn()}
-				canTranscribe
-				isTranscribing={false}
-			/>
-		</I18nProvider>,
+		<TranscriptPane
+			clips={CLIPS}
+			audioTracks={[]}
+			transcripts={[TRANSCRIPT]}
+			assets={[ASSET]}
+			trimRanges={[]}
+			busyAssetIds={[]}
+			onSeek={onSeek}
+			onTrimTimelineSpan={vi.fn()}
+			onRemoveTrimRanges={vi.fn()}
+			onSetWordText={vi.fn()}
+			onInsertWord={vi.fn()}
+			onRemoveWords={vi.fn()}
+			onTranscribe={vi.fn()}
+			canTranscribe
+			isTranscribing={false}
+		/>,
 	);
 }
 

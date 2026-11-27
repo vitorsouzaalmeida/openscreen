@@ -20,7 +20,6 @@ vi.mock("@/native/sceneDescription", () => ({
 	resolveVisibleClips: (doc: AxcutDocument) => doc.timeline.clips,
 }));
 
-import { I18nProvider } from "@/contexts/I18nContext";
 import { type AxcutDocument, axcutSchemaVersion } from "@/lib/ai-edition/schema";
 import { calculateMp4ExportSettings } from "@/lib/exporter/mp4ExportSettings";
 import { exportGifNative, exportMultiNative } from "@/native";
@@ -85,11 +84,7 @@ const SMALL_SOURCE_DOC: AxcutDocument = {
 };
 
 function renderDialog(document: AxcutDocument = DOC) {
-	render(
-		<I18nProvider>
-			<ExportDialog open={true} onClose={noop} document={document} />
-		</I18nProvider>,
-	);
+	render(<ExportDialog open={true} onClose={noop} document={document} />);
 }
 
 /** Clicks Export, waits for the native call, and hands back the params it received. */

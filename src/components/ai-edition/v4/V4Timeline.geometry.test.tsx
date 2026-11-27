@@ -34,7 +34,7 @@ const measureText = vi.fn((text: string) => ({ width: text.length * 6 }));
 
 import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import type { I18nNamespace } from "@/i18n/config";
-import { getAvailableLocales, translate } from "@/i18n/loader";
+import { translate } from "@/i18n/loader";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import type { useTimeline } from "@/lib/ai-edition/store/useTimeline";
 import { DEFAULT_SHORTCUTS, formatBinding } from "@/lib/shortcuts";
@@ -1224,8 +1224,7 @@ describe("V4Timeline empty-lane hints", () => {
 	});
 
 	function useEnglish() {
-		i18n.translate = (namespace, key, vars) =>
-			translate("en", namespace as I18nNamespace, key, vars);
+		i18n.translate = (namespace, key, vars) => translate(namespace as I18nNamespace, key, vars);
 	}
 
 	it("names the default keys", () => {
@@ -1234,9 +1233,7 @@ describe("V4Timeline empty-lane hints", () => {
 		expect(screen.getByText("Press Z to add zoom")).toBeInTheDocument();
 		expect(screen.getByText("Press T to add trim")).toBeInTheDocument();
 		expect(screen.getByText("Press S to add speed")).toBeInTheDocument();
-		expect(
-			screen.getByLabelText(translate("en", "timeline", "layouts.changeHere")),
-		).toBeInTheDocument();
+		expect(screen.getByLabelText(translate("timeline", "layouts.changeHere"))).toBeInTheDocument();
 		expect(screen.getByText("Press M to add audio, V to record a voiceover")).toBeInTheDocument();
 	});
 
@@ -1265,34 +1262,11 @@ describe("V4Timeline empty-lane hints", () => {
 		expect(screen.getByText("Press Ctrl + Shift + T to add trim")).toBeInTheDocument();
 		expect(screen.getByText("Press N to add annotation")).toBeInTheDocument();
 		expect(screen.getByText("Press J to add speed")).toBeInTheDocument();
-		expect(
-			screen.getByLabelText(translate("en", "timeline", "layouts.changeHere")),
-		).toBeInTheDocument();
+		expect(screen.getByLabelText(translate("timeline", "layouts.changeHere"))).toBeInTheDocument();
 		expect(
 			screen.getByText("Press U to add audio, Alt + R to record a voiceover"),
 		).toBeInTheDocument();
 		expect(screen.queryByText("Press Z to add zoom")).not.toBeInTheDocument();
-	});
-
-	// The component test reads English only; a locale that renamed or dropped a placeholder
-	// would render the raw `{{key}}`, or the stale letter, with every key set still matching.
-	it.each(getAvailableLocales())("%s interpolates the key into every hint", (locale) => {
-		const vars = { key: "⌘ + X", audioKey: "⌘ + U", voiceoverKey: "⌥ + R" };
-		for (const key of [
-			"hints.pressZoom",
-			"hints.pressTrim",
-			"hints.pressAnnotation",
-			"hints.pressSpeed",
-			"hints.pressCameraFullscreen",
-		]) {
-			const text = translate(locale, "timeline", key, vars);
-			expect(text, key).toContain("⌘ + X");
-			expect(text, key).not.toContain("{{");
-		}
-		const audio = translate(locale, "timeline", "hints.pressAudio", vars);
-		expect(audio).toContain("⌘ + U");
-		expect(audio).toContain("⌥ + R");
-		expect(audio).not.toContain("{{");
 	});
 });
 
@@ -1420,8 +1394,7 @@ describe("V4Timeline zoom trails", () => {
 		document.querySelector<HTMLElement>(`[data-zoom-trail="${side}"]`) as HTMLElement;
 
 	function renderZoom(overrides: Record<string, unknown>, clips?: ReturnType<typeof clip>[]) {
-		i18n.translate = (namespace, key, vars) =>
-			translate("en", namespace as I18nNamespace, key, vars);
+		i18n.translate = (namespace, key, vars) => translate(namespace as I18nNamespace, key, vars);
 		renderTimeline(clips, undefined, [NO_CAMERA_ASSET], undefined, {
 			zoomRegions: [ZOOM],
 			...overrides,

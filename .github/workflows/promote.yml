@@ -7,11 +7,6 @@ on:
         description: "RC tag to promote (e.g. v1.5.0-rc.2)"
         required: true
         type: string
-      release_notes_extra:
-        description: "Optional message to prepend to auto-generated release notes"
-        required: false
-        type: string
-        default: ""
 
 permissions:
   contents: write
@@ -120,11 +115,10 @@ jobs:
 
       # ORDER MATTERS. Everything that actually publishes the release runs before the
       # main-sync below. The stable tag is already pushed at this point, so the build
-      # and the announcement depend on nothing the sync produces — while the sync is a
-      # PR round-trip against a remote that fails for reasons of its own. It used to
-      # run first, and every one of its failures silently skipped both steps under it:
-      # v1.7.0, v1.8.0 and v1.9.0 all shipped without an automated build (dispatched by
-      # hand minutes later) and without a #releases announcement.
+      # depends on nothing the sync produces — while the sync is a PR round-trip against
+      # a remote that fails for reasons of its own. It used to run first, and every one
+      # of its failures silently skipped the step under it: v1.7.0, v1.8.0 and v1.9.0
+      # all shipped without an automated build (dispatched by hand minutes later).
       - name: Trigger build workflow
         env:
           GH_TOKEN: ${{ secrets.OPENSCREEN_RELEASE_TOKEN }}
@@ -143,16 +137,6 @@ jobs:
             -f release_tag="${STABLE_TAG}" \
             -f arch=both \
             --repo "$GITHUB_REPOSITORY"
-
-      # No announcement step here any more. It moved to announce-release.yml, which
-      # runs on `release: published` — the one event every release path shares,
-      # including a tag pushed straight to build.yml with no promotion at all. This
-      # step could only ever announce what THIS workflow did, and it announced it
-      # from here, before build.yml had produced a single asset.
-      #
-      # `release_notes_extra` consequently no longer reaches Discord from this
-      # workflow. Pass it to the announce dispatch instead when there is something
-      # to prepend; the automatic run posts the standard message.
 
       # Bookkeeping, not publishing: the release is already out by now. Allowed to fail
       # so a stuck PR never masks a successful release — the summary reports it and it

@@ -56,7 +56,7 @@ Co-locate the test file next to the source file, or put it in a `__tests__/` fol
 src/lib/compositeLayout.ts
 src/lib/compositeLayout.test.ts        # co-located
 
-src/i18n/__tests__/tutorialHelpTranslations.test.ts  # grouped
+src/i18n/__tests__/tooltipCopy.test.ts  # grouped
 ```
 
 ### Example
@@ -85,7 +85,7 @@ describe("computeCompositeLayout", () => {
 The `@/` alias resolves to `src/`. Use it for imports that would otherwise need long relative paths.
 
 ```ts
-import { SUPPORTED_LOCALES } from "@/i18n/config";
+import { I18N_NAMESPACES } from "@/i18n/config";
 ```
 
 ### Running locally
@@ -110,7 +110,7 @@ npm run test                           # everything (~80s), once, before committ
 | Situation | Use |
 |---|---|
 | Pure function / data transformation | Unit test (node) |
-| i18n key coverage | Unit test (node) |
+| UI string checks (length, wording) | Unit test (node) |
 | React component or hook behavior | Unit test + `// @vitest-environment jsdom` |
 | `VideoDecoder` / `VideoEncoder` / real codecs | Rust test in `crates/`, or the manual checklist |
 | GPU rendering (the native compositor) | Rust test in `crates/`, or the manual checklist |

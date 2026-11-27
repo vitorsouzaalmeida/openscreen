@@ -3,12 +3,11 @@ import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { type AxcutClip, clipCropRegionSchema } from "@/lib/ai-edition/schema";
 import { EditClipModal } from "./Modals";
 
 function renderWithI18n(ui: ReactElement) {
-	return render(<I18nProvider>{ui}</I18nProvider>);
+	return render(ui);
 }
 
 /** Issue #558's example: original 2:35, keep 0:20–1:45, final 1:25. */

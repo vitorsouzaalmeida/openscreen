@@ -62,32 +62,9 @@
     "appimage": "1.0.3"
   },
   "compression": "normal",
-  // Strip unused Chromium locale pak files (saves ~20 MB). Only package locales supported by OpenScreen.
-  // Note: macOS uses underscore variants (e.g. pt_BR.lproj, zh_CN.lproj, zh_TW.lproj), while Windows
-  // and Linux use hyphenated pak files (e.g. pt-BR.pak, zh-CN.pak, zh-TW.pak). Both forms are listed
-  // so app-builder-lib retains the correct locale assets across all platforms.
-  "electronLanguages": [
-    "en-US",
-    "fr",
-    "ar",
-    "cs",
-    "de",
-    "es",
-    "it",
-    "ja",
-    "ko",
-    "nl",
-    "pl",
-    "pt-BR",
-    "pt_BR",
-    "ru",
-    "tr",
-    "vi",
-    "zh-CN",
-    "zh_CN",
-    "zh-TW",
-    "zh_TW"
-  ],
+  // Strip unused Chromium locale pak files (saves ~20 MB). OpenScreen is English-only, so
+  // only the English assets are kept: en-US.pak on Windows and Linux, en.lproj on macOS.
+  "electronLanguages": ["en-US"],
   "directories": {
     "output": "release/${version}",
     // Electron-builder's default, spelled out because the appx target depends on it:
@@ -187,8 +164,8 @@
     // matters is the native payload's, so it stays declared here.
     //
     // macOS 13 because ScreenCaptureKit capture requires it: ScreenCaptureRecorder is
-    // `@available(macOS 13.0, *)`. Keep in step with README.md, website/docs/
-    // installation.md, and electron/native/screencapturekit/Package.swift.
+    // `@available(macOS 13.0, *)`. Keep in step with README.md and
+    // electron/native/screencapturekit/Package.swift.
     "minimumSystemVersion": "13.0",
     "notarize": false,
     "hardenedRuntime": true,
@@ -466,30 +443,9 @@
     // is versioned. An execution alias needs Windows 10 1709 (16299); the app needs 1903.
     "customExtensionsPath": "build/appx-extensions.xml",
     "minVersion": "10.0.18362.0",
-    // Mirrors SUPPORTED_LOCALES in src/i18n/config.ts. This list is what the Store
-    // shows as "supported languages" on the product page and what lets the listing
-    // surface in each language's Store search — declaring only en-US/fr-FR advertised
-    // 2 of the 15 languages the app actually ships. Bare tags (ar, es, ...) match every
-    // region of that language, which is what the renderer's locale resolution does too.
-    "languages": [
-      "en-US",
-      "fr-FR",
-      "ar",
-      "cs",
-      "de",
-      "es",
-      "it",
-      "ja-JP",
-      "ko-KR",
-      "nl",
-      "pl",
-      "pt-BR",
-      "ru",
-      "tr",
-      "vi",
-      "zh-CN",
-      "zh-TW"
-    ],
+    // What the Store shows as "supported languages" on the product page. The app is
+    // English-only.
+    "languages": ["en-US"],
     "showNameOnTiles": true
   }
 }

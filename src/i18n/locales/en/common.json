@@ -67,10 +67,6 @@
 		"pixelsPerSecond": "{{value}} px/s",
 		"pixels": "{{value}} px"
 	},
-	"locale": {
-		"name": "English",
-		"short": "EN"
-	},
 	"recordingSource": {
 		"window": "Window",
 		"screen": "Screen",

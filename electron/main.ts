@@ -47,7 +47,7 @@ import {
 	registerOpenAppShortcut,
 	unregisterAllGlobalShortcuts,
 } from "./globalShortcut";
-import { mainT, setMainLocale } from "./i18n";
+import { mainT } from "./i18n";
 import {
 	getInstallChannel,
 	offersUpdateCheck,
@@ -542,8 +542,7 @@ function aboutFacts(): AboutFacts {
 }
 
 /** macOS gets its native About panel (the app menu's `role: "about"` opens it) because that
- *  is the window its users expect; this is the only chance to put our facts in it. Nothing
- *  here is translated, so it needs no re-run when the locale changes. */
+ *  is the window its users expect; this is the only chance to put our facts in it. */
 function configureAboutPanel() {
 	if (!usesNativeAboutPanel(process.platform)) return;
 	const facts = aboutFacts();
@@ -1391,11 +1390,6 @@ appReady?.then(async () => {
 
 	ipcMain.on("hud-overlay-close", () => {
 		app.quit();
-	});
-	ipcMain.handle("set-locale", (_, locale: string) => {
-		setMainLocale(locale);
-		setupApplicationMenu();
-		updateTrayMenu();
 	});
 
 	ipcMain.handle("update-global-shortcut", (_, binding: ShortcutBinding) => {

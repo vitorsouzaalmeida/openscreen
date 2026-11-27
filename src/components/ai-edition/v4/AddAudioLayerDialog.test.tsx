@@ -10,7 +10,6 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 vi.mock("@/contexts/I18nContext", () => ({
 	useScopedT: () => (key: string) => key,
-	useI18n: () => ({ locale: "en", setLocale: () => undefined }),
 }));
 
 const addAudioAsset = vi.fn();

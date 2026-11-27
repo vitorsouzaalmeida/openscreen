@@ -3,11 +3,10 @@ import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { NewProjectModal } from "./Modals";
 
 function renderWithI18n(ui: ReactElement) {
-	return render(<I18nProvider>{ui}</I18nProvider>);
+	return render(ui);
 }
 
 describe("NewProjectModal starting points", () => {

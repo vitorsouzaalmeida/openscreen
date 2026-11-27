@@ -8,8 +8,6 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { NotesToolbar, type NotesToolbarProps } from "./NotesToolbar";
 
 // jsdom has none, and a Radix tooltip measures its trigger when it opens.
@@ -28,7 +26,6 @@ class StubResizeObserver {
 beforeEach(() => {
 	vi.stubGlobal("ResizeObserver", StubResizeObserver);
 	localStorage.clear();
-	localStorage.setItem(LOCALE_STORAGE_KEY, "en");
 });
 
 afterEach(() => {
@@ -47,25 +44,23 @@ const editor = {
 
 function renderToolbar(overrides: Partial<NotesToolbarProps> = {}) {
 	render(
-		<I18nProvider>
-			<TooltipProvider>
-				<NotesToolbar
-					editor={editor}
-					isPlaying={false}
-					formattingDisabled
-					speed={40}
-					fontSize={16}
-					mirrored={false}
-					onTogglePlaying={vi.fn()}
-					onDecreaseSpeed={vi.fn()}
-					onIncreaseSpeed={vi.fn()}
-					onDecreaseFontSize={vi.fn()}
-					onIncreaseFontSize={vi.fn()}
-					onToggleMirror={vi.fn()}
-					{...overrides}
-				/>
-			</TooltipProvider>
-		</I18nProvider>,
+		<TooltipProvider>
+			<NotesToolbar
+				editor={editor}
+				isPlaying={false}
+				formattingDisabled
+				speed={40}
+				fontSize={16}
+				mirrored={false}
+				onTogglePlaying={vi.fn()}
+				onDecreaseSpeed={vi.fn()}
+				onIncreaseSpeed={vi.fn()}
+				onDecreaseFontSize={vi.fn()}
+				onIncreaseFontSize={vi.fn()}
+				onToggleMirror={vi.fn()}
+				{...overrides}
+			/>
+		</TooltipProvider>,
 	);
 }
 

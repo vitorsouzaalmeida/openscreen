@@ -8,15 +8,6 @@ import { dirname, join, relative, resolve } from "node:path";
 const ROOT = resolve(import.meta.dirname, "..");
 const DOCS = join(ROOT, "technical-documentation");
 
-// `.harness/` is prose too, and it rots the same way — it just had no checker.
-// `.harness/docs/git-workflow.md` described the release-branch naming that #90
-// had already replaced, and `.harness/memory/MEMORY.md` repeated it, for a
-// month, while the same fact stayed correct under technical-documentation/
-// because this script was watching that tree and not this one. Every file here
-// is loaded into agent runs, so a stale one is worse than a stale page nobody
-// opens. Only REQUIRED (the "expected file is real" pass) stays docs-only.
-const TREES = [DOCS, join(ROOT, ".harness")];
-
 // Names of components, docs, or conventions that no longer exist on this branch.
 // A doc may only mention them inside a "removed / superseded" note, which lives
 // in decisions.md.
@@ -102,7 +93,7 @@ function walk(dir) {
 }
 
 const errors = [];
-const files = TREES.flatMap(walk);
+const files = walk(DOCS);
 
 for (const abs of REQUIRED) {
 	const rel = `technical-documentation/${abs}`;

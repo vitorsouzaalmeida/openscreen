@@ -31,7 +31,7 @@ describe("macOS runner images", () => {
 	it("pins no arm64 macOS image", () => {
 		// The one that bit us: `macos-14` kept working until Homebrew stopped building bottles
 		// for it, at which point `brew install ffmpeg` fell back to compiling x265 from source
-		// and every pull request went red — including ones touching only `website/`. Homebrew
+		// and every pull request went red — including ones touching only documentation. Homebrew
 		// builds bottles for the versions it supports, and `macos-latest` is always one of
 		// them, so a pinned arm64 image is a dated bomb with nothing to defuse it.
 		//

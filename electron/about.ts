@@ -45,9 +45,8 @@ export interface AboutFacts {
 	node: string;
 }
 
-/** The block under "Openscreen <version>". Untranslated on purpose: every line is a version
- *  number, a platform identifier or a URL, and a pasted bug report reads the same whatever
- *  locale the reporter runs.
+/** The block under "Openscreen <version>": every line is a version number, a platform
+ *  identifier or a URL.
  *
  *  `COPYRIGHT` is deliberately NOT part of it: the macOS About panel has its own field for
  *  that line, and putting it here too would print it twice on the one platform that asked

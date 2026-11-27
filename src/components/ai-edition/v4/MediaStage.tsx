@@ -2,7 +2,7 @@ import { ArrowDown, Film, Image as ImageIcon, Plus, RotateCw, Search, X } from "
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useI18n, useScopedT } from "@/contexts/I18nContext";
+import { useScopedT } from "@/contexts/I18nContext";
 import { VOCABULARY_MAX_CHARS, withVocabulary } from "@/lib/ai-edition/document/transcript";
 import type { AxcutAsset, AxcutTranscript, TranscriptLanguageCode } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -66,7 +66,6 @@ export function MediaStage({
 	onAddToTimeline: (assetId: string) => Promise<void>;
 }) {
 	const t = useScopedT("editor");
-	const { locale } = useI18n();
 	const projectId = useProjectStore((s) => s.projectId);
 	const document = useProjectStore((s) => s.document);
 	const addAsset = useProjectStore((s) => s.addAsset);
@@ -83,10 +82,7 @@ export function MediaStage({
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [detailOpen, setDetailOpen] = useState(false);
 	const [lang, setLang] = useState<TranscriptLanguageCode>("auto");
-	const regenLanguageOptions = useMemo(
-		() => sortedLanguageOptions(locale, t("mediaStage.auto")),
-		[locale, t],
-	);
+	const regenLanguageOptions = useMemo(() => sortedLanguageOptions(t("mediaStage.auto")), [t]);
 
 	// Video only — this stage arranges clips. Imported audio (issue #350) is a
 	// timeline overlay added from the timeline toolbar, not a clip, so it never
@@ -382,7 +378,7 @@ export function MediaStage({
 												}}
 											>
 												{t("mediaStage.detectedLanguage", {
-													language: languageLabel(detectedLanguage, locale),
+													language: languageLabel(detectedLanguage),
 												})}
 											</span>
 										) : null}

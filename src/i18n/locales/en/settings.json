@@ -99,7 +99,6 @@
 		"typeImage": "Image"
 	},
 	"effects": {
-		"fitClipFew": "{{count}} clips",
 		"title": "Composition",
 		"shadow": "Shadow",
 		"off": "off",
@@ -393,9 +392,6 @@
 		"help": "Voices are levelled to a standard loudness automatically. Adjust the output level from there; it applies identically in the preview and the export.",
 		"reset": "Reset audio",
 		"title": "Audio"
-	},
-	"language": {
-		"title": "Language"
 	},
 	"project": {
 		"new": "New Project",

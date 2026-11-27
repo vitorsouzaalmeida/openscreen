@@ -8,8 +8,6 @@
 import "@testing-library/jest-dom";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { type AxcutDocument, createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { CursorPane, LayoutPane, VideoEffectsPane } from "./RightPanes";
@@ -36,7 +34,6 @@ class StubResizeObserver {
 beforeEach(() => {
 	vi.stubGlobal("ResizeObserver", StubResizeObserver);
 	localStorage.clear();
-	localStorage.setItem(LOCALE_STORAGE_KEY, "en");
 });
 
 afterEach(() => {
@@ -100,7 +97,7 @@ function mount(pane: React.ReactElement, legacyEditor: Record<string, unknown> =
 		revision: 1,
 		status: "ready",
 	});
-	return render(<I18nProvider>{pane}</I18nProvider>).container;
+	return render(pane).container;
 }
 
 // Radix draws the visible tooltip and a visually hidden `role="tooltip"` copy for assistive

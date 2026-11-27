@@ -103,21 +103,12 @@ result-*
 # Word-timing harness (tools/stt-eval/word-timing): TTS corpus and results.
 /tools/stt-eval/word-timing/data/
 
-opencode.json
-opencode.json
-
 # Frames dumped by `npm run bench:export -- --dumpFrame=N`, for eyes only.
 bench-frame-*.png
 
 # POC inputs (real recordings) and outputs — big, and not source.
 poc/media/
 poc/out/
-
-# poc-d3d — cargo build output and the vendored ffmpeg it links against.
-# ~1.3 GB of generated artifacts (1765 + 223 files), never source. Scoped to
-# these two subtrees so the POC's own sources stay committable.
-/poc-d3d/target/
-/poc-d3d/thirdparty/
 
 # cc-delegate worker worktrees/branches + scratch test artifacts.
 .cc-delegate/
