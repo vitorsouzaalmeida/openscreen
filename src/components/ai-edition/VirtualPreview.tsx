@@ -20,6 +20,7 @@ import {
 	projectRawTimelineSecToPlayback,
 	resolvePlaybackSegments,
 } from "@/lib/ai-edition/document/timeline";
+import { tickKeySoundPreview } from "@/lib/ai-edition/keySound";
 import type {
 	AxcutAudioTrack,
 	AxcutClip,
@@ -1348,6 +1349,14 @@ export function VirtualPreview({
 						);
 					}
 				}
+				// The key sound, heard live, on the same clock and under the same rules.
+				tickKeySoundPreview(
+					v.paused,
+					sourceTime,
+					videoSourcesRef.current[sourceIndexRef.current]?.filePath,
+					activeClipIdRef.current,
+					audioGraphRef.current,
+				);
 			}
 			// À L'ARRÊT, le `<video>` ne pilote PLUS la position de la timeline.
 			//

@@ -30,7 +30,7 @@
 //! décodeurs, symétrique.
 
 use crate::audio::{
-    assemble_concatenated_pcm, build_audio_concat_plan, finish_audio, mix_click_hits,
+    assemble_concatenated_pcm, build_audio_concat_plan, finish_audio, mix_click_hits, mix_key_hits,
     mix_external_tracks,
     AacEncoder, PlanarPcm,
 };
@@ -1362,6 +1362,11 @@ fn run_multi_inner(
         .as_ref()
         .map(|scene| scene.click_sound.clone())
         .unwrap_or_default();
+    // Key press hits, laid on the programme by the app the same way.
+    let key_sound = scene
+        .as_ref()
+        .map(|scene| scene.key_sound.clone())
+        .unwrap_or_default();
     frames = unsafe {
         crate::timeline_walk::walk_composited_timeline(
             clips,
@@ -1439,9 +1444,12 @@ fn run_multi_inner(
         let plan = build_audio_concat_plan(&clip_frame_counts, &declared_audio, out_fps as f64);
         audio_encoder.encode(
             &finish_audio(
-                mix_click_hits(
-                    mix_external_tracks(assemble_concatenated_pcm(&clip_pcm, &plan), &audio_tracks),
-                    &click_sound,
+                mix_key_hits(
+                    mix_click_hits(
+                        mix_external_tracks(assemble_concatenated_pcm(&clip_pcm, &plan), &audio_tracks),
+                        &click_sound,
+                    ),
+                    &key_sound,
                 ),
                 audio_settings,
             ),

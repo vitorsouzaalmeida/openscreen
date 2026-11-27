@@ -82,12 +82,13 @@ export async function extractAudio(
  *  (#1104). */
 export function exportIsSilent(
 	document: AxcutDocument,
-	scene: Pick<SceneDescription, "audioTracks" | "clickSound">,
+	scene: Pick<SceneDescription, "audioTracks" | "clickSound" | "keySound">,
 ): boolean {
 	return (
 		getEditorSettings(document).recordingMuted &&
 		scene.audioTracks.length === 0 &&
-		!scene.clickSound
+		!scene.clickSound &&
+		!scene.keySound
 	);
 }
 

@@ -898,6 +898,32 @@ pub struct SceneClickSound {
     pub hits: Vec<SceneClickHit>,
 }
 
+/// One key press or release to be heard: `time_sec` is its place on the OUTPUT programme,
+/// `gain` its linear level, `sample` which entry of `SceneKeySound::samples` to play.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SceneKeyHit {
+    pub time_sec: f64,
+    #[serde(default = "default_one")]
+    pub gain: f32,
+    #[serde(default)]
+    pub sample: usize,
+}
+
+/// Key press sounds: the take's recorded key presses and releases, already projected onto the
+/// programme, plus the samples to play them with. The keyboard's `SceneClickSound`, laid out by
+/// the app the same way and for the same reason. A scene never says which key a hit was: the
+/// app picked a sample from the recording's per-key voice number, not from a key.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SceneKeySound {
+    /// Absolute paths of the samples a hit's `sample` indexes.
+    #[serde(default)]
+    pub samples: Vec<String>,
+    #[serde(default)]
+    pub hits: Vec<SceneKeyHit>,
+}
+
 fn default_one() -> f32 {
     1.0
 }
@@ -980,6 +1006,9 @@ pub struct Scene {
     /// same as the field being absent, which is every scene written before this.
     #[serde(default)]
     pub click_sound: SceneClickSound,
+    /// Key press hits. `#[serde(default)]` as for `click_sound`: absent is no hits.
+    #[serde(default)]
+    pub key_sound: SceneKeySound,
     /// Crop écran par clip, dans le même ordre que `clips` (`cropByClip` côté TS).
     #[serde(default)]
     pub crop_by_clip: Vec<Option<SceneCrop>>,
@@ -1191,6 +1220,22 @@ mod tests {
         // And a scene from before the field reads as no hits, not as a parse failure.
         assert!(SceneClickSound::default().hits.is_empty());
         assert!(serde_json::from_str::<SceneClickSound>("{}").unwrap().hits.is_empty());
+    }
+
+    #[test]
+    fn a_key_sound_payload_reads_the_apps_camel_case_names() {
+        let keys: SceneKeySound = serde_json::from_str(
+            r#"{"samples":["/u/key-1.wav","/u/enter.wav"],"hits":[
+                {"timeSec":1.5,"gain":0.4,"sample":1},{"timeSec":2.0}]}"#,
+        )
+        .unwrap();
+        assert_eq!(keys.samples.len(), 2);
+        assert_eq!(keys.hits[0].sample, 1);
+        assert_eq!(keys.hits[0].gain, 0.4);
+        // A hit that says no more than when is a full-strength press of the first sample.
+        assert_eq!((keys.hits[1].gain, keys.hits[1].sample), (1.0, 0));
+        // A scene from before the field reads as no hits, not as a parse failure.
+        assert!(serde_json::from_str::<SceneKeySound>("{}").unwrap().hits.is_empty());
     }
 
     #[test]

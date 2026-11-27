@@ -3,6 +3,7 @@ import {
 	CameraOff,
 	ChevronDown,
 	FolderOpen,
+	Keyboard,
 	LayoutGrid,
 	Loader2,
 	MicOff,
@@ -22,6 +23,7 @@ import { useAudioLevelMeter } from "@/hooks/useAudioLevelMeter";
 import { useCameraDevices } from "@/hooks/useCameraDevices";
 import { useCameraPreviewStream } from "@/hooks/useCameraPreviewStream";
 import { useEditableCursorAvailable } from "@/hooks/useEditableCursorAvailable";
+import { useKeySoundsStatus } from "@/hooks/useKeySounds";
 import { useMicrophoneDevices } from "@/hooks/useMicrophoneDevices";
 import { usePortalOwnsSource } from "@/hooks/usePortalOwnsSource";
 import { canTurnCameraOn } from "@/lib/cameraAvailability";
@@ -40,6 +42,7 @@ interface RecordingPrefsState {
 	cursorCaptureMode: "editable-overlay" | "system";
 	hideDesktopIcons: boolean;
 	autoZoomEnabled: boolean;
+	keySoundsEnabled: boolean;
 }
 
 const DEFAULT_PREFS: RecordingPrefsState = {
@@ -53,6 +56,7 @@ const DEFAULT_PREFS: RecordingPrefsState = {
 	cursorCaptureMode: "editable-overlay",
 	hideDesktopIcons: false,
 	autoZoomEnabled: true,
+	keySoundsEnabled: false,
 };
 
 /** The last segment of a Windows or POSIX path; a drive root keeps its letter. */
@@ -337,6 +341,9 @@ export function RecStage({
 
 	const editableCursor = prefs.cursorCaptureMode === "editable-overlay";
 	const editableCursorAvailable = useEditableCursorAvailable();
+	const keySounds = useKeySoundsStatus((reason) => {
+		toast.error(t(reason === "denied" ? "rec.keySoundsDenied" : "rec.keySoundsUnavailable"));
+	});
 	// Names for the On/Off pills: the row label is the accessible name, and `aria-pressed` says
 	// which state it is in. A pill named "On" or "Off" says which control it is nowhere.
 	const rowLabels = useId();
@@ -611,6 +618,33 @@ export function RecStage({
 							>
 								{prefs.autoZoomEnabled ? t("rec.on") : t("rec.off")}
 							</button>
+						</div>
+					) : null}
+
+					{/* Linux only: elsewhere nothing can supply key timing, so the row is not offered. */}
+					{keySounds.supported ? (
+						<div className={styles.recRow}>
+							<div id={rowLabelId("keySounds")} className={styles.recRowLabel}>
+								<Keyboard size={15} />
+								{t("rec.keySounds")}
+							</div>
+							<Tooltip
+								content={
+									keySounds.installed ? t("rec.keySoundsTip") : t("rec.keySoundsNotInstalled")
+								}
+								side="top"
+							>
+								<button
+									type="button"
+									data-testid="rec-key-sounds-button"
+									className={`${styles.recToggleBtn}${prefs.keySoundsEnabled ? ` ${styles.on}` : ""}`}
+									aria-labelledby={rowLabelId("keySounds")}
+									aria-pressed={prefs.keySoundsEnabled}
+									onClick={() => updatePrefs({ keySoundsEnabled: !prefs.keySoundsEnabled })}
+								>
+									{prefs.keySoundsEnabled ? t("rec.on") : t("rec.off")}
+								</button>
+							</Tooltip>
 						</div>
 					) : null}
 

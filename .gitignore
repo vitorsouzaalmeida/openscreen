@@ -23,6 +23,7 @@ dist-ssr
 /electron/native/bin/
 /electron/native/pipewire-capture/build/
 /electron/native/pipewire-capture/target/
+/electron/native/keytickd/target/
 
 # Native macOS generated files
 DerivedData/

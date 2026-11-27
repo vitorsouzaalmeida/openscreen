@@ -90,6 +90,14 @@ interface Window {
 		onRecordingPrefsChanged: (
 			callback: (prefs: import("./ipc/handlers").RecordingPrefs) => void,
 		) => () => void;
+		/** Key press timing for takes: whether this platform has it, and whether its service is installed. */
+		getKeySoundsStatus: () => Promise<import("./keystrokes/keySoundsRecording").KeySoundsStatus>;
+		/** The "Key sounds" toggle was turned back off: the prompt was dismissed, or there is no service. */
+		onKeySoundsUnavailable: (callback: (reason: "denied" | "unavailable") => void) => () => void;
+		/** The take's `.keys.json`, or null when it has none. */
+		getKeyRecording: (
+			videoPath?: string,
+		) => Promise<import("../src/lib/keystrokes/keyRecording").KeyRecordingData | null>;
 		onSourceSelectorClosed: (callback: () => void) => () => void;
 		onAutoStartRecording: (callback: () => void) => () => void;
 		onAiEditionChatEvent: (
@@ -362,8 +370,11 @@ interface Window {
 			message?: string;
 			error?: string;
 		}>;
-		// Stage one of the two bundled click-sound samples where the compositor can read it
-		// by path. Only the two names the app ships are accepted, so nothing is sanitised here.
+		/** The user's own replacement for one bundled click or key sample, or null. */
+		readSoundOverride: (name: string) => Promise<ArrayBuffer | null>;
+		// Stage one of the bundled click or key sound samples where the compositor can read it
+		// by path. Only the names the app ships are accepted, so nothing is sanitised here. The
+		// path handed back is the user's own sample of that name when they provided one.
 		stageClickSoundHit: (
 			name: string,
 			data: ArrayBuffer,

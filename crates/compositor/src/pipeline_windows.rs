@@ -3,7 +3,7 @@
 //! tout le run, deux lectures seulement. Rien dans la boucle ne peut fausser le fps.
 
 use crate::audio::{
-    assemble_concatenated_pcm, build_audio_concat_plan, finish_audio, mix_click_hits,
+    assemble_concatenated_pcm, build_audio_concat_plan, finish_audio, mix_click_hits, mix_key_hits,
     mix_external_tracks,
     AacEncoder, PlanarPcm,
 };
@@ -1784,6 +1784,11 @@ unsafe fn run_multi_inner(
         .as_ref()
         .map(|scene| scene.click_sound.clone())
         .unwrap_or_default();
+    // Key press hits, laid on the programme by the app the same way.
+    let key_sound = scene
+        .as_ref()
+        .map(|scene| scene.key_sound.clone())
+        .unwrap_or_default();
 
     // ---- encodeur (choisi à l'exécution, cf. ExportCodec::candidates) + mux ----
     // Backend CPU : pas de pool D3D11 du tout. `av_hwdevice_ctx_init(D3D11VA)` échoue sur
@@ -1926,9 +1931,12 @@ unsafe fn run_multi_inner(
         out_fps as f64,
     );
     let assembled_audio = finish_audio(
-        mix_click_hits(
-            mix_external_tracks(assemble_concatenated_pcm(&clip_pcm, &audio_plan), &audio_tracks),
-            &click_sound,
+        mix_key_hits(
+            mix_click_hits(
+                mix_external_tracks(assemble_concatenated_pcm(&clip_pcm, &audio_plan), &audio_tracks),
+                &click_sound,
+            ),
+            &key_sound,
         ),
         audio_settings,
     );

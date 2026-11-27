@@ -219,6 +219,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("recording-prefs-changed", listener);
 		return () => ipcRenderer.removeListener("recording-prefs-changed", listener);
 	},
+	getKeySoundsStatus: () => {
+		return ipcRenderer.invoke("get-key-sounds-status");
+	},
+	onKeySoundsUnavailable: (callback: (reason: "denied" | "unavailable") => void) => {
+		const listener = (_event: unknown, reason: "denied" | "unavailable") => callback(reason);
+		ipcRenderer.on("key-sounds-unavailable", listener);
+		return () => ipcRenderer.removeListener("key-sounds-unavailable", listener);
+	},
+	getKeyRecording: (videoPath?: string) => {
+		return ipcRenderer.invoke("get-key-recording", videoPath);
+	},
 	onSelectedSourceChanged: (callback: (source: ProcessedDesktopSource | null) => void) => {
 		const listener = (_event: unknown, source: ProcessedDesktopSource | null) => callback(source);
 		ipcRenderer.on("selected-source-changed", listener);
@@ -409,6 +420,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	saveRecordedVoiceover: (data: ArrayBuffer) => {
 		return ipcRenderer.invoke("save-recorded-voiceover", data);
+	},
+	readSoundOverride: (name: string) => {
+		return ipcRenderer.invoke("read-sound-override", name);
 	},
 	stageClickSoundHit: (name: string, data: ArrayBuffer) => {
 		return ipcRenderer.invoke("stage-click-sound-hit", name, data);

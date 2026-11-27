@@ -154,6 +154,7 @@ import { ROUNDNESS_SLIDER_MAX_PX } from "@/native/paramUnits";
 import { wallpaperAcceptsMotion } from "@/native/sceneDescription";
 import { ASPECT_RATIO_PRESETS, type AspectRatio } from "@/utils/aspectRatioUtils";
 import { useClickSound } from "../../hooks/useClickSound";
+import { useKeySoundCues } from "../../hooks/useKeySoundCues";
 import { useCanSegmentCamera } from "../../native/hooks/useSegmentationSupport";
 import { CaptionsPane } from "./CaptionsPane";
 import { ColorField } from "./ColorField";
@@ -3719,6 +3720,7 @@ export function CursorPane() {
 	);
 	const recordedTypes = useRecordedCursorTypes();
 	const clickSound = useClickSound();
+	const keySound = useKeySoundCues();
 	// Each kind the video shows, pictured by the first of its states it shows.
 	const recordedKinds = CURSOR_KIND_IDS.flatMap((kind) => {
 		const type = CURSOR_KINDS[kind].find((state) => recordedTypes?.has(state));
@@ -3997,6 +3999,42 @@ export function CursorPane() {
 								defaultValue={DEFAULT_EDITOR_SETTINGS.cursor.clickSoundGainDb}
 								disabled={!hasDocument}
 								onChange={(clickSoundGainDb) => setLive({ cursor: { clickSoundGainDb } })}
+								onCommit={() => void commit()}
+							/>
+						</div>
+					) : null}
+				</>
+			) : null}
+			{/* The keyboard, heard the same way. Offered only for a take recorded with key timing,
+			    and not under "Show cursor": a hidden pointer does not silence a keyboard. */}
+			{keySound.hasKeys ? (
+				<>
+					<div className={styles.paneRow}>
+						<span className={styles.label}>{ts("cursor.keySound")}</span>
+						<Toggle
+							ariaLabel={ts("cursor.keySound")}
+							tooltip={ts("cursor.keySoundTip")}
+							checked={settings.keySound}
+							disabled={!hasDocument}
+							onChange={(v) => {
+								void set({ keySound: v });
+								if (v) void keySound.prepare();
+							}}
+						/>
+					</div>
+					{settings.keySound ? (
+						<div className={styles.sliderGrid}>
+							<SliderCell
+								label={ts("cursor.keySoundVolume")}
+								value={settings.keySoundGainDb}
+								min={SETTING_BOUNDS.cursorClickSoundGainDb[0]}
+								max={SETTING_BOUNDS.cursorClickSoundGainDb[1]}
+								step={0.5}
+								decimals={1}
+								suffix=" dB"
+								defaultValue={DEFAULT_EDITOR_SETTINGS.keySoundGainDb}
+								disabled={!hasDocument}
+								onChange={(keySoundGainDb) => setLive({ keySoundGainDb })}
 								onCommit={() => void commit()}
 							/>
 						</div>
