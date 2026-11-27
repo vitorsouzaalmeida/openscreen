@@ -68,6 +68,26 @@ describe("Wayland startup configuration", () => {
 		expect(switches.get("disable-features")).toBe("WebRtcPipeWireCamera,Vulkan");
 	});
 
+	it.each([
+		["GNOME", "Vulkan,GlobalShortcutsPortalPreferredTrigger"],
+		["ubuntu:GNOME", "Vulkan,GlobalShortcutsPortalPreferredTrigger"],
+		["KDE", "Vulkan"],
+		[undefined, "Vulkan"],
+	])("keeps the shortcuts portal off on GNOME only (XDG_CURRENT_DESKTOP=%j)", (desktop, disabled) => {
+		// On GNOME the portal asks the user to add the shortcut at every launch.
+		const switches = new Map<string, string>();
+		const commandLine = {
+			hasSwitch: (name: string) => switches.has(name),
+			getSwitchValue: (name: string) => switches.get(name) ?? "",
+			appendSwitch: (name: string, value?: string) => switches.set(name, value ?? ""),
+		};
+		configureWaylandSupport(commandLine, {
+			XDG_SESSION_TYPE: "wayland",
+			XDG_CURRENT_DESKTOP: desktop,
+		});
+		expect(switches.get("disable-features")).toBe(disabled);
+	});
+
 	it.each([{}, { XDG_SESSION_TYPE: "x11" }])("leaves a non-Wayland session alone: %j", (env) => {
 		const commandLine = {
 			appendSwitch: vi.fn(),

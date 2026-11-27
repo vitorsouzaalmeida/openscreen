@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
+import { waitForAppWindow } from "./appWindows";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "../..");
@@ -95,7 +96,7 @@ test.describe("Windows native checklist smoke tests", () => {
 		const app = await launchApp();
 
 		try {
-			const hudWindow = await app.firstWindow({ timeout: 60_000 });
+			const hudWindow = await waitForAppWindow(app, "hud-overlay", 60_000);
 			await hudWindow.waitForLoadState("domcontentloaded");
 			await dismissLanguagePrompt(hudWindow);
 
@@ -105,10 +106,7 @@ test.describe("Windows native checklist smoke tests", () => {
 			await expect(hudWindow.getByTestId("launch-microphone-button")).toBeEnabled();
 
 			await hudWindow.getByTestId("launch-source-selector-button").click();
-			const sourceWindow = await app.waitForEvent("window", {
-				predicate: (w) => w.url().includes("windowType=source-selector"),
-				timeout: 15_000,
-			});
+			const sourceWindow = await waitForAppWindow(app, "source-selector");
 			await sourceWindow.waitForLoadState("domcontentloaded");
 
 			const cards = sourceWindow.getByTestId("source-selector-card");
@@ -178,17 +176,14 @@ test.describe("Windows native checklist smoke tests", () => {
 		const app = await launchApp();
 
 		try {
-			const hudWindow = await app.firstWindow({ timeout: 60_000 });
+			const hudWindow = await waitForAppWindow(app, "hud-overlay", 60_000);
 			await hudWindow.waitForLoadState("domcontentloaded");
 			await dismissLanguagePrompt(hudWindow);
 
 			// A second window keeps the window list non-empty while the HUD is torn
 			// down below — emptying it fires window-all-closed, which quits the app.
 			await hudWindow.getByTestId("launch-source-selector-button").click();
-			await app.waitForEvent("window", {
-				predicate: (w) => w.url().includes("windowType=source-selector"),
-				timeout: 15_000,
-			});
+			await waitForAppWindow(app, "source-selector");
 
 			// Recreate the HUD through the app's own path (second-instance →
 			// showMainWindow → createHudOverlayWindow) with the native call taped.

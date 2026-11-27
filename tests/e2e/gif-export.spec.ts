@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, expect, test } from "@playwright/test";
+import { waitForAppWindow } from "./appWindows";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "../..");
@@ -81,7 +82,7 @@ async function exportFromLoadedVideo(
 	const app = await launchApp(userDataDir, appTmpDir);
 
 	try {
-		const hudWindow = await app.firstWindow({ timeout: 60_000 });
+		const hudWindow = await waitForAppWindow(app, "hud-overlay", 60_000);
 		await hudWindow.waitForLoadState("domcontentloaded");
 
 		await app.evaluate(({ ipcMain }, targetPath: string) => {
@@ -143,10 +144,7 @@ async function exportFromLoadedVideo(
 			}
 		}
 
-		const editorWindow = await app.waitForEvent("window", {
-			predicate: (w) => w.url().includes("windowType=editor"),
-			timeout: 15_000,
-		});
+		const editorWindow = await waitForAppWindow(app, "editor");
 
 		// WebCodecs may not be registered in the renderer on first load.
 		await editorWindow.reload();
