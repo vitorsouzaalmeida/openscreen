@@ -9,9 +9,9 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
 // outrank any class passed in `toastOptions` — which is why the old `bg-[#09090b]` never
 // showed and every toast came out #000, 8px, in the system font. Setting the variables on
 // the toaster itself is the documented override. They are design tokens, so the toasts
-// follow the app theme (index.html sets `data-theme` in every window) without a `theme` prop.
+// match the rest of the app without a `theme` prop.
 const TOKEN_STYLE = {
-	"--normal-bg": "var(--surface-hi)",
+	"--normal-bg": "var(--surface-2)",
 	"--normal-border": "var(--border-hi)",
 	"--normal-text": "var(--fg)",
 	"--border-radius": "12px",

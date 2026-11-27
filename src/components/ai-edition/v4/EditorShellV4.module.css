@@ -1,7 +1,6 @@
 /* OpenScreen Editor v4 shell — Media / Edit / Rec modes.
  * Ported 1:1 from design/OpenScreen Editor v4.dc.html. All colors read the
- * global --* design tokens (src/styles/design-tokens.css); dark is the hero
- * look, light is a full token swap handled by the token layer. */
+ * global --* design tokens (src/styles/design-tokens.css). The app is dark-only. */
 
 .app {
 	display: grid;
@@ -53,7 +52,6 @@
 		18px + 100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px)
 	);
 	background: transparent;
-	border-bottom: 1px solid var(--shell-rule-soft);
 	min-width: 0;
 	-webkit-app-region: drag;
 	app-region: drag;
@@ -64,19 +62,13 @@
 	-webkit-app-region: no-drag;
 	app-region: no-drag;
 }
-/* While a menu hanging off the bar is open (the wordmark's, the presets'), the bar stops being a
+/* While a menu hanging off the bar is open (the app menu, the presets'), the bar stops being a
    titlebar. The OS takes a press on a drag region as a caption click and the page never sees it,
    so the outside-click that closes the menu missed every click on the empty bar (#1009). That
    click now closes the menu; the bar drags again from the next one. */
 .topbar:has([aria-expanded="true"]) {
 	-webkit-app-region: no-drag;
 	app-region: no-drag;
-}
-.sep {
-	width: 1px;
-	height: 18px;
-	background: var(--border);
-	flex-shrink: 0;
 }
 .brand {
 	display: inline-flex;
@@ -85,7 +77,7 @@
 	flex-shrink: 0;
 }
 /* Transparent aperture mark: no plate behind it, so it needs a touch more box
-   than a filled tile would to hold the same optical weight next to the wordmark. */
+   than a filled tile would to hold the same optical weight in the bar. */
 .brand img {
 	width: 24px;
 	height: 24px;
@@ -93,12 +85,6 @@
 	display: block;
 	flex-shrink: 0;
 	user-select: none;
-}
-.brand .name {
-	font-size: 15px;
-	font-weight: 600;
-	letter-spacing: -0.015em;
-	color: var(--fg-emphasis);
 }
 /* The brand doubles as the app-menu trigger, so it has to read as a button on hover without
    gaining any width: .modeSwitch is the only flex-shrink:1 element in the bar, so every pixel
@@ -140,7 +126,7 @@
 	top: calc(100% + 6px);
 	left: 0;
 	/* Sized to its widest row. Left to the default shrink-to-fit, an absolute box measures its
-	   available width against the anchor, which is only as wide as the wordmark, so it settled
+	   available width against the anchor, which is only as wide as the mark, so it settled
 	   on min-width and long rows wrapped: a label on two lines, the version split
 	   as "2.0.0-" / "rc.8" (#969). The max-width only keeps it inside the window. */
 	width: max-content;
@@ -153,11 +139,17 @@
 	-webkit-app-region: no-drag;
 	app-region: no-drag;
 	padding: 5px;
-	background: var(--surface);
+	background: var(--surface-2);
 	border: 1px solid var(--border);
 	border-radius: var(--r-md);
 	box-shadow: var(--elev-pop);
 	z-index: 60;
+	/* It opens from the mark it hangs off. Closing is immediate: the menu unmounts. */
+	transform-origin: top left;
+	animation: menuIn var(--dur-enter) var(--ease-out);
+}
+@keyframes menuIn {
+	from { opacity: 0; transform: translateY(-4px) scale(0.96); }
 }
 .appMenuRow {
 	display: flex;
@@ -215,8 +207,12 @@
 	border: 0;
 	cursor: pointer;
 	flex-shrink: 0;
-	transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease);
+	transition:
+		background var(--dur-state) var(--ease-out),
+		color var(--dur-state) var(--ease-out),
+		scale var(--dur-press) var(--ease-out);
 }
+.iconBtn:active:not(:disabled, [aria-disabled="true"]) { scale: 0.94; }
 .iconBtn:hover {
 	background: var(--surface-2);
 	color: var(--fg);
@@ -322,11 +318,15 @@
 	align-items: center;
 	gap: 2px;
 	padding: 3px;
-	background: var(--surface-1);
-	border: 1px solid var(--border);
+	/* The same borderless track as the pane tabs. */
+	background: color-mix(in oklab, var(--fg) 6%, transparent);
 	border-radius: 12px;
 	flex-shrink: 0;
 	min-width: fit-content;
+	/* geometry of the sliding plate (`.os-slides`, index.css) */
+	--slide-gap: 2px;
+	--slide-pad: 3px;
+	--slide-radius: 9px;
 }
 .modeSwitch button {
 	padding: 5px 16px;
@@ -371,11 +371,10 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+/* Raised by the switch's own sliding plate (`.os-slides`), so the selection travels. */
 .modeSwitch button[aria-selected="true"] {
-	background: var(--surface-3);
 	color: var(--fg-emphasis);
 	font-weight: 600;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 .exportBtn {
 	display: inline-flex;
@@ -520,8 +519,9 @@
 	background: transparent;
 	touch-action: none;
 }
+/* The edge shows itself only under the pointer: a hairline in the middle of the grab band. */
 .timelineResizeHandle:hover {
-	background: var(--accent-soft);
+	background: linear-gradient(var(--border-hi), var(--border-hi)) center / 100% 1px no-repeat;
 }
 .stage {
 	position: relative;
@@ -532,7 +532,6 @@
 	   its rows are laid out for. One value for the panel and for the room the preview leaves it. */
 	container-type: inline-size;
 	--inspector-w: clamp(300px, 22cqw, 380px);
-	background: radial-gradient(ellipse 68% 54% at 52% 32%, var(--surface-1) 0%, var(--bg) 66%);
 }
 
 /* ─── FLOATING INSPECTOR + FACET RAIL ──────────────────────────────── */
@@ -556,13 +555,23 @@
 	max-height: 100%;
 	display: flex;
 	flex-direction: column;
+	/* The one raised surface of the shell: a fill step, no border, no shadow. Nothing shows
+	   through it (the stage keeps the preview clear of it), so it does not blur either. */
 	background: var(--surface-1);
-	border: 1px solid var(--border);
 	border-radius: 16px;
-	box-shadow: var(--elev-pop);
 	overflow: hidden;
-	backdrop-filter: blur(18px);
-	-webkit-backdrop-filter: blur(18px);
+	/* It opens from the rail beside it; a pane that replaces another fades up in place. Both
+	   are entrances only: closing unmounts the panel. */
+	animation: inspectorIn var(--dur-enter) var(--ease-out);
+}
+@keyframes inspectorIn {
+	from { opacity: 0; transform: translateX(8px); }
+}
+@keyframes paneIn {
+	from { opacity: 0; transform: translateY(4px); }
+}
+.inspector > * {
+	animation: paneIn var(--dur-enter) var(--ease-out);
 }
 .inspector :global(.pane) {
 	display: flex;
@@ -575,13 +584,12 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 4px;
+	/* No card of its own: the rail sits on the window, and only the open facet is raised. */
 	padding: 6px;
-	background: var(--surface-1);
-	border: 1px solid var(--border);
-	border-radius: 14px;
-	box-shadow: var(--elev-pop);
-	backdrop-filter: blur(18px);
-	-webkit-backdrop-filter: blur(18px);
+	/* geometry of the sliding plate (`.os-slides`, index.css): one column of 38px buttons */
+	--slide-gap: 4px;
+	--slide-pad: 6px;
+	--slide-radius: 10px;
 }
 .facetRail button {
 	width: 38px;
@@ -599,21 +607,11 @@
 	background: var(--surface-3);
 	color: var(--fg);
 }
-.facetRail button[aria-pressed="true"] {
-	color: var(--accent);
-	background: var(--accent-soft);
-}
-
-/* ─── TIMELINE FOOTER ──────────────────────────────────────────────── */
-.timeline {
-	grid-row: 3;
-	position: relative;
-	background: var(--surface);
-	border-top: 1px solid var(--border);
-	min-height: 0;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
+/* The open facet: a mint icon on the rail's sliding plate (`.os-slides`, index.css). */
+.facetRail button[aria-pressed="true"],
+.facetRail button[aria-pressed="true"]:hover {
+	color: var(--brand-lo);
+	background: transparent;
 }
 
 /* ─── MEDIA STAGE ──────────────────────────────────────────────────── */
@@ -773,8 +771,8 @@
 	min-height: 0;
 	padding: 20px 22px;
 	background: var(--surface-1);
-	border: 1px solid var(--border);
 	border-radius: 16px;
+	padding: 6px 0;
 	overflow-y: auto;
 	scrollbar-width: thin;
 	scrollbar-color: var(--border-hi) transparent;
@@ -916,11 +914,8 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	padding: 13px 16px;
-	border-bottom: 1px solid var(--border-soft);
-}
-.recRow:last-child {
-	border-bottom: 0;
+	/* Free rows, like the inspector's: space separates them, not rules. */
+	padding: 11px 16px;
 }
 .recRowLabel {
 	display: flex;
@@ -990,34 +985,67 @@
 	width: 56px;
 	height: 18px;
 }
+/* A plain action in a row (reset the recordings folder). */
 .recToggleBtn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	min-width: 44px;
-	/* The toggle keeps its size; the device dropdown yields space instead, so the
-	   On/Off control is always fully visible (issue #624). */
 	flex-shrink: 0;
 	height: 32px;
 	padding: 0 12px;
 	border-radius: 9px;
-	border: 1px solid var(--border);
-	background: var(--surface-hi);
-	color: var(--muted);
+	border: 0;
+	background: color-mix(in oklab, var(--fg) 8%, transparent);
+	color: var(--fg-2);
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
-	transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease),
-		border-color var(--motion-fast) var(--ease);
+	transition:
+		background var(--dur-state) var(--ease-out),
+		scale var(--dur-press) var(--ease-out);
 }
-.recToggleBtn:hover {
-	border-color: var(--border-hi);
+.recToggleBtn:hover:not(:disabled) {
+	background: color-mix(in oklab, var(--fg) 13%, transparent);
 }
-.recToggleBtn.on {
-	background: var(--accent-soft);
-	border-color: var(--accent-border);
-	color: var(--accent);
+.recToggleBtn:active:not(:disabled) { scale: 0.97; }
+/* An On/Off row is the same switch as the inspector's (.toggle, NewEditorShell.module.css):
+   one control for one job. The row label names it and aria-pressed says its state; the
+   On/Off word stays in the button but is not drawn. It keeps its size; the device dropdown
+   yields space instead, so it is always fully visible (issue #624). */
+.recSwitch {
+	flex-shrink: 0;
+	width: 40px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: 9999px;
+	background: var(--border-hi);
+	position: relative;
+	cursor: pointer;
+	font-size: 0;
+	color: transparent;
+	transition: background var(--dur-state) var(--ease-out);
 }
+.recSwitch::after {
+	content: "";
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 18px;
+	height: 18px;
+	background: #fff;
+	border-radius: 9px;
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+	transition:
+		transform var(--dur-pop) var(--spring-pop),
+		width var(--dur-state) var(--ease-out);
+}
+.recSwitch:active:not(:disabled)::after { width: 22px; }
+.recSwitch.on { background: var(--brand); }
+.recSwitch.on::after { transform: translateX(16px); }
+.recSwitch.on:active:not(:disabled)::after { transform: translateX(12px); }
+.recSwitch:disabled { opacity: 0.5; cursor: not-allowed; }
 .recActions {
 	flex-shrink: 0;
 	display: flex;
@@ -1293,6 +1321,9 @@
 	/* The pan/zoom bar's band, kept here (not just on .tlNav) because the playhead
 	   layer stretches by exactly this much to run behind it, down to the panel's
 	   bottom edge. */
+	/* The clip row, the first row under the ruler, and the gap to the first lane below it. */
+	--tl-clip-h: 66px;
+	--tl-clip-gap: 6px;
 	--tl-nav-h: 14px;
 	--tl-nav-gap-top: 6px;
 	--tl-nav-gap-bottom: 8px;
@@ -1306,7 +1337,6 @@
 	/* Room above AND below the 34px play button: at 40px it sat on the bottom rule. */
 	height: 48px;
 	flex-shrink: 0;
-	border-bottom: 1px solid var(--shell-rule-soft);
 }
 .tlTools {
 	/* Both side groups take an equal share of the row, so the transport between
@@ -1406,14 +1436,8 @@
 	   times. With it hidden, all three canvases stay full width and identical;
 	   scrolling still works via the wheel (see the wheel handler). */
 	scrollbar-width: none;
-	/* Bottom-anchor via column-reverse (the single child is .tlCanvas, so its
-	   internal lane→clip order is untouched): the main clip track sits at the
-	   bottom edge and stays visible as the panel shrinks, while the edit lanes
-	   above overflow the top and REMAIN reachable by scrolling up. `flex-end`
-	   would bottom-anchor too, but content it pushes past the top edge isn't
-	   scrollable — which is why the lanes couldn't be reached before. */
-	display: flex;
-	flex-direction: column-reverse;
+	/* The clip row is the first row of .tlCanvas, right under the ruler, so it is what stays
+	   in view when the panel is short; the lanes below it are reached by scrolling down. */
 	cursor: text;
 }
 .tlTracks::-webkit-scrollbar {
@@ -1463,9 +1487,9 @@
 	width: 2px;
 	background: var(--playhead);
 	border-radius: 1px;
-	/* Wide, soft halo: the line is only 2px, and this is what keeps it findable
-	   as it crosses dark lanes and pale clip cards alike. */
-	box-shadow: 0 0 18px var(--playhead-glow);
+	/* White, with a thin dark edge: that pair reads on the dark panel and on every lane
+	   colour alike, where a hue of its own had to glow to stay findable. */
+	box-shadow: 0 0 0 0.5px var(--playhead-glow);
 	pointer-events: none;
 }
 /* Map-pin head: a rounded rectangle that tapers to a point at the bottom, the
@@ -1497,7 +1521,6 @@
 	position: relative;
 	height: 28px;
 	margin-bottom: 6px;
-	border-bottom: 1px solid var(--border-soft);
 }
 /* Ticks hang from the TOP of the band and the label sits under them, so the
    numbers are below the playhead head rather than behind it. */
@@ -1523,29 +1546,48 @@
 	white-space: nowrap;
 	pointer-events: none;
 }
+/* No band behind a lane: it only exists while it holds something, and the pills say where
+   it is. The height comes inline from the constants the panel is sized with. */
 .tlLane {
 	position: relative;
 	height: 24px;
 	margin-bottom: 5px;
-	border-radius: 8px;
-	background: var(--surface-1);
 }
-.laneEmpty {
-	position: absolute;
-	/* left/width come from V4Timeline (the visible window, not the whole zoomed
-	   canvas) — see renderPills. */
-	top: 0;
-	bottom: 0;
+/* A lane whose pills never stack (zoom, trim, speed, effect) is tall, and its pills fill it:
+   room for the kind above the value. Annotations and audio stack rows, so theirs stay
+   compact (see .lanePill, .laneAudio). */
+.tlLane:not([data-track-kind="annotation"], .tlLaneAudio) .lanePill {
+	height: calc(100% - 2px);
+	border-radius: 10px;
+}
+/* The one row that says what can still be added, each kind with the key that adds it. It
+   replaces a hint per empty lane: five of those shouted, and held the panel open for them.
+   Quiet on purpose (--meta), and not a drop target: a press on it scrubs like any empty
+   part of the tracks. */
+.tlHintRow {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 12px;
-	font-weight: 500;
-	/* Deliberately quieter than lane content: it's a standing hint on every empty
-	   lane, so at --muted five of them shout over the clips. */
+	flex-wrap: wrap;
+	column-gap: 18px;
+	overflow: hidden;
+	margin-bottom: 5px;
+	font: 500 12px/1 var(--font-display);
 	color: var(--meta);
-	pointer-events: none;
 	user-select: none;
+}
+.tlHintItem {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+}
+.tlHintItem kbd {
+	padding: 3px 6px;
+	border-radius: 5px;
+	box-shadow: inset 0 0 0 1px var(--border-hi);
+	font: 500 11px/1 var(--font-mono);
+	color: var(--muted);
 }
 .lanePill {
 	position: absolute;
@@ -1558,19 +1600,18 @@
 	min-width: 1px;
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	gap: 5px;
-	padding: 0 8px 0 7px;
-	/* "Candy": a saturated gradient in the lane's colour (--_c, set per lane below)
-	   and a glow under it, the same recipe as the clip card. No border and no gloss line:
-	   on the light theme either one reads as an outline. Dark ink on every colour: the
-	   light ones (mint, yellow, orange, pink) cannot carry white. */
+	padding: 0 9px;
+	/* A flat fill in the lane's colour (--_c, set per lane below): no gradient, no glow, no
+	   border. The lane colours share one lightness and chroma, so they read as a set. Dark
+	   ink on every one: none of them can carry white. */
 	--_c: var(--accent);
 	border-radius: 8px;
-	/* Transparent, gradient painted under it (border-box): kept at 1px so sizes don't move. */
+	/* Transparent, fill painted under it (border-box): kept at 1px so sizes don't move. */
 	border: 1px solid transparent;
-	background: linear-gradient(180deg, color-mix(in oklab, var(--_c) 72%, white), var(--_c)) border-box;
-	box-shadow: 0 2px 6px color-mix(in oklab, var(--_c) var(--candy-glow), transparent);
-	color: #0b1220;
+	background: var(--_c) border-box;
+	color: var(--lane-ink);
 	font-size: 12px;
 	font-weight: 600;
 	white-space: nowrap;
@@ -1612,6 +1653,29 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+/* Kind above value, in a pill tall enough for both: "Zoom" over "1.8×". */
+.lanePillText {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	min-width: 0;
+	line-height: 1;
+}
+.lanePillKind {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 100%;
+	overflow: hidden;
+	font-size: 10.5px;
+	font-weight: 500;
+	opacity: 0.62;
+}
+.lanePillText .lanePillLabel {
+	max-width: 100%;
+	font-size: 12.5px;
+}
 .laneAnnotation {
 	--_c: var(--annotation);
 }
@@ -1625,17 +1689,17 @@
 	--_c: var(--zoom);
 }
 .laneCameraFullscreen {
-	--_c: #a855f7;
+	--_c: var(--lane-camera);
 }
 .laneShaderEffect {
-	--_c: #14b8a6;
+	--_c: var(--lane-effect);
 }
 /* A zoom's camera moves (#1028): a trail on each side of the pill, fading away from it, BELOW
    it (a chained neighbour's pill stays on top). Thinner than the pill so it reads as part of
    it, not as another region. The part a trim cuts is hatched in the trim lane's red. */
 .zoomTrail {
 	position: absolute;
-	top: 5px;
+	/* `top` is inline: centred in the lane (V4Timeline, ZOOM_TRAIL_HEIGHT_PX). */
 	height: 14px;
 	min-width: 1px;
 	overflow: hidden;
@@ -1705,8 +1769,8 @@
 	pointer-events: none;
 }
 .laneAudio {
-	/* Pink, not teal: teal sat next to the mint zoom pills and read as the same. */
-	--_c: #f472b6;
+	/* Pink, not teal: teal sat next to the mint clip and read as the same. */
+	--_c: var(--lane-audio);
 	height: 30px;
 	top: 1px;
 	cursor: pointer;
@@ -1785,7 +1849,8 @@
 	   its true start time — measured at +2px and +6px for clips 2 and 3 of a
 	   three-clip timeline, which is 5 s and 15 s of a 30-minute recording when
 	   zoomed out, and a fraction of a second when zoomed in. See .tlClip. */
-	height: 66px;
+	height: var(--tl-clip-h);
+	margin-bottom: var(--tl-clip-gap);
 	width: 100%;
 	padding: 0;
 	border: 0;
@@ -1817,12 +1882,11 @@
 	   clip narrower than 6px would otherwise compute to nothing. */
 	min-width: 1px;
 	/* The brand's green (--clip): the recording is the main object, and the zoom pills
-	   are blue so they never read as it. A solid "candy" card, same recipe as .lanePill,
-	   with the pills' dark ink on it (.tlClipDuration, the waveform), in both themes. */
+	   are blue so they never read as it. A flat card, same recipe as .lanePill, with the
+	   pills' dark ink on it (.tlClipDuration, the waveform). */
 	border-radius: 12px;
 	border: 1px solid transparent;
-	background: linear-gradient(180deg, color-mix(in oklab, var(--clip) 78%, white), var(--clip)) border-box;
-	box-shadow: 0 3px 10px color-mix(in oklab, var(--clip) var(--candy-glow), transparent);
+	background: var(--clip) border-box;
 	overflow: hidden;
 	cursor: grab;
 	box-sizing: border-box;
@@ -1879,7 +1943,6 @@
 }
 .tlClipGenerated {
 	background: linear-gradient(180deg, color-mix(in oklab, var(--warn) 78%, white), var(--warn)) border-box;
-	box-shadow: 0 3px 10px color-mix(in oklab, var(--warn) var(--candy-glow), transparent);
 }
 /* The clip being carried during a reorder drag — follows the pointer 1:1
    (no transition lag) while its siblings slide out of the way with the
@@ -1959,7 +2022,7 @@
 .tlClipDuration {
 	font: 500 12px/1.2 var(--font-body);
 	font-variant-numeric: tabular-nums;
-	color: #0b1220;
+	color: var(--lane-ink);
 	white-space: nowrap;
 	flex-shrink: 0;
 }
@@ -2020,10 +2083,11 @@
 	bottom: 0;
 	border-radius: 999px;
 	border: 1px solid transparent;
-	background: linear-gradient(180deg, color-mix(in oklab, var(--playhead) 72%, white), var(--playhead)) border-box;
-	box-shadow: 0 2px 6px color-mix(in oklab, var(--playhead) var(--candy-glow), transparent);
+	/* Chrome, not content: a neutral thumb, a step brighter under the pointer. */
+	background: color-mix(in oklab, var(--fg) 26%, transparent) border-box;
 	box-sizing: border-box;
 	cursor: grab;
+	transition: background var(--dur-state) var(--ease-out);
 }
 .tlNavWindow:active {
 	cursor: grabbing;
@@ -2060,13 +2124,19 @@
 .tlNavGrip:hover::before { transform: scaleY(1.25); }
 
 /* V4Timeline — region resize handles, toolbar aspect control */
+/* The grip at each end, a shade darker than the fill so the edge that resizes is visible
+   without hovering. */
 .lanePillHandle {
 	position: absolute;
 	top: 0;
 	bottom: 0;
 	width: 6px;
+	background: rgb(0 0 0 / 0.14);
 	cursor: ew-resize;
 	z-index: 3;
+}
+.lanePillCompact .lanePillHandle {
+	background: transparent;
 }
 .tlToolSep {
 	width: 1px;
@@ -2097,10 +2167,11 @@
 }
 
 /* V4Timeline — snap guide during region drag/resize */
+/* Over the lanes only: it starts under the clip row, which a region drag never enters. */
 .tlSnapGuide {
 	position: absolute;
-	top: 0;
-	bottom: 66px;
+	top: calc(var(--tl-clip-h) + var(--tl-clip-gap));
+	bottom: 0;
 	width: 2px;
 	background: var(--danger);
 	box-shadow: 0 0 6px color-mix(in oklch, var(--danger) 60%, transparent);

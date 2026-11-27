@@ -456,6 +456,7 @@ export function MediaStage({
 										</div>
 										<div style={{ display: "flex", gap: 8 }}>
 											<select
+												aria-label={t("mediaStage.regenerateAs")}
 												value={lang}
 												onChange={(e) => setLang(e.target.value as TranscriptLanguageCode)}
 												style={{

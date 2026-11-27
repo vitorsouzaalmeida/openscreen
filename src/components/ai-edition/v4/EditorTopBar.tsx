@@ -7,20 +7,17 @@ import {
 	Info,
 	Keyboard,
 	LifeBuoy,
-	Moon,
 	Redo2,
 	RefreshCw,
 	Save,
 	Star,
-	Sun,
 	Undo2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import logoMark from "@/assets/openscreen-mark.png";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
-import { useTheme } from "@/hooks/useTheme";
 import { useUpdateBadge } from "@/hooks/useUpdateBadge";
 import { moveMenuFocus } from "@/lib/menuKeyboard";
 import { formatFirstFixedBinding } from "@/lib/shortcuts";
@@ -87,7 +84,6 @@ export function EditorTopBar({
 	return (
 		<header className={styles.topbar}>
 			<AppMenu actions={actions} />
-			<span className={styles.sep} aria-hidden />
 			<span className={styles.projectSlot}>
 				<ProjectNameField title={projectTitle} onRename={actions.renameProject} />
 				{/* The saved state, as one dot right after the name it is about. Mounted with no
@@ -100,7 +96,17 @@ export function EditorTopBar({
 				</Tooltip>
 			</span>
 
-			<div className={styles.modeSwitch} role="tablist" aria-label={t("topbar.editorMode")}>
+			<div
+				className={`os-slides ${styles.modeSwitch}`}
+				role="tablist"
+				aria-label={t("topbar.editorMode")}
+				style={
+					{
+						"--cols": MODES.length,
+						"--sel-col": MODES.findIndex((m) => m.id === mode),
+					} as CSSProperties
+				}
+			>
 				{MODES.map((m) => (
 					<button
 						key={m.id}
@@ -245,10 +251,10 @@ function ProjectNameField({
  *  Diagnostics in: this bar
  *  IS the titlebar (createEditorWindow passes titleBarStyle:"hidden"), and the native menu is
  *  behind setAutoHideMenuBar(true) — so those items were reachable only from the tray, or
- *  by holding Alt, which is to say not reachable. Hanging them off the wordmark is what Figma,
+ *  by holding Alt, which is to say not reachable. Hanging them off the brand mark is what Figma,
  *  Linear and Slack do under the same constraint.
  *
- *  It costs the bar no width, which is the reason it is the wordmark and not a new button:
+ *  It costs the bar no width, which is the reason it is the brand mark and not a new button:
  *  .modeSwitch is the only flex-shrink:1 element in the topbar, so any control added here is
  *  paid for out of the mode labels at the 800px minimum window width.
  *
@@ -274,7 +280,6 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 	const tCommon = useScopedT("common");
 	const tEditor = useScopedT("editor");
 	const tShortcuts = useScopedT("shortcuts");
-	const { theme, toggle: toggleTheme } = useTheme();
 	const [open, setOpen] = useState(false);
 	const [version, setVersion] = useState<string | null>(null);
 	const [canUpdate, setCanUpdate] = useState(false);
@@ -363,10 +368,9 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 				aria-label="OpenScreen"
 				onClick={() => setOpen((v) => !v)}
 			>
-				{/* Decorative: the wordmark beside it already names the app — and, being the
-				    button's only text, is also its accessible name. */}
+				{/* The mark alone: the bar is the window's title bar and the OS already shows the
+				    app's name. Decorative, since aria-label above names the button. */}
 				<img src={logoMark} alt="" draggable={false} />
-				<span className={styles.name}>OpenScreen</span>
 				<ChevronDown size={13} className={styles.brandChevron} aria-hidden />
 			</button>
 			{open ? (
@@ -410,17 +414,6 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 					>
 						<Keyboard size={15} />
 						{tShortcuts("title")}
-					</button>
-					<button
-						type="button"
-						role="menuitem"
-						className={styles.appMenuRow}
-						onClick={run(toggleTheme)}
-					>
-						{theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-						{theme === "dark"
-							? tEditor("topbar.switchToLightTheme")
-							: tEditor("topbar.switchToDarkTheme")}
 					</button>
 					<div className={styles.appMenuSep} aria-hidden />
 					{/* Only the PERMANENT half of the veto is applied here. A Store/Flathub/Snap/Nix

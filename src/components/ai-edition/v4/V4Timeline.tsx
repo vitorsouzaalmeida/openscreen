@@ -17,6 +17,7 @@ import {
 	ZoomIn,
 } from "lucide-react";
 import {
+	type CSSProperties,
 	Fragment,
 	memo,
 	type KeyboardEvent as ReactKeyboardEvent,
@@ -24,6 +25,7 @@ import {
 	type RefObject,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -60,6 +62,7 @@ import {
 	newRegionDurationSec,
 	setTimelineScale,
 } from "@/lib/ai-edition/timeline/newRegionDuration";
+import { glidePlayhead } from "@/lib/ai-edition/timeline/playheadGlide";
 import { ventilateSpanAcrossClips } from "@/lib/ai-edition/timeline/region-ventilation";
 import {
 	type AnnotationTrackDrop,
@@ -71,6 +74,13 @@ import {
 	regionLaneHeight,
 } from "@/lib/ai-edition/timeline/regionTracks";
 import { speedOutputSec } from "@/lib/ai-edition/timeline/speed";
+import {
+	CLIP_ROW_GAP_PX,
+	CLIP_ROW_HEIGHT_PX,
+	HINT_ROW_HEIGHT_PX,
+	REGION_LANE_HEIGHT_PX,
+	timelineContentHeightPx,
+} from "@/lib/ai-edition/timeline/timelineHeight";
 import { coalesceRegionsForRuler } from "@/lib/ai-edition/timeline/timelineMap";
 import {
 	coalescedTrimGroups,
@@ -89,7 +99,7 @@ import { TransportBar } from "../TransportBar";
 import type { VideoSource } from "../VirtualPreview";
 import { ClipKeyTicks } from "./ClipKeyTicks";
 import styles from "./EditorShellV4.module.css";
-import { LayoutLane } from "./LayoutLane";
+import { LayoutLane, layoutLaneVisible } from "./LayoutLane";
 import { LayoutPicker } from "./LayoutPicker";
 
 type TimelineApi = ReturnType<typeof useTimeline>;
@@ -142,6 +152,10 @@ const PILL_HANDLE_OUT_PX = PILL_HANDLE_PX + PILL_MOVE_GAP_PX;
  *  overflow — the lane's colour already says which kind it is, and the title
  *  attribute still gives the value on hover. */
 const PILL_CONTENT_MIN_PX = 34;
+/** How far a press may wander and still be a click rather than the start of a drag. */
+const PRESS_JITTER_PX = 3;
+/** A zoom's camera-move trail, thinner than the pill it flanks (`.zoomTrail`). */
+const ZOOM_TRAIL_HEIGHT_PX = 14;
 /** Edge-snap radius while dragging a pill, in screen px. */
 const PILL_SNAP_PX = 8;
 // One audio pill's height, the vertical step between stacked rows, and lane padding
@@ -265,6 +279,8 @@ interface PlayheadOverlayProps {
 	totalSec: number;
 	/** Live scrub position, when a drag is in flight. Takes precedence over the store. */
 	overrideTimeSec: number | null;
+	/** Playback drives the line every frame, so a jump is not glided while it runs. */
+	playing: boolean;
 	canvasStyle: React.CSSProperties;
 	onPointerDown: (e: ReactPointerEvent) => void;
 	playheadRef?: React.MutableRefObject<HTMLDivElement | null>;
@@ -289,12 +305,24 @@ interface PlayheadOverlayProps {
 const PlayheadOverlay = memo(function PlayheadOverlay({
 	totalSec,
 	overrideTimeSec,
+	playing,
 	canvasStyle,
 	onPointerDown,
 	playheadRef,
 }: PlayheadOverlayProps) {
 	const storeTimeSec = useProjectStore((s) => s.currentTimeSec);
 	const pct = ((overrideTimeSec ?? storeTimeSec) / totalSec) * 100;
+	// A jump made elsewhere (a transcript word, a restart from the end) glides to its point,
+	// like a press on the ruler. Playback and a scrub drive the line every frame, so they
+	// never do; a scrub's own press is glided where it writes the position (seekToClientX).
+	const previousPct = useRef(pct);
+	useLayoutEffect(() => {
+		const fromPct = previousPct.current;
+		previousPct.current = pct;
+		const el = playheadRef?.current;
+		if (!el || playing || overrideTimeSec !== null) return;
+		glidePlayhead(el, fromPct, pct);
+	}, [pct, playing, overrideTimeSec, playheadRef]);
 	return (
 		<div className={styles.tlPlayheadLayer} aria-hidden>
 			<div className={styles.tlCanvas} style={canvasStyle}>
@@ -639,7 +667,7 @@ export function V4Timeline({
 	onTogglePlay,
 	onEditClip,
 	onAddVoiceover,
-	onAnnotationRowCountChange,
+	onContentHeightChange,
 }: {
 	tl: TimelineApi;
 	setCurrentTime: (sec: number) => void;
@@ -658,8 +686,9 @@ export function V4Timeline({
 	/** Opens the voiceover recorder. Shell-level like the clip editor: the
 	 *  dialog owns the microphone and the shell owns the transport. */
 	onAddVoiceover: () => void;
-	/** Exact rendered annotation row count, including the current drag preview. */
-	onAnnotationRowCountChange?: (rowCount: number) => void;
+	/** The height the panel needs for what the timeline draws right now, a drag preview
+	 *  included (`timelineContentHeightPx`). Edit mode only. */
+	onContentHeightChange?: (heightPx: number) => void;
 }) {
 	const t = useScopedT("timeline");
 	const ts = useScopedT("settings");
@@ -868,6 +897,8 @@ export function V4Timeline({
 
 	// ── interactions ────────────────────────────────────────────────
 	const playheadElRef = useRef<HTMLDivElement | null>(null);
+	// The glide a press started, and where the press was: a drag past a click's jitter cancels it.
+	const pressGlideRef = useRef<{ animation: Animation | null; clientX: number } | null>(null);
 
 	/** Move the local playhead and schedule a seek tied to the current seek epoch. */
 	const seekToClientX = useCallback(
@@ -883,8 +914,26 @@ export function V4Timeline({
 			const targetTime = pct * total;
 
 			// Direct DOM playhead update (0ms latency, zero React re-render overhead)
-			if (playheadElRef.current) {
-				playheadElRef.current.style.left = `${pct * 100}%`;
+			const head = playheadElRef.current;
+			if (head) {
+				const fromPct = Number.parseFloat(head.style.left) || 0;
+				head.style.left = `${pct * 100}%`;
+				if (isImmediate) {
+					// The press: the line glides to the pointer instead of teleporting.
+					pressGlideRef.current?.animation?.cancel();
+					pressGlideRef.current = {
+						animation: glidePlayhead(head, fromPct, pct * 100),
+						clientX,
+					};
+				} else if (
+					pressGlideRef.current &&
+					Math.abs(clientX - pressGlideRef.current.clientX) > PRESS_JITTER_PX
+				) {
+					// The drag: from here the line must track the pointer exactly. A click's own
+					// pixel of jitter does not count, or it would cut every glide short.
+					pressGlideRef.current.animation?.cancel();
+					pressGlideRef.current = null;
+				}
 			}
 
 			pendingSeekTimeRef.current = targetTime;
@@ -1847,10 +1896,23 @@ export function V4Timeline({
 					/>
 				) : null}
 				{seg.showContent && roomForLabel ? (
-					<>
-						{pillIcon(p.kind)}
-						<span className={styles.lanePillLabel}>{p.label}</span>
-					</>
+					p.kind === "annotation" ? (
+						// An annotation's label is its own text, and its rows stack: one line.
+						<>
+							{pillIcon(p.kind)}
+							<span className={styles.lanePillLabel}>{p.label}</span>
+						</>
+					) : (
+						// The other kinds have a lane to themselves, tall enough to say what the
+						// pill is above what it is set to: "Zoom" over "1.8×".
+						<span className={styles.lanePillText}>
+							<span className={styles.lanePillKind}>
+								{pillIcon(p.kind)}
+								{t(`tracks.kinds.${p.kind}`)}
+							</span>
+							<span className={styles.lanePillLabel}>{p.label}</span>
+						</span>
+					)
 				) : null}
 				{seg.interactive ? (
 					<span
@@ -1882,29 +1944,59 @@ export function V4Timeline({
 				: savedAnnotationRows,
 		[effectiveAnnotations, savedAnnotationRows, activePillDrag?.kind],
 	);
-	useEffect(() => {
-		onAnnotationRowCountChange?.(annotationRows.rowCount);
-	}, [annotationRows.rowCount, onAnnotationRowCountChange]);
+
+	// A lane is drawn only while it has something in it; a live drag preview counts. The
+	// panel is sized from the same answers, so the shell is told rather than left to derive
+	// them again from the document.
+	const showZoomLane = zoomPills.length > 0;
+	const showTrimLane = trimPills.length > 0;
+	const showSpeedLane = speedPills.length > 0;
+	const showAnnotationLane = effectiveAnnotations.length > 0;
+	const showEffectLane = tl.shaderEffectRanges.length > 0;
+	const showAudioLane = tl.audioTracks.length > 0;
+	const annotationLaneHeight = regionLaneHeight(annotationRows.rowCount);
+	const audioLaneHeight =
+		audioRows.rowCount * AUDIO_ROW_HEIGHT_PX +
+		(audioRows.rowCount - 1) * AUDIO_ROW_GAP_PX +
+		AUDIO_LANE_PAD_PX * 2;
+	// What the project has none of yet, each with the key that adds it. The keys are the live
+	// bindings, formatted like the toolbar tooltips' chips, so a rebind in the shortcuts dialog
+	// moves the hint with it (#966).
+	const missingKinds = [
+		!showZoomLane && { id: "zoom", key: formatBinding(shortcuts.addZoom, isMac) },
+		!showTrimLane && { id: "trim", key: formatBinding(shortcuts.addTrim, isMac) },
+		!showSpeedLane && { id: "speed", key: formatBinding(shortcuts.addSpeed, isMac) },
+		!showAnnotationLane && {
+			id: "annotation",
+			key: formatBinding(shortcuts.addAnnotation, isMac),
+		},
+		!showAudioLane && { id: "audio", key: formatBinding(shortcuts.addAudio, isMac) },
+		!showAudioLane && { id: "voiceover", key: formatBinding(shortcuts.addVoiceover, isMac) },
+	].filter((kind) => kind !== false);
+	const contentHeightPx = timelineContentHeightPx({
+		laneHeights: [
+			...(showZoomLane ? [REGION_LANE_HEIGHT_PX] : []),
+			...(showTrimLane ? [REGION_LANE_HEIGHT_PX] : []),
+			...(showSpeedLane ? [REGION_LANE_HEIGHT_PX] : []),
+			...(showAnnotationLane ? [annotationLaneHeight] : []),
+			...(showEffectLane ? [REGION_LANE_HEIGHT_PX] : []),
+			...(showAudioLane ? [audioLaneHeight] : []),
+		],
+		layoutLane: layoutLaneVisible(tl.layoutSegments),
+		hintRow: missingKinds.length > 0,
+	});
+	useLayoutEffect(() => {
+		if (showLanes) onContentHeightChange?.(contentHeightPx);
+	}, [showLanes, contentHeightPx, onContentHeightChange]);
 
 	const liveSpan = <T extends { start: number; end: number }>(id: string, p: T): T =>
 		activePillDrag?.id === id ? { ...p, start: activePillDrag.start, end: activePillDrag.end } : p;
 
-	const renderPills = (pills: LanePill[], emptyLabel: string) => {
+	const renderPills = (pills: LanePill[]) => {
 		const annotations = pills === annPills;
 		const effectivePills = annotations ? effectiveAnnotations : pills.map((p) => liveSpan(p.id, p));
 		return (
 			<>
-				{effectivePills.length === 0 ? (
-					// The lane is as wide as the ZOOMED canvas, so centring the hint on it
-					// would slide it off-screen as soon as the timeline is zoomed in. Span
-					// the visible window instead, and the hint stays centred in view.
-					<span
-						className={styles.laneEmpty}
-						style={{ left: `${nav.start * 100}%`, width: `${navSpan * 100}%` }}
-					>
-						{emptyLabel}
-					</span>
-				) : null}
 				{effectivePills.flatMap((p) => {
 					// Eager split preview: the instant a clip is grabbed, a pill that
 					// straddles the dragged clip's junction shows the same per-clip
@@ -2053,7 +2145,8 @@ export function V4Timeline({
 								data-zoom-trail={trail.side}
 								className={`${styles.zoomTrail} ${styles.laneZoom}`}
 								style={{
-									top: 5,
+									// Centred in the lane, whose height the panel is sized with.
+									top: (REGION_LANE_HEIGHT_PX - ZOOM_TRAIL_HEIGHT_PX) / 2,
 									left: `${pctAt(trail.fromMs / 1000)}%`,
 									width: `${pctOf(lengthMs / 1000)}%`,
 								}}
@@ -2076,7 +2169,18 @@ export function V4Timeline({
 	};
 
 	return (
-		<div className={styles.tl} ref={panelRef}>
+		<div
+			className={styles.tl}
+			ref={panelRef}
+			// The clip row's size comes from the constants the panel is sized with, so the CSS
+			// (the row itself, the snap guide that starts under it) cannot drift from them.
+			style={
+				{
+					"--tl-clip-h": `${CLIP_ROW_HEIGHT_PX}px`,
+					"--tl-clip-gap": `${CLIP_ROW_GAP_PX}px`,
+				} as CSSProperties
+			}
+		>
 			<div className={styles.tlToolbar}>
 				{showLanes ? (
 					// Its own provider rather than leaning on the app root's: the toolbar
@@ -2110,7 +2214,6 @@ export function V4Timeline({
 								<PopoverContent
 									align="start"
 									sideOffset={6}
-									animated={false}
 									className="w-auto border-0 bg-transparent p-0 shadow-none"
 								>
 									<div
@@ -2178,7 +2281,6 @@ export function V4Timeline({
 											<PopoverContent
 												align="start"
 												sideOffset={6}
-												animated={false}
 												className="w-auto border-0 bg-transparent p-0 shadow-none"
 											>
 												<div
@@ -2373,148 +2475,8 @@ export function V4Timeline({
 							<div aria-hidden className={styles.tlSnapGuide} style={{ left: `${snapPct}%` }} />
 						) : null}
 
-						{showLanes ? (
-							<>
-								{/* An empty lane advertises the shortcut that fills it ("Press A to add
-								    annotation") rather than restating that it is empty — the same hint
-								    strings the pre-v4 timeline used, so the keys stay translated. The key
-								    is the live binding, formatted like the toolbar tooltip's chip, so a
-								    rebind in the shortcuts dialog moves the hint with it (#966). */}
-								<div
-									className={styles.tlLane}
-									data-track-kind="annotation"
-									style={{ height: regionLaneHeight(annotationRows.rowCount) }}
-								>
-									{renderPills(
-										annPills,
-										t("hints.pressAnnotation", {
-											key: formatBinding(shortcuts.addAnnotation, isMac),
-										}),
-									)}
-								</div>
-								<div className={styles.tlLane} data-track-kind="speed">
-									{renderPills(
-										speedPills,
-										t("hints.pressSpeed", { key: formatBinding(shortcuts.addSpeed, isMac) }),
-									)}
-								</div>
-								<div className={styles.tlLane} data-track-kind="trim">
-									{renderPills(
-										trimPills,
-										t("hints.pressTrim", { key: formatBinding(shortcuts.addTrim, isMac) }),
-									)}
-								</div>
-								<div className={styles.tlLane} data-track-kind="zoom">
-									{/* Its own provider, like the toolbar's: see the note there. */}
-									<TooltipProvider>{renderZoomTrails()}</TooltipProvider>
-									{renderPills(
-										zoomPills,
-										t("hints.pressZoom", { key: formatBinding(shortcuts.addZoom, isMac) }),
-									)}
-								</div>
-								<LayoutLane tl={tl} total={total} canvasRef={canvasRef} pxPerSec={pxPerSec} />
-								{/* Agent-written shader effects: one at a time, so one row. Only when the project
-								    has one: an agent writes them, nothing in the editor adds one, so an empty
-								    row would offer nothing. The shell grows by its height
-								    (`EFFECT_LANE_EXPANSION_PX`). */}
-								{tl.shaderEffectRanges.length > 0 ? (
-									<div className={styles.tlLane}>{renderPills(shaderEffectPills, "")}</div>
-								) : null}
-								{/* Imported audio tracks (issue #350). Always shown, like every other
-								    lane — "Add audio" is a toolbar peer of the region tools now (and
-								    has a keyboard shortcut), so an empty lane advertises the shortcut
-								    that fills it rather than hiding until the first import. */}
-								<div
-									className={`${styles.tlLane} ${styles.tlLaneAudio}`}
-									// Grows a row per overlapping track, so three voiceovers over
-									// the same stretch are three legible pills rather than one
-									// pile nobody can aim at.
-									style={{
-										height:
-											audioRows.rowCount * AUDIO_ROW_HEIGHT_PX +
-											(audioRows.rowCount - 1) * AUDIO_ROW_GAP_PX +
-											AUDIO_LANE_PAD_PX * 2,
-									}}
-								>
-									{tl.audioTracks.length === 0 ? (
-										<span
-											className={styles.laneEmpty}
-											style={{ left: `${nav.start * 100}%`, width: `${navSpan * 100}%` }}
-										>
-											{t("hints.pressAudio", {
-												audioKey: formatBinding(shortcuts.addAudio, isMac),
-												voiceoverKey: formatBinding(shortcuts.addVoiceover, isMac),
-											})}
-										</span>
-									) : (
-										// One pill per user-visible track: the document stores one
-										// clip-anchored fragment per clip the track covers, and the
-										// lane must not show a split take as two pills.
-										audioPills.map((track) => {
-											const asset = tl.assets.find((a) => a.id === track.assetId);
-											const duration = asset?.durationSec ?? track.durationSec;
-											// While this track is being dragged, lay it out from the live
-											// preview geometry instead of the not-yet-written document.
-											const drag = audioDrag?.id === track.id ? audioDrag : null;
-											const start = drag ? drag.start : track.startMs / 1000;
-											// A drag carries its span as the trim window it is dragging
-											// the edges of; the pill's width is that window.
-											const widthSec = drag
-												? Math.max(0, drag.trimEnd - drag.trimStart)
-												: Math.max(0, (track.endMs - track.startMs) / 1000);
-											const trimStart = drag ? drag.trimStart : track.offsetMs / 1000;
-											const trimEnd = trimStart + widthSec;
-											return (
-												<AudioLanePill
-													key={track.id}
-													track={track}
-													url={asset ? toFileUrl(asset.originalPath) : undefined}
-													assetDurationSec={duration}
-													leftPct={pctOf(start)}
-													widthPct={pctOf(widthSec)}
-													row={audioRows.rowOf.get(track.id) ?? 0}
-													rowHeight={AUDIO_ROW_HEIGHT_PX + AUDIO_ROW_GAP_PX}
-													spanSec={widthSec}
-													loopWindowSec={Math.max(0, (duration || 0) - trimStart)}
-													sourceStartSec={trimStart}
-													// A looping pill can outrun its file; the waveform draws
-													// the source it actually has.
-													sourceEndSec={duration > 0 ? Math.min(trimEnd, duration) : trimEnd}
-													selected={tl.selectedAudioTrackId === track.id}
-													onStartDrag={startAudioDrag}
-													onSelect={tl.selectAudioTrack}
-													label={track.label || asset?.label || ts("audioTrack.defaultLabel")}
-													slipHint={ts("audioTrack.slipHint", {
-														modifier: isMac ? "Option" : "Alt",
-													})}
-													slipArmed={slipArmed}
-													outputGain={audioGainScalar(settings.audioGainDb)}
-													ghost={((g) =>
-														g
-															? {
-																	leftPct: pctOf(g.startT),
-																	widthPct: pctOf(g.endT - g.startT),
-																	sourceStartSec: g.sourceStartSec,
-																	sourceEndSec: g.sourceEndSec,
-																}
-															: null)(
-														audioGhostExtent(
-															trimStart,
-															widthSec,
-															duration,
-															start,
-															start + widthSec,
-															total,
-														),
-													)}
-												/>
-											);
-										})
-									)}
-								</div>
-							</>
-						) : null}
-
+						{/* The clip row comes first, directly under the ruler: it is what every lane below
+						    modifies, and lanes can then come and go without moving it. */}
 						<div
 							ref={clipsRef}
 							className={`${styles.tlClips}${dragOver ? ` ${styles.tlClipsDrag}` : ""}`}
@@ -2673,6 +2635,157 @@ export function V4Timeline({
 								</div>
 							) : null}
 						</div>
+
+						{showLanes ? (
+							<>
+								{/* Lanes, most used first. A lane is drawn only while it holds something: an
+								    empty one offers nothing but a stripe, and five of them pushed the clip a
+								    long way from the ruler. What is still missing is named once, with its
+								    key, in the row at the end. The single-row lanes take their height from
+								    the constant the panel is sized with (timelineHeight.ts). */}
+								{showZoomLane ? (
+									<div
+										className={styles.tlLane}
+										data-track-kind="zoom"
+										style={{ height: REGION_LANE_HEIGHT_PX }}
+									>
+										{/* Its own provider, like the toolbar's: see the note there. */}
+										<TooltipProvider>{renderZoomTrails()}</TooltipProvider>
+										{renderPills(zoomPills)}
+									</div>
+								) : null}
+								{showTrimLane ? (
+									<div
+										className={styles.tlLane}
+										data-track-kind="trim"
+										style={{ height: REGION_LANE_HEIGHT_PX }}
+									>
+										{renderPills(trimPills)}
+									</div>
+								) : null}
+								{showSpeedLane ? (
+									<div
+										className={styles.tlLane}
+										data-track-kind="speed"
+										style={{ height: REGION_LANE_HEIGHT_PX }}
+									>
+										{renderPills(speedPills)}
+									</div>
+								) : null}
+								{showAnnotationLane ? (
+									<div
+										className={styles.tlLane}
+										data-track-kind="annotation"
+										style={{ height: annotationLaneHeight }}
+									>
+										{renderPills(annPills)}
+									</div>
+								) : null}
+								<LayoutLane tl={tl} total={total} canvasRef={canvasRef} pxPerSec={pxPerSec} />
+								{/* Agent-written shader effects: one at a time, so one row. */}
+								{showEffectLane ? (
+									<div className={styles.tlLane} style={{ height: REGION_LANE_HEIGHT_PX }}>
+										{renderPills(shaderEffectPills)}
+									</div>
+								) : null}
+								{/* Imported audio tracks and voiceovers (issue #350), under the picture. */}
+								{showAudioLane ? (
+									<div
+										className={`${styles.tlLane} ${styles.tlLaneAudio}`}
+										// Grows a row per overlapping track, so three voiceovers over
+										// the same stretch are three legible pills rather than one
+										// pile nobody can aim at.
+										style={{ height: audioLaneHeight }}
+									>
+										{
+											// One pill per user-visible track: the document stores one
+											// clip-anchored fragment per clip the track covers, and the
+											// lane must not show a split take as two pills.
+											audioPills.map((track) => {
+												const asset = tl.assets.find((a) => a.id === track.assetId);
+												const duration = asset?.durationSec ?? track.durationSec;
+												// While this track is being dragged, lay it out from the live
+												// preview geometry instead of the not-yet-written document.
+												const drag = audioDrag?.id === track.id ? audioDrag : null;
+												const start = drag ? drag.start : track.startMs / 1000;
+												// A drag carries its span as the trim window it is dragging
+												// the edges of; the pill's width is that window.
+												const widthSec = drag
+													? Math.max(0, drag.trimEnd - drag.trimStart)
+													: Math.max(0, (track.endMs - track.startMs) / 1000);
+												const trimStart = drag ? drag.trimStart : track.offsetMs / 1000;
+												const trimEnd = trimStart + widthSec;
+												return (
+													<AudioLanePill
+														key={track.id}
+														track={track}
+														url={asset ? toFileUrl(asset.originalPath) : undefined}
+														assetDurationSec={duration}
+														leftPct={pctOf(start)}
+														widthPct={pctOf(widthSec)}
+														row={audioRows.rowOf.get(track.id) ?? 0}
+														rowHeight={AUDIO_ROW_HEIGHT_PX + AUDIO_ROW_GAP_PX}
+														spanSec={widthSec}
+														loopWindowSec={Math.max(0, (duration || 0) - trimStart)}
+														sourceStartSec={trimStart}
+														// A looping pill can outrun its file; the waveform draws
+														// the source it actually has.
+														sourceEndSec={duration > 0 ? Math.min(trimEnd, duration) : trimEnd}
+														selected={tl.selectedAudioTrackId === track.id}
+														onStartDrag={startAudioDrag}
+														onSelect={tl.selectAudioTrack}
+														label={track.label || asset?.label || ts("audioTrack.defaultLabel")}
+														slipHint={ts("audioTrack.slipHint", {
+															modifier: isMac ? "Option" : "Alt",
+														})}
+														slipArmed={slipArmed}
+														outputGain={audioGainScalar(settings.audioGainDb)}
+														ghost={((g) =>
+															g
+																? {
+																		leftPct: pctOf(g.startT),
+																		widthPct: pctOf(g.endT - g.startT),
+																		sourceStartSec: g.sourceStartSec,
+																		sourceEndSec: g.sourceEndSec,
+																	}
+																: null)(
+															audioGhostExtent(
+																trimStart,
+																widthSec,
+																duration,
+																start,
+																start + widthSec,
+																total,
+															),
+														)}
+													/>
+												);
+											})
+										}
+									</div>
+								) : null}
+								{/* As wide as the visible window, not the zoomed canvas, so it stays centred
+								    in view however far the timeline is zoomed in. */}
+								{missingKinds.length > 0 ? (
+									<div
+										className={styles.tlHintRow}
+										data-testid="timeline-add-hints"
+										style={{
+											height: HINT_ROW_HEIGHT_PX,
+											marginLeft: `${nav.start * 100}%`,
+											width: `${navSpan * 100}%`,
+										}}
+									>
+										{missingKinds.map((kind) => (
+											<span key={kind.id} className={styles.tlHintItem}>
+												<kbd>{kind.key}</kbd>
+												{t(`hints.kinds.${kind.id}`)}
+											</span>
+										))}
+									</div>
+								) : null}
+							</>
+						) : null}
 					</div>
 				</div>
 
@@ -2685,6 +2798,7 @@ export function V4Timeline({
 					<PlayheadOverlay
 						totalSec={total}
 						overrideTimeSec={scrubbingTimeSec}
+						playing={playing}
 						canvasStyle={canvasStyle}
 						onPointerDown={startScrub}
 						playheadRef={playheadElRef}

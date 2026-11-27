@@ -2,6 +2,9 @@
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 6px;
+	/* geometry of the sliding plate (`.os-slides`, index.css) */
+	--slide-gap: 6px;
+	--slide-radius: var(--r-sm);
 }
 .iconPresets { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .iconPresets .preset { min-width: 0; padding: 8px 2px; }
@@ -12,17 +15,23 @@
 	align-items: center;
 	gap: 7px;
 	padding: 9px 5px;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	background: var(--surface-hi);
-	color: var(--fg);
+	border: 0;
+	border-radius: var(--r-sm);
+	background: color-mix(in oklab, var(--fg) 6%, transparent);
+	color: var(--fg-2);
 	font: inherit;
 	font-size: 11px;
 	cursor: pointer;
+	transition:
+		background var(--dur-state) var(--ease-out),
+		color var(--dur-state) var(--ease-out);
 }
-.preset[aria-pressed="true"] {
-	border-color: var(--accent);
-	background: color-mix(in srgb, var(--accent) 14%, var(--surface-hi));
+.preset:hover:not(:disabled) { background: color-mix(in oklab, var(--fg) 11%, transparent); }
+/* Clear, so the group's sliding plate shows through: the same selection as a ChoiceRow. */
+.preset[aria-pressed="true"],
+.preset[aria-pressed="true"]:hover:not(:disabled) {
+	background: transparent;
+	color: var(--fg-emphasis);
 }
 .preset:disabled { opacity: 0.45; cursor: not-allowed; }
 .mini {

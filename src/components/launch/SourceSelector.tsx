@@ -74,8 +74,8 @@ export function SourceSelector() {
 				style={{ minHeight: "100vh" }}
 			>
 				<div className="text-center">
-					<div className="animate-spin duration-500 rounded-[50%] h-6 w-6 border-2 border-b-transparent border-[#10b981] mx-auto mb-2" />
-					<p className="text-xs text-[#828c99]">{t("sourceSelector.loading")}</p>
+					<div className="animate-spin duration-500 rounded-[50%] h-6 w-6 border-2 border-b-transparent border-[var(--accent)] mx-auto mb-2" />
+					<p className="text-xs text-[var(--muted)]">{t("sourceSelector.loading")}</p>
 				</div>
 			</div>
 		);
@@ -88,15 +88,17 @@ export function SourceSelector() {
 				style={{ minHeight: "100vh" }}
 			>
 				<div className="max-w-[320px] px-6 text-center">
-					<h2 className="text-sm font-semibold text-[#ffffff]">{t("sourceSelector.emptyTitle")}</h2>
-					<p className="mt-2 text-xs leading-5 text-[#828c99]">
+					<h2 className="text-sm font-semibold text-[var(--fg-emphasis)]">
+						{t("sourceSelector.emptyTitle")}
+					</h2>
+					<p className="mt-2 text-xs leading-5 text-[var(--muted)]">
 						{loadFailed
 							? t("sourceSelector.loadFailedDescription")
 							: t("sourceSelector.emptyDescription")}
 					</p>
 					<Button
 						onClick={() => void fetchSources()}
-						className="mt-4 h-9 rounded-[9px] bg-[#10b981] px-5 text-[13px] font-semibold text-[#08090d] transition-transform duration-150 hover:bg-[#10b981]/85 active:scale-95"
+						className="mt-4 h-9 rounded-[9px] bg-[var(--accent)] px-5 text-[13px] font-semibold text-[var(--accent-on)] transition-transform duration-150 hover:bg-[var(--brand-lo)] active:scale-95"
 					>
 						{tc("actions.reload")}
 					</Button>
@@ -146,16 +148,16 @@ export function SourceSelector() {
 				defaultValue={screenSources.length === 0 ? "windows" : "screens"}
 				className="flex-1 flex flex-col min-h-0"
 			>
-				<TabsList className="flex items-center gap-1.5 h-auto p-3.5 rounded-none bg-transparent border-b border-[#191d24] flex-shrink-0">
+				<TabsList className="flex items-center gap-1.5 h-auto p-3.5 rounded-none bg-transparent border-b border-[var(--border-soft)] flex-shrink-0">
 					<TabsTrigger
 						value="screens"
-						className="flex-1 h-10 rounded-[11px] text-[13.5px] font-medium text-[#828c99] border border-transparent transition-all data-[state=active]:bg-[#232830] data-[state=active]:border-[#333a45] data-[state=active]:text-[#ffffff] data-[state=active]:font-semibold data-[state=active]:shadow-none"
+						className="flex-1 h-10 rounded-[11px] text-[13.5px] font-medium text-[var(--muted)] border border-transparent transition-all data-[state=active]:bg-[var(--surface-3)] data-[state=active]:border-[var(--border-hi)] data-[state=active]:text-[var(--fg-emphasis)] data-[state=active]:font-semibold data-[state=active]:shadow-none"
 					>
 						{t("sourceSelector.screens", { count: String(screenSources.length) })}
 					</TabsTrigger>
 					<TabsTrigger
 						value="windows"
-						className="flex-1 h-10 rounded-[11px] text-[13.5px] font-medium text-[#828c99] border border-transparent transition-all data-[state=active]:bg-[#232830] data-[state=active]:border-[#333a45] data-[state=active]:text-[#ffffff] data-[state=active]:font-semibold data-[state=active]:shadow-none"
+						className="flex-1 h-10 rounded-[11px] text-[13.5px] font-medium text-[var(--muted)] border border-transparent transition-all data-[state=active]:bg-[var(--surface-3)] data-[state=active]:border-[var(--border-hi)] data-[state=active]:text-[var(--fg-emphasis)] data-[state=active]:font-semibold data-[state=active]:shadow-none"
 					>
 						{t("sourceSelector.windows", { count: String(windowSources.length) })}
 					</TabsTrigger>
@@ -177,12 +179,12 @@ export function SourceSelector() {
 					</TabsContent>
 				</div>
 			</Tabs>
-			<div className="flex justify-end gap-2.5 border-t border-[#191d24] px-[18px] py-4">
+			<div className="flex justify-end gap-2.5 border-t border-[var(--border-soft)] px-[18px] py-4">
 				<Button
 					data-testid="source-selector-cancel-button"
 					variant="ghost"
 					onClick={() => window.close()}
-					className="h-9 rounded-[9px] border border-[#333a45] px-4 text-[13px] font-medium text-[#f5f7fa] transition-colors duration-150 hover:bg-white/[0.08] hover:text-[#f5f7fa]"
+					className="h-9 rounded-[9px] border border-[var(--border-hi)] px-4 text-[13px] font-medium text-[var(--fg)] transition-colors duration-150 hover:bg-white/[0.08] hover:text-[var(--fg)]"
 				>
 					{tc("actions.cancel")}
 				</Button>
@@ -190,7 +192,7 @@ export function SourceSelector() {
 					data-testid="source-selector-share-button"
 					onClick={handleShare}
 					disabled={!selectedSource}
-					className="h-9 rounded-[9px] bg-[#10b981] px-5 text-[13px] font-semibold text-[#08090d] transition-transform duration-150 hover:bg-[#10b981]/85 active:scale-95 disabled:bg-[#232830] disabled:border disabled:border-[#242932] disabled:text-[#565f6b] disabled:opacity-100"
+					className="h-9 rounded-[9px] bg-[var(--accent)] px-5 text-[13px] font-semibold text-[var(--accent-on)] transition-transform duration-150 hover:bg-[var(--brand-lo)] active:scale-95 disabled:bg-[var(--surface-3)] disabled:border disabled:border-[var(--border)] disabled:text-[var(--meta)] disabled:opacity-100"
 				>
 					{tc("actions.share")}
 				</Button>

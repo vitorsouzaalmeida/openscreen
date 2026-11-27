@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { REGION_ROW_STEP_PX } from "@/lib/ai-edition/timeline/regionTracks";
 
 // The regression under test is geometric, so the environment has to have a size:
 // jsdom reports 0 for every box, which would leave `pxPerSec` at 0 (the
@@ -152,7 +153,7 @@ function renderTimeline(
 		...overrides,
 	};
 	const setCurrentTime = vi.fn();
-	const onAnnotationRowCountChange = vi.fn();
+	const onContentHeightChange = vi.fn();
 	const timeline = (variant: "edit" | "media" = "edit") => (
 		<ShortcutsProvider>
 			<V4Timeline
@@ -167,7 +168,7 @@ function renderTimeline(
 				onTogglePlay={vi.fn()}
 				onEditClip={vi.fn()}
 				onAddVoiceover={vi.fn()}
-				onAnnotationRowCountChange={onAnnotationRowCountChange}
+				onContentHeightChange={onContentHeightChange}
 			/>
 		</ShortcutsProvider>
 	);
@@ -182,7 +183,7 @@ function renderTimeline(
 	);
 	return {
 		rerenderVariant: (variant: "edit" | "media") => view.rerender(timeline(variant)),
-		onAnnotationRowCountChange,
+		onContentHeightChange,
 		// A getter: a test that empties `annotationRegions` renders no such pill, and an eager
 		// lookup would throw before its own assertions ran.
 		get pill() {
@@ -239,7 +240,7 @@ describe("timeline tracks", () => {
 		}
 	});
 
-	it("reuses a single row for back-to-back annotations and keeps the empty lane free of drag hints", () => {
+	it("reuses a single row for back-to-back annotations and draws no lane when there are none", () => {
 		renderTimeline(undefined, undefined, undefined, undefined, {
 			annotationRegions: Array.from({ length: 10 }, (_, i) => ({
 				id: `ann-${i}`,
@@ -259,12 +260,13 @@ describe("timeline tracks", () => {
 		).toBe(1);
 		expect(lane.querySelector<HTMLElement>("[data-region-id]")?.title).toContain("tracks.dragHint");
 		cleanup();
+		// A lane exists only while it holds something.
 		renderTimeline(undefined, undefined, undefined, undefined, { annotationRegions: [] });
-		expect(document.querySelector<HTMLElement>('[data-track-kind="annotation"]')?.title).toBe("");
+		expect(document.querySelector('[data-track-kind="annotation"]')).toBeNull();
 	});
 
 	it("creates a separate live row when a horizontal drag moves into an existing annotation", () => {
-		const { tl, onAnnotationRowCountChange } = renderTimeline(
+		const { tl, onContentHeightChange } = renderTimeline(
 			undefined,
 			undefined,
 			undefined,
@@ -276,14 +278,15 @@ describe("timeline tracks", () => {
 				],
 			},
 		);
-		expect(onAnnotationRowCountChange).toHaveBeenLastCalledWith(1);
+		// The panel is sized from what the timeline reports it draws, the drag preview included.
+		const oneRow = onContentHeightChange.mock.lastCall?.[0] as number;
 		const second = document.querySelector<HTMLElement>('[data-region-id="second"]') as HTMLElement;
 		const main = document.querySelector<HTMLElement>('[data-region-id="main"]') as HTMLElement;
 		fireEvent.pointerDown(second, { clientX: 100, clientY: 10 });
 		act(() => {
 			window.dispatchEvent(new MouseEvent("pointermove", { clientX: 10, clientY: 10 }));
 		});
-		expect(onAnnotationRowCountChange).toHaveBeenLastCalledWith(2);
+		expect(onContentHeightChange).toHaveBeenLastCalledWith(oneRow + REGION_ROW_STEP_PX);
 		expect(second.style.top).not.toBe(main.style.top);
 		expect(
 			document.querySelector<HTMLElement>('[data-track-kind="annotation"]')?.style.height,
@@ -807,7 +810,7 @@ describe("V4Timeline create-from-toolbar", () => {
 	it("does not advertise the C shortcut on a lane that cannot be filled", () => {
 		renderTimeline();
 		expect(screen.queryByTestId("layout-lane")).not.toBeInTheDocument();
-		expect(screen.queryByText("hints.pressCameraFullscreen")).not.toBeInTheDocument();
+		expect(screen.getByTestId("timeline-add-hints")).not.toHaveTextContent(/camera/i);
 	});
 
 	it("advertises it again once a camera is on the timeline", () => {
@@ -1062,7 +1065,10 @@ describe("V4Timeline audio lane drag", () => {
 		// shortcuts dialog moves the menu with it instead of teaching a stale key.
 		renderAudio();
 		fireEvent.click(screen.getByLabelText("toolbar.addAudioTooltip"));
-		const keys = Array.from(document.querySelectorAll("kbd"), (k) => k.textContent);
+		// The menu's own keys: the timeline's add-hint row draws keycaps too.
+		const keys = Array.from(document.querySelectorAll("kbd"))
+			.filter((k) => !k.closest('[data-testid="timeline-add-hints"]'))
+			.map((k) => k.textContent);
 		expect(keys).toEqual([
 			formatBinding(DEFAULT_SHORTCUTS.addVoiceover, false),
 			formatBinding(DEFAULT_SHORTCUTS.addAudio, false),
@@ -1214,10 +1220,19 @@ describe("V4Timeline audio lane drag", () => {
 	});
 });
 
-// #966. An empty lane advertises the shortcut that fills it. The letter used to be written into
-// the string, so after a rebind the hint kept teaching a key that did nothing while the toolbar
-// chip, read off the live binding, showed the right one.
-describe("V4Timeline empty-lane hints", () => {
+// #966. What the project has none of yet is named with the key that adds it. The letter used
+// to be written into the string, so after a rebind the hint kept teaching a key that did nothing
+// while the toolbar chip, read off the live binding, showed the right one. One row lists every
+// missing kind; a kind that has a lane is not in it.
+describe("V4Timeline add hints", () => {
+	/** Each hint as "<key> <kind>", in the order drawn. */
+	function hints() {
+		return Array.from(screen.getByTestId("timeline-add-hints").querySelectorAll("span"), (item) => {
+			const key = item.querySelector("kbd")?.textContent ?? "";
+			return `${key} ${(item.textContent ?? "").slice(key.length)}`;
+		});
+	}
+
 	afterEach(() => {
 		i18n.translate = null;
 		(window as unknown as { electronAPI?: unknown }).electronAPI = undefined;
@@ -1230,11 +1245,11 @@ describe("V4Timeline empty-lane hints", () => {
 	it("names the default keys", () => {
 		useEnglish();
 		renderTimeline(undefined, { id: "ann1", startMs: 10_000, endMs: 11_000 }, [CAMERA_ASSET]);
-		expect(screen.getByText("Press Z to add zoom")).toBeInTheDocument();
-		expect(screen.getByText("Press T to add trim")).toBeInTheDocument();
-		expect(screen.getByText("Press S to add speed")).toBeInTheDocument();
+		// The fixture has an annotation, so that kind has its lane and is not offered again.
+		expect(hints()).toEqual(["Z zoom", "T trim", "S speed", "M audio", "V voiceover"]);
+		expect(document.querySelector('[data-track-kind="annotation"]')).not.toBeNull();
+		expect(document.querySelector('[data-track-kind="zoom"]')).toBeNull();
 		expect(screen.getByLabelText(translate("timeline", "layouts.changeHere"))).toBeInTheDocument();
-		expect(screen.getByText("Press M to add audio, V to record a voiceover")).toBeInTheDocument();
 	});
 
 	it("names the key the user rebound, formatted like the toolbar chip", async () => {
@@ -1258,15 +1273,17 @@ describe("V4Timeline empty-lane hints", () => {
 				annotationRegions: [],
 			},
 		);
-		expect(await screen.findByText("Press X to add zoom")).toBeInTheDocument();
-		expect(screen.getByText("Press Ctrl + Shift + T to add trim")).toBeInTheDocument();
-		expect(screen.getByText("Press N to add annotation")).toBeInTheDocument();
-		expect(screen.getByText("Press J to add speed")).toBeInTheDocument();
+		await waitFor(() =>
+			expect(hints()).toEqual([
+				"X zoom",
+				"Ctrl + Shift + T trim",
+				"J speed",
+				"N annotation",
+				"U audio",
+				"Alt + R voiceover",
+			]),
+		);
 		expect(screen.getByLabelText(translate("timeline", "layouts.changeHere"))).toBeInTheDocument();
-		expect(
-			screen.getByText("Press U to add audio, Alt + R to record a voiceover"),
-		).toBeInTheDocument();
-		expect(screen.queryByText("Press Z to add zoom")).not.toBeInTheDocument();
 	});
 });
 

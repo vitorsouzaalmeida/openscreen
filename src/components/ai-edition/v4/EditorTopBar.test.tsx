@@ -29,11 +29,6 @@ beforeEach(() => {
 	vi.stubGlobal("ResizeObserver", StubResizeObserver);
 });
 
-const { toggleTheme } = vi.hoisted(() => ({ toggleTheme: vi.fn() }));
-vi.mock("@/hooks/useTheme", () => ({
-	useTheme: () => ({ theme: "dark", toggle: toggleTheme }),
-}));
-
 import styles from "./EditorShellV4.module.css";
 import { EditorTopBar } from "./EditorTopBar";
 
@@ -188,7 +183,7 @@ describe("AppMenu", () => {
 		const trigger = screen.getByRole("button", { name: /OpenScreen/ });
 		expect(trigger).toHaveAttribute("aria-haspopup", "menu");
 		expect(trigger).toHaveAttribute("aria-expanded", "false");
-		// The whole point of the wordmark-as-trigger: no menu until asked for.
+		// The whole point of the mark-as-trigger: no menu until asked for.
 		expect(screen.queryByRole("menu")).not.toBeInTheDocument();
 	});
 
@@ -270,15 +265,6 @@ describe("AppMenu", () => {
 		fireEvent.click(screen.getByRole("menuitem", { name: "topbar.saveProject" }));
 		expect(onSave).toHaveBeenCalledTimes(1);
 		expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-	});
-
-	it("switches the theme from the menu", () => {
-		toggleTheme.mockClear();
-		renderTopBar("Demo Project");
-		fireEvent.click(screen.getByRole("button", { name: /OpenScreen/ }));
-		// Dark now, so the row offers the way out of it.
-		fireEvent.click(screen.getByRole("menuitem", { name: "topbar.switchToLightTheme" }));
-		expect(toggleTheme).toHaveBeenCalledTimes(1);
 	});
 
 	it("closes on Escape and hands focus back to the trigger", () => {
@@ -499,7 +485,7 @@ describe("top bar drag region while a menu is open (issue #1009)", () => {
 		expect(body).toMatch(/(^|\s)app-region:\s*no-drag/);
 	});
 
-	it("puts the bar under it only while the wordmark menu is open", () => {
+	it("puts the bar under it only while the app menu is open", () => {
 		renderTopBar("Demo Project");
 		const bar = document.querySelector(`header.${styles.topbar}`) as HTMLElement;
 		expect(bar.matches(condition)).toBe(false);

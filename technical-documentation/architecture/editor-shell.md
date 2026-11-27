@@ -49,11 +49,11 @@ of those are local React state, with the document itself read through
 
 | Surface | Component file | What the user does there |
 |---|---|---|
-| **Top bar** | `src/components/ai-edition/v4/EditorTopBar.tsx` | Chooses the editor mode; opens / saves / renames the project; exports; switches theme. (`EditorTopBar` props in `NewEditorShell.tsx` `:1114-1130`.) |
+| **Top bar** | `src/components/ai-edition/v4/EditorTopBar.tsx` | Chooses the editor mode; opens / saves / renames the project; exports. (`EditorTopBar` props in `NewEditorShell.tsx` `:1114-1130`.) |
 | **Stage — Edit mode** | `src/components/ai-edition/Preview.tsx` (mounted at `NewEditorShell.tsx` `:1180`) | Plays the timeline through the in-DOM preview; live drag of zoom focus and annotation position/size calls back into `useTimeline`; selection of an annotation id routes through `useTimeline.selectRegion`. |
 | **Stage — Media mode** | `src/components/ai-edition/v4/MediaStage.tsx` | Searches, adds, regenerates transcripts for the assets in the project. The variant that the timeline shows in this mode is "media" (timeline height, no lanes). |
 | **Stage — Rec mode** | `src/components/ai-edition/v4/RecStage.tsx` | Pre-flight config for a new recording — mic / camera / system audio / cursor capture mode — then hands off to the standalone recorder HUD window when the user hits record. |
-| **Bottom timeline** | `src/components/ai-edition/v4/V4Timeline.tsx` | Renders the clips, the ruler, and the five lanes (`annPills`, `speedPills`, `trimPills`, `zoomPills`, `cameraFullscreenPills`, computed at `:321-363`). Owns transport (play / prev / next / loop), zoom/pan, scrub, drag-and-drop of asset cards, the Auto-enhance menu (**Automatic zooms**), and resize/move/delete of every pill. Pills render through `coalesceRegionsForRuler` and `coalescedTrimGroups` so what the user sees is exactly what the rules in [timeline-model.md](timeline-model.md) describe. |
+| **Bottom timeline** | `src/components/ai-edition/v4/V4Timeline.tsx` | Renders the ruler, the clip row directly under it, and then one lane per kind that has content: zoom, trim, speed, annotation, camera layout, effect, audio (`zoomPills`, `trimPills`, `speedPills`, `annPills`, …). A lane is drawn only while it holds something; the kinds the project has none of are named once, with their key bindings, in a single hint row. The panel is as tall as what it holds (`timelineContentHeightPx`, `src/lib/ai-edition/timeline/timelineHeight.ts`), plus how far the user dragged its edge. Owns transport (play / prev / next / loop), zoom/pan, scrub, drag-and-drop of asset cards, the Auto-enhance menu (**Automatic zooms**), and resize/move/delete of every pill. Pills render through `coalesceRegionsForRuler` and `coalescedTrimGroups` so what the user sees is exactly what the rules in [timeline-model.md](timeline-model.md) describe. |
 | **Floating inspector** | `src/components/ai-edition/v4/FloatingInspector.tsx` | Floating facet rail over the stage; the open panel either shows the `FacetBody` for the current facet (`effects` / `layout` / `audio` / `cursor` / `captions` / `transcript`) or, when a region is selected, a `SelectionPane` (`:434`) that edits the selected pill by id. The "pencil" rail button opens `EditClipModal` for crop + trim. |
 | **Modals** | `src/components/ai-edition/Modals.tsx` | `OpenProjectModal`, `NewProjectModal`, `EditClipModal` (per-clip crop + in/out), `UnsavedChangesModal`. Mounted at the shell level (`:1333-1385`) so every trigger site reuses the same instance. |
 | **Export dialog** | `src/components/ai-edition/ExportDialog.tsx` | One settings panel — format (MP4 / GIF), quality, frame rate, and the GIF size and loop controls — with no codec choice and no idle hint plate: every MP4 is H.264. Both formats go through the native compositor with the same clip list (`resolveVisibleClips`) and scene (`buildSceneDescription`): `exportGifNative` for GIF, `exportMultiNative` for MP4. |
@@ -74,7 +74,7 @@ export type EditorMode = "media" | "edit" | "rec";
 | Mode | What it shows |
 |---|---|
 | `"media"` | `MediaStage` over a "media" variant of the timeline (no lanes). The user searches transcripts, re-runs Whisper for an asset, picks a language, etc. |
-| `"edit"` | `Preview` over the floating inspector with the standard five-lane timeline. This is the mode the document is actually mutated in. |
+| `"edit"` | `Preview` over the floating inspector with the timeline: the clip row and a lane for each kind in use. This is the mode the document is actually mutated in. |
 | `"rec"` | `RecStage` pre-flight config (mic, camera, system audio, cursor mode). The bottom timeline is hidden. Hitting record hands off to the standalone recorder HUD window; closing `RecStage` returns the user to `edit`. |
 
 ### Facet (`v4/FloatingInspector.tsx:57`)
@@ -185,18 +185,15 @@ on 14/10/2026.
 
 ## Design source
 
-The v4 editor visual design lives in [`design/`](../../design/), with the
-canonical reference at [`design/DESIGN.md`](../../design/DESIGN.md). Tokens
-are split by concern in
-[`design/tokens/`](../../design/tokens/) — `colors.css`, `fonts.css`,
-`radii.css`, `spacing.css`, `typography.css`, `elevation.css`, `effects.css`,
-plus a `v4.css` roll-up that the editor imports. Components consume those
-tokens as CSS custom properties (e.g. `var(--surface)`, `var(--fg)`,
-`var(--accent)`, `var(--danger)`, `var(--r-md)`, `var(--sp-2)`) rather than
-hard-coding hex values, so theme + density changes propagate without per-file
-edits. Inline styles in the editor (e.g. `FloatingInspector.tsx`'s `clipPickerOpen`
-panel at `:172-186`) follow the same rule — they reference the tokens, not
-raw colours.
+The design tokens live in `src/styles/design-tokens.css`, which the app imports
+(`src/main.tsx`); `design/tokens/v4.css` is a re-export of that file for the design
+folder. The app is dark-only. Components consume the tokens as CSS custom properties
+(e.g. `var(--surface-1)`, `var(--fg)`, `var(--accent)`, `var(--danger)`,
+`var(--r-md)`, `var(--dur-state)`) rather than hard-coding hex values or durations,
+so a palette, density or motion change is made in one place. Tailwind utilities read
+the same tokens as arbitrary values (`bg-[var(--surface-2)]`); there is no second
+palette in the Tailwind config. Inline styles follow the same rule: they reference
+the tokens, not raw colours.
 
 ## Known gaps
 

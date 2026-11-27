@@ -7,6 +7,12 @@ import type { useTimeline } from "@/lib/ai-edition/store/useTimeline";
 import { formatSec } from "@/lib/ai-edition/timeline/format";
 import styles from "./Layouts.module.css";
 
+/** The lane only exists once the layout changes somewhere, or a legacy camera region needs
+ *  a place to be seen. The timeline asks the same question to size its panel. */
+export function layoutLaneVisible(runs: ReturnType<typeof useTimeline>["layoutSegments"]): boolean {
+	return runs.length > 1 || Boolean(runs[0]?.member.legacyCamera);
+}
+
 export function LayoutLane({
 	tl,
 	total,
@@ -23,7 +29,7 @@ export function LayoutLane({
 	const [dragging, setDragging] = useState(false);
 	useEffect(() => () => cleanup.current?.(), []);
 	const runs = tl.layoutSegments;
-	if (runs.length <= 1 && !runs[0]?.member.legacyCamera) return null;
+	if (!layoutLaneVisible(runs)) return null;
 	return (
 		<div
 			className={styles.lane}

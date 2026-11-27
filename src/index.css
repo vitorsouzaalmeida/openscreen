@@ -2,68 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-	:root {
-		--background: 0 0% 100%;
-		--foreground: 20 14.3% 4.1%;
-		--card: 0 0% 100%;
-		--card-foreground: 20 14.3% 4.1%;
-		--popover: 0 0% 100%;
-		--popover-foreground: 20 14.3% 4.1%;
-		--primary: 24 9.8% 10%;
-		--primary-foreground: 60 9.1% 97.8%;
-		--secondary: 60 4.8% 95.9%;
-		--secondary-foreground: 24 9.8% 10%;
-		--muted: 60 4.8% 95.9%;
-		--muted-foreground: 25 5.3% 44.7%;
-		--accent: 60 4.8% 95.9%;
-		--accent-foreground: 24 9.8% 10%;
-		--destructive: 0 84.2% 60.2%;
-		--destructive-foreground: 60 9.1% 97.8%;
-		--border: 20 5.9% 90%;
-		--input: 20 5.9% 90%;
-		--ring: 20 14.3% 4.1%;
-		--chart-1: 12 76% 61%;
-		--chart-2: 173 58% 39%;
-		--chart-3: 197 37% 24%;
-		--chart-4: 43 74% 66%;
-		--chart-5: 27 87% 67%;
-		--radius: 0.5rem;
-	}
-	.dark {
-		--background: 20 14.3% 4.1%;
-		--foreground: 60 9.1% 97.8%;
-		--card: 20 14.3% 4.1%;
-		--card-foreground: 60 9.1% 97.8%;
-		--popover: 20 14.3% 4.1%;
-		--popover-foreground: 60 9.1% 97.8%;
-		--primary: 60 9.1% 97.8%;
-		--primary-foreground: 24 9.8% 10%;
-		--secondary: 12 6.5% 15.1%;
-		--secondary-foreground: 60 9.1% 97.8%;
-		--muted: 12 6.5% 15.1%;
-		--muted-foreground: 24 5.4% 63.9%;
-		--accent: 12 6.5% 15.1%;
-		--accent-foreground: 60 9.1% 97.8%;
-		--destructive: 0 62.8% 30.6%;
-		--destructive-foreground: 60 9.1% 97.8%;
-		--border: 12 6.5% 15.1%;
-		--input: 12 6.5% 15.1%;
-		--ring: 24 5.7% 82.9%;
-		--chart-1: 220 70% 50%;
-		--chart-2: 160 60% 45%;
-		--chart-3: 30 80% 55%;
-		--chart-4: 280 65% 60%;
-		--chart-5: 340 75% 55%;
-	}
-}
-
+/* Colours come from src/styles/design-tokens.css, the app's only palette. Tailwind's own
+   colour names for the shadcn set (`bg-background`, `border-border`, …) are not configured:
+   a utility that needs a token writes it as an arbitrary value, `bg-[var(--surface-2)]`. */
 @layer base {
 	* {
-		@apply border-border;
+		border-color: var(--border);
 	}
 	body {
-		@apply bg-background text-foreground;
+		background: var(--bg);
+		color: var(--fg);
 		/* Every window — HUD, picker, permissions, notes, anything portaled to
 		   body — speaks the brand face, not just the editor shell. */
 		font-family: var(--font-body);
@@ -78,6 +26,54 @@
 	svg.lucide {
 		stroke-width: 2.25;
 	}
+}
+
+/* The one selection style for a group of equal choices (segmented rows, tabs, the facet
+   rail): a raised neutral plate that slides to the chosen cell. It is drawn by the GROUP,
+   not by the chosen button, so it can travel between cells; the group says where with
+   --sel-col / --sel-row (and --cols / --rows for the grid it spans), which costs no DOM
+   and no layout read. The cells are equal by construction everywhere this is used.
+   `data-sel="none"` hides it for a value no cell holds (a custom zoom level).
+   A group tunes the plate to its own track with --slide-gap (between cells, default 4px),
+   --slide-pad (around them, default 0) and --slide-radius. They are read with fallbacks
+   rather than declared here, so a group's own rule sets them whatever the stylesheet order. */
+.os-slides {
+	position: relative;
+}
+.os-slides::after {
+	content: "";
+	position: absolute;
+	z-index: 0;
+	top: var(--slide-pad, 0px);
+	left: var(--slide-pad, 0px);
+	width: calc(
+		(100% - 2 * var(--slide-pad, 0px) - (var(--cols, 1) - 1) * var(--slide-gap, 4px)) /
+			var(--cols, 1)
+	);
+	height: calc(
+		(100% - 2 * var(--slide-pad, 0px) - (var(--rows, 1) - 1) * var(--slide-gap, 4px)) /
+			var(--rows, 1)
+	);
+	transform: translate(
+		calc(var(--sel-col, 0) * (100% + var(--slide-gap, 4px))),
+		calc(var(--sel-row, 0) * (100% + var(--slide-gap, 4px)))
+	);
+	border-radius: var(--slide-radius, var(--r-md));
+	background: var(--surface-hi);
+	box-shadow:
+		inset 0 0 0 1px var(--border-hi),
+		0 1px 2px rgba(0, 0, 0, 0.35);
+	pointer-events: none;
+	transition:
+		transform var(--dur-snap) var(--spring-snap),
+		opacity var(--dur-state) var(--ease-out);
+}
+.os-slides[data-sel="none"]::after {
+	opacity: 0;
+}
+.os-slides > * {
+	position: relative;
+	z-index: 1;
 }
 
 /* Smooth timeline cursor animations */
@@ -269,56 +265,11 @@
 		corner-shape: squircle;
 	}
 
-	/* Smooth playback scrubber */
+	/* A range input draws nothing of its own: the one slider in the app (`SliderCell`) styles
+	   its track and thumb in NewEditorShell.module.css. */
 	input[type="range"] {
 		-webkit-appearance: none;
 		appearance: none;
-	}
-
-	input[type="range"]::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 16px;
-		height: 16px;
-		border-radius: 50%;
-		background: #fff;
-		cursor: pointer;
-		box-shadow: 0 2px 8px rgba(255, 255, 255, 0.32);
-		border: 2px solid #fff;
-		transition: all 0.08s ease-out;
-	}
-
-	input[type="range"]::-webkit-slider-thumb:hover {
-		background: #fff;
-		transform: scale(1.15);
-		box-shadow: 0 3px 10px rgba(255, 255, 255, 0.5);
-		border-color: #34b27b;
-	}
-
-	input[type="range"]::-webkit-slider-thumb:active {
-		transform: scale(1.25);
-	}
-
-	input[type="range"]::-moz-range-thumb {
-		width: 16px;
-		height: 16px;
-		border-radius: 50%;
-		background: #fff;
-		cursor: pointer;
-		border: 2px solid #fff;
-		box-shadow: 0 2px 8px rgba(255, 255, 255, 0.32);
-		transition: all 0.08s ease-out;
-	}
-
-	input[type="range"]::-moz-range-thumb:hover {
-		background: #fff;
-		transform: scale(1.15);
-		box-shadow: 0 3px 10px rgba(255, 255, 255, 0.5);
-		border-color: #34b27b;
-	}
-
-	input[type="range"]::-moz-range-thumb:active {
-		transform: scale(1.25);
 	}
 
 	/* Hide scrollbar in Chrome, Safari, and Opera */

@@ -556,6 +556,7 @@ function BackgroundColorTab({
 						type="button"
 						key={c}
 						className={`${styles.bgThumb} ${isSelected(c) ? styles.isActive : ""}`}
+						aria-pressed={isSelected(c)}
 						style={{ background: c }}
 						aria-label={ts("background.colorLabel", { color: c })}
 						disabled={!hasDocument}
@@ -638,7 +639,16 @@ export function WallpaperPicker({
 			{/* role="tab" + aria-selected are what make the tablist mean anything: without
 			    them a screen reader announces three plain buttons and never says which one
 			    is current. Browsing a tab changes nothing; a swatch does. */}
-			<div className={styles.paneTabs} role="tablist">
+			<div
+				className={`os-slides ${styles.paneTabs}`}
+				role="tablist"
+				style={
+					{
+						"--cols": tabs.length,
+						"--sel-col": tabs.findIndex((t) => t.id === tab),
+					} as CSSProperties
+				}
+			>
 				{tabs.map(({ id, label }) => (
 					<button
 						key={id}
@@ -671,6 +681,7 @@ export function WallpaperPicker({
 							type="button"
 							key={`custom-${url.slice(-32)}`}
 							className={`${styles.bgThumb} ${isSelected(url) ? styles.isActive : ""}`}
+							aria-pressed={isSelected(url)}
 							style={{ background: `center/cover no-repeat url(${url})` }}
 							aria-label={ts("background.customWallpaper")}
 							disabled={!hasDocument}
@@ -684,6 +695,7 @@ export function WallpaperPicker({
 								type="button"
 								key={path}
 								className={`${styles.bgThumb} ${isSelected(path) ? styles.isActive : ""}`}
+								aria-pressed={isSelected(path)}
 								style={{ background: `center/cover no-repeat url(${previewUrl})` }}
 								aria-label={ts("background.imageLabel", { index: i + 1 })}
 								disabled={!hasDocument}
@@ -710,6 +722,7 @@ export function WallpaperPicker({
 								type="button"
 								key={bg}
 								className={`${styles.bgThumb} ${isSelected(bg) ? styles.isActive : ""}`}
+								aria-pressed={isSelected(bg)}
 								style={{ background: bg }}
 								aria-label={ts("background.gradientLabel", { index: i + 1 })}
 								disabled={!hasDocument}
@@ -784,7 +797,12 @@ function TranscriptLaneSwitch({
 	const ts = useScopedT("settings");
 	return (
 		<>
-			<div className={styles.laneSwitch} role="group" aria-label={ts("transcript.laneLabel")}>
+			<div
+				className={`os-slides ${styles.laneSwitch}`}
+				role="group"
+				aria-label={ts("transcript.laneLabel")}
+				style={{ "--cols": 2, "--sel-col": lane === "recording" ? 0 : 1 } as CSSProperties}
+			>
 				<button
 					type="button"
 					className={`${styles.laneSwitchBtn} ${lane === "recording" ? styles.isActive : ""}`}
@@ -2892,6 +2910,7 @@ export function LayoutPane() {
 				<span className={styles.label}>{ts("layout.mirrorWebcam")}</span>
 				<Toggle
 					checked={settings.webcamMirrored}
+					ariaLabel={ts("layout.mirrorWebcam")}
 					disabled={layoutControlsDisabled}
 					onChange={(v) => {
 						void set({ webcamMirrored: v });
@@ -4113,6 +4132,10 @@ export function ChoiceRow<T extends string | number>({
 }) {
 	const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
 	const mode = display ?? (options.some((o) => o?.icon) ? "icon" : "text");
+	// Where the selection plate sits (`.os-slides`, index.css). A value no option holds, a
+	// custom zoom level for one, has no cell: -1 hides the plate.
+	const cols = columns ?? options.length;
+	const selected = options.findIndex((o) => o?.value === value);
 	// Its own provider, like `Toggle`: the row is also drawn outside a pane (the selection
 	// panes, the dialogs), and a Radix tooltip throws without any.
 	return (
@@ -4121,8 +4144,17 @@ export function ChoiceRow<T extends string | number>({
 				role="group"
 				aria-label={label}
 				aria-describedby={describedBy}
-				className={`${styles.choiceRow} ${tiles ? styles.choiceRowTiles : ""}`}
-				style={{ gridTemplateColumns: `repeat(${columns ?? options.length}, minmax(0, 1fr))` }}
+				className={`os-slides ${styles.choiceRow} ${tiles ? styles.choiceRowTiles : ""}`}
+				data-sel={selected < 0 ? "none" : undefined}
+				style={
+					{
+						gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+						"--cols": cols,
+						"--rows": Math.ceil(options.length / cols),
+						"--sel-col": Math.max(selected, 0) % cols,
+						"--sel-row": Math.floor(Math.max(selected, 0) / cols),
+					} as CSSProperties
+				}
 				onKeyDown={(e) => {
 					if (e.key === "Enter" || e.key === " ") {
 						e.nativeEvent.stopPropagation();

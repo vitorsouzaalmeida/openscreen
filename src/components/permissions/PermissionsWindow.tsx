@@ -102,7 +102,7 @@ export function PermissionsWindow() {
 	);
 
 	if (!snapshot) {
-		return <div className="h-screen bg-[#0b0c0f]" />;
+		return <div className="h-screen bg-[var(--bg)]" />;
 	}
 
 	const screenReady =
@@ -110,9 +110,11 @@ export function PermissionsWindow() {
 	const needsRelaunch = snapshot.screen === "granted" && snapshot.screenRequiresRelaunch;
 
 	return (
-		<div className="flex h-screen flex-col bg-[#0b0c0f] px-7 pt-7 pb-6 text-white select-none">
+		<div className="flex h-screen flex-col bg-[var(--bg)] px-7 pt-7 pb-6 text-white select-none">
 			<h1 className="text-[17px] font-semibold">{t("permissions.title")}</h1>
-			<p className="mt-1.5 text-[13px] leading-5 text-[#8b93a1]">{t("permissions.subtitle")}</p>
+			<p className="mt-1.5 text-[13px] leading-5 text-[var(--muted)]">
+				{t("permissions.subtitle")}
+			</p>
 
 			<ul className="mt-5 flex flex-col gap-2.5">
 				{rowsFor(snapshot).map(({ kind, level, Icon }) => {
@@ -122,20 +124,20 @@ export function PermissionsWindow() {
 							key={kind}
 							data-testid={`permission-${kind}`}
 							data-status={status}
-							className="rounded-xl border border-[#20232a] bg-[#121419] px-4 py-3"
+							className="rounded-xl border border-[var(--border)] bg-[var(--surface-1)] px-4 py-3"
 						>
 							<div className="flex items-center gap-3">
-								<Icon className="h-5 w-5 shrink-0 text-[#10b981]" aria-hidden />
+								<Icon className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden />
 								<div className="min-w-0 flex-1">
 									<div className="flex items-center gap-2">
 										<span className="text-[13px] font-medium">
 											{t(`permissions.rows.${kind}.name`)}
 										</span>
-										<span className="rounded-full bg-[#1c1f26] px-2 py-px text-[11px] text-[#8b93a1]">
+										<span className="rounded-full bg-[var(--surface-2)] px-2 py-px text-[11px] text-[var(--muted)]">
 											{t(`permissions.level.${level}`)}
 										</span>
 									</div>
-									<p className="mt-0.5 text-[12.5px] leading-[18px] text-[#8b93a1]">
+									<p className="mt-0.5 text-[12.5px] leading-[18px] text-[var(--muted)]">
 										{t(`permissions.rows.${kind}.description`)}
 									</p>
 								</div>
@@ -157,7 +159,7 @@ export function PermissionsWindow() {
 			</ul>
 
 			<div className="mt-auto flex items-center justify-between gap-4 pt-5">
-				<p className="text-[12.5px] leading-[18px] text-[#8b93a1]">
+				<p className="text-[12.5px] leading-[18px] text-[var(--muted)]">
 					{screenReady ? t("permissions.footer.ready") : t("permissions.footer.screenRequired")}
 				</p>
 				{needsRelaunch ? (
@@ -165,7 +167,7 @@ export function PermissionsWindow() {
 						type="button"
 						data-testid="permissions-relaunch"
 						onClick={() => void window.electronAPI.permissions.relaunch()}
-						className="h-9 shrink-0 rounded-[9px] bg-[#10b981] px-5 text-[13px] font-semibold text-[#08090d] hover:bg-[#10b981]/85"
+						className="h-9 shrink-0 rounded-[9px] bg-[var(--accent)] px-5 text-[13px] font-semibold text-[var(--accent-on)] hover:bg-[var(--brand-lo)]"
 					>
 						{t("permissions.actions.restart")}
 					</button>
@@ -175,7 +177,7 @@ export function PermissionsWindow() {
 						data-testid="permissions-start"
 						disabled={!screenReady}
 						onClick={() => void window.electronAPI.permissions.close()}
-						className="h-9 shrink-0 rounded-[9px] bg-[#10b981] px-5 text-[13px] font-semibold text-[#08090d] hover:bg-[#10b981]/85 disabled:cursor-not-allowed disabled:opacity-50"
+						className="h-9 shrink-0 rounded-[9px] bg-[var(--accent)] px-5 text-[13px] font-semibold text-[var(--accent-on)] hover:bg-[var(--brand-lo)] disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{t("permissions.actions.start")}
 					</button>
@@ -202,7 +204,7 @@ function PermissionAction({
 }) {
 	if (status === "granted") {
 		return (
-			<span className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-[#10b981]">
+			<span className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-[var(--accent)]">
 				<Check className="h-4 w-4" aria-hidden />
 				{t("permissions.status.granted")}
 			</span>
@@ -210,7 +212,7 @@ function PermissionAction({
 	}
 	if (status === "restricted") {
 		return (
-			<span className="max-w-[120px] shrink-0 text-right text-[12.5px] leading-[18px] text-[#8b93a1]">
+			<span className="max-w-[120px] shrink-0 text-right text-[12.5px] leading-[18px] text-[var(--muted)]">
 				{t("permissions.status.restricted")}
 			</span>
 		);
@@ -233,7 +235,7 @@ function PermissionAction({
 			data-testid={`permission-${kind}-action`}
 			disabled={busy}
 			onClick={onAct}
-			className="h-8 shrink-0 rounded-[8px] bg-[#1f232b] px-3.5 text-[13px] font-medium text-white hover:bg-[#2a2f39] disabled:opacity-50"
+			className="h-8 shrink-0 rounded-[8px] bg-[var(--surface-2)] px-3.5 text-[13px] font-medium text-white hover:bg-[var(--surface-3)] disabled:opacity-50"
 		>
 			{label}
 		</button>
@@ -270,9 +272,9 @@ function ScreenHelp({
 		return null;
 	}
 	return (
-		<div className="mt-2.5 space-y-1 border-t border-[#20232a] pt-2.5 pl-8">
+		<div className="mt-2.5 space-y-1 border-t border-[var(--border)] pt-2.5 pl-8">
 			{lines.map((line) => (
-				<p key={line} className="text-[12.5px] leading-[18px] text-[#a9b0bc]">
+				<p key={line} className="text-[12.5px] leading-[18px] text-[var(--fg-2)]">
 					{line}
 				</p>
 			))}
@@ -291,8 +293,8 @@ function SystemAudioHelp({ status, t }: { status: Status; t: T }) {
 		return null;
 	}
 	return (
-		<div className="mt-2.5 border-t border-[#20232a] pt-2.5 pl-8">
-			<p className="text-[12.5px] leading-[18px] text-[#a9b0bc]">{line}</p>
+		<div className="mt-2.5 border-t border-[var(--border)] pt-2.5 pl-8">
+			<p className="text-[12.5px] leading-[18px] text-[var(--fg-2)]">{line}</p>
 		</div>
 	);
 }

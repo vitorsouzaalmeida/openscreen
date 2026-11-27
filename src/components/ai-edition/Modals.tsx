@@ -1273,7 +1273,7 @@ export function EditClipModal({
 						top: `${cropYPct}%`,
 						width: `${cropWPct}%`,
 						height: `${cropHPct}%`,
-						// White on any footage, like the brackets: `--fg` went dark in the light theme.
+						// White on any footage, like the brackets.
 						border: "1.5px solid rgb(255 255 255 / 0.9)",
 						borderRadius: 4,
 						boxShadow: "0 0 0 9999px var(--overlay-dark)",

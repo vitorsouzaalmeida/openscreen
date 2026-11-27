@@ -183,7 +183,6 @@ function prepareShell() {
 	localStorage.clear();
 	vi.clearAllMocks();
 	(window as unknown as { electronAPI?: unknown }).electronAPI = {
-		setTitleBarOverlay: () => undefined,
 		setHasUnsavedChanges: () => undefined,
 		onRequestCloseConfirm: () => () => undefined,
 		onRequestSaveBeforeClose: () => () => undefined,
