@@ -458,7 +458,7 @@ export function RecStage({
 						<Tooltip content={t("rec.systemAudioTip")} side="top">
 							<button
 								type="button"
-								className={`${styles.recToggleBtn}${prefs.systemAudioEnabled ? ` ${styles.on}` : ""}`}
+								className={`${styles.recSwitch}${prefs.systemAudioEnabled ? ` ${styles.on}` : ""}`}
 								aria-labelledby={rowLabelId("systemAudio")}
 								aria-pressed={prefs.systemAudioEnabled}
 								onClick={() => updatePrefs({ systemAudioEnabled: !prefs.systemAudioEnabled })}
@@ -490,6 +490,7 @@ export function RecStage({
 									) : (
 										<select
 											className={styles.recSelect}
+											aria-labelledby={rowLabelId("microphone")}
 											value={micDevices.selectedDeviceId}
 											onChange={(e) => {
 												const deviceId = e.target.value;
@@ -514,7 +515,7 @@ export function RecStage({
 								) : null}
 								<button
 									type="button"
-									className={`${styles.recToggleBtn}${prefs.micEnabled ? ` ${styles.on}` : ""}`}
+									className={`${styles.recSwitch}${prefs.micEnabled ? ` ${styles.on}` : ""}`}
 									aria-labelledby={rowLabelId("microphone")}
 									aria-pressed={prefs.micEnabled}
 									onClick={toggleMicrophone}
@@ -542,6 +543,7 @@ export function RecStage({
 								) : (
 									<select
 										className={styles.recSelect}
+										aria-labelledby={rowLabelId("camera")}
 										value={camDevices.selectedDeviceId}
 										onChange={(e) => {
 											const deviceId = e.target.value;
@@ -563,7 +565,7 @@ export function RecStage({
 							) : null}
 							<button
 								type="button"
-								className={`${styles.recToggleBtn}${prefs.camEnabled ? ` ${styles.on}` : ""}`}
+								className={`${styles.recSwitch}${prefs.camEnabled ? ` ${styles.on}` : ""}`}
 								aria-labelledby={rowLabelId("camera")}
 								aria-pressed={prefs.camEnabled}
 								onClick={toggleCamera}
@@ -585,7 +587,7 @@ export function RecStage({
 							<Tooltip content={t("rec.editableCursorTip")} side="top">
 								<button
 									type="button"
-									className={`${styles.recToggleBtn}${editableCursor ? ` ${styles.on}` : ""}`}
+									className={`${styles.recSwitch}${editableCursor ? ` ${styles.on}` : ""}`}
 									aria-labelledby={rowLabelId("cursor")}
 									aria-pressed={editableCursor}
 									onClick={() =>
@@ -611,7 +613,7 @@ export function RecStage({
 							<button
 								type="button"
 								data-testid="rec-auto-zoom-button"
-								className={`${styles.recToggleBtn}${prefs.autoZoomEnabled ? ` ${styles.on}` : ""}`}
+								className={`${styles.recSwitch}${prefs.autoZoomEnabled ? ` ${styles.on}` : ""}`}
 								aria-labelledby={rowLabelId("autoZoom")}
 								aria-pressed={prefs.autoZoomEnabled}
 								onClick={() => updatePrefs({ autoZoomEnabled: !prefs.autoZoomEnabled })}
@@ -637,7 +639,7 @@ export function RecStage({
 								<button
 									type="button"
 									data-testid="rec-key-sounds-button"
-									className={`${styles.recToggleBtn}${prefs.keySoundsEnabled ? ` ${styles.on}` : ""}`}
+									className={`${styles.recSwitch}${prefs.keySoundsEnabled ? ` ${styles.on}` : ""}`}
 									aria-labelledby={rowLabelId("keySounds")}
 									aria-pressed={prefs.keySoundsEnabled}
 									onClick={() => updatePrefs({ keySoundsEnabled: !prefs.keySoundsEnabled })}
@@ -657,7 +659,7 @@ export function RecStage({
 							<Tooltip content={desktopIconsHint} side="top">
 								<button
 									type="button"
-									className={`${styles.recToggleBtn}${prefs.hideDesktopIcons ? ` ${styles.on}` : ""}`}
+									className={`${styles.recSwitch}${prefs.hideDesktopIcons ? ` ${styles.on}` : ""}`}
 									aria-labelledby={rowLabelId("hideDesktopIcons")}
 									aria-pressed={prefs.hideDesktopIcons}
 									onClick={() => updatePrefs({ hideDesktopIcons: !prefs.hideDesktopIcons })}

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useScopedT } from "@/contexts/I18nContext";
 import { LAYOUT_PRESETS, type LayoutPreset } from "@/lib/layoutTypes";
@@ -19,11 +20,24 @@ export function LayoutPicker({
 	label?: string;
 }) {
 	const t = useScopedT("timeline");
+	// The grid is 3 wide with labels and 5 wide as icons (Layouts.module.css); the selection
+	// plate (`.os-slides`, index.css) needs the same numbers to find the pressed cell.
+	const cols = iconOnly ? 5 : 3;
+	const selected = LAYOUT_PRESETS.indexOf(value);
 	return (
 		<div
-			className={`${styles.presets} ${iconOnly ? styles.iconPresets : ""}`}
+			className={`os-slides ${styles.presets} ${iconOnly ? styles.iconPresets : ""}`}
 			role="group"
 			aria-label={label ?? t("layouts.title")}
+			data-sel={selected < 0 ? "none" : undefined}
+			style={
+				{
+					"--cols": cols,
+					"--rows": Math.ceil(LAYOUT_PRESETS.length / cols),
+					"--sel-col": Math.max(selected, 0) % cols,
+					"--sel-row": Math.floor(Math.max(selected, 0) / cols),
+				} as CSSProperties
+			}
 		>
 			{LAYOUT_PRESETS.map((preset) => {
 				const name = t(`layouts.${preset}`);

@@ -438,7 +438,6 @@ export function StylePresetsMenu() {
 				align="end"
 				sideOffset={6}
 				collisionPadding={12}
-				animated={false}
 				className="w-auto border-0 bg-transparent p-0 shadow-none"
 				onEscapeKeyDown={(event) => {
 					// Escape backs out of the inline editor it was pressed in, not out of the menu.

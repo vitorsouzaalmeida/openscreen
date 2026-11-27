@@ -78,8 +78,10 @@ function ToolbarButton({
 				data-teleprompter-control={teleprompterControl ? "" : undefined}
 				onClick={onClick}
 				className={cn(
-					"shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-gray-700 transition-colors hover:bg-gray-200 hover:text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-violet-600 disabled:cursor-not-allowed disabled:opacity-35",
-					(active || highlighted) && "bg-gray-900 text-white hover:bg-gray-800 hover:text-white",
+					"shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-[var(--muted)] transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35",
+					// On: the same raised neutral plate that marks a chosen option everywhere else.
+					(active || highlighted) &&
+						"bg-[var(--surface-hi)] text-[var(--fg-emphasis)] hover:bg-[var(--surface-hi)] hover:text-[var(--fg-emphasis)]",
 				)}
 			>
 				{children}
@@ -134,7 +136,7 @@ export function NotesToolbar({
 		: t("tooltips.notesToolbar.play");
 
 	return (
-		<div className="flex w-full min-w-0 max-w-full flex-col gap-1.5 rounded-[0.625rem] border border-gray-200 bg-gray-50 p-1.5">
+		<div className="flex w-full min-w-0 max-w-full flex-col gap-1.5 rounded-[0.625rem] bg-[var(--surface-1)] p-1.5">
 			<div
 				data-testid="notes-formatting-controls"
 				className="flex w-full min-w-0 items-center overflow-x-auto no-scrollbar"
@@ -170,7 +172,7 @@ export function NotesToolbar({
 						</ToolbarButton>
 					</div>
 					<div className="grid h-8 w-5 shrink-0 place-content-center">
-						<span className="mx-0.5 h-5 w-px bg-gray-300" aria-hidden="true" />
+						<span className="mx-0.5 h-5 w-px bg-[var(--border-hi)]" aria-hidden="true" />
 					</div>
 					<div className="flex shrink-0 items-center gap-1">
 						<ToolbarButton
@@ -197,7 +199,7 @@ export function NotesToolbar({
 						</ToolbarButton>
 					</div>
 					<div className="grid h-8 w-5 shrink-0 place-content-center">
-						<span className="mx-0.5 h-5 w-px bg-gray-300" aria-hidden="true" />
+						<span className="mx-0.5 h-5 w-px bg-[var(--border-hi)]" aria-hidden="true" />
 					</div>
 					<div className="flex shrink-0 items-center gap-1">
 						<ToolbarButton
@@ -256,7 +258,7 @@ export function NotesToolbar({
 						>
 							<Minus size={16} />
 						</ToolbarButton>
-						<output className="min-w-14 text-center text-xs tabular-nums text-gray-700">
+						<output className="min-w-14 text-center text-xs tabular-nums text-[var(--muted)]">
 							{tCommon("units.pixelsPerSecond", { value: numberFormatter.format(speed) })}
 						</output>
 						<ToolbarButton
@@ -284,7 +286,7 @@ export function NotesToolbar({
 						>
 							<Minus size={16} />
 						</ToolbarButton>
-						<output className="min-w-10 text-center text-xs tabular-nums text-gray-700">
+						<output className="min-w-10 text-center text-xs tabular-nums text-[var(--muted)]">
 							{tCommon("units.pixels", { value: numberFormatter.format(fontSize) })}
 						</output>
 						<ToolbarButton

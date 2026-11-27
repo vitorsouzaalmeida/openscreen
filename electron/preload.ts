@@ -516,9 +516,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	quitApp: () => {
 		ipcRenderer.send("app-quit");
 	},
-	setTitleBarOverlay: (color: string, symbolColor: string) => {
-		ipcRenderer.send("set-titlebar-overlay", color, symbolColor);
-	},
 	getPlatform: () => PLATFORM,
 	/** The OS version, as the main process reads it: "14.6.1" on macOS, not the Darwin
 	 *  kernel's "23.6.0" that `os.release()` gives. Part of the sandboxed preload's `process`. */

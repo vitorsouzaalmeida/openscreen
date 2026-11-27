@@ -80,9 +80,6 @@ beforeEach(() => {
 			nativeNew = listener;
 			return () => undefined;
 		},
-		setTitleBarOverlay: () => {
-			/* no native titlebar */
-		},
 		setHasUnsavedChanges: () => {
 			/* no window close guard */
 		},

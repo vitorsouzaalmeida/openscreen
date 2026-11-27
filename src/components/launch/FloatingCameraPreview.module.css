@@ -8,8 +8,8 @@
 	margin: 8px;
 	overflow: hidden;
 	border-radius: 12px;
-	background: #09090b;
-	color: #a1a1aa;
+	background: var(--bg);
+	color: var(--muted);
 	font-size: 12px;
 	cursor: grab;
 }
@@ -33,13 +33,13 @@
 	width: 28px;
 	height: 28px;
 	border-radius: 50%;
-	background: #09090bbf;
-	color: #f4f4f5;
+	background: color-mix(in srgb, var(--bg) 75%, transparent);
+	color: var(--fg);
 	cursor: pointer;
 }
 
 .hide:focus-visible {
-	outline: 2px solid #10b981;
+	outline: 2px solid var(--accent);
 }
 
 .sizeControls {
@@ -58,8 +58,8 @@
 	width: 28px;
 	height: 28px;
 	border-radius: 50%;
-	background: #09090bbf;
-	color: #f4f4f5;
+	background: color-mix(in srgb, var(--bg) 75%, transparent);
+	color: var(--fg);
 	cursor: pointer;
 }
 
@@ -69,5 +69,5 @@
 }
 
 .sizeControls button:focus-visible {
-	outline: 2px solid #10b981;
+	outline: 2px solid var(--accent);
 }

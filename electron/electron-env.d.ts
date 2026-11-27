@@ -485,7 +485,6 @@ interface Window {
 		onMenuUndo: (callback: () => void) => () => void;
 		onMenuRedo: (callback: () => void) => () => void;
 		quitApp: () => void;
-		setTitleBarOverlay: (color: string, symbolColor: string) => void;
 		getPlatform: () => string;
 		getSystemVersion: () => string;
 		getAppInfo: () => Promise<{ version: string; canCheckForUpdates: boolean }>;

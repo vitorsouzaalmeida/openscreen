@@ -6,8 +6,8 @@
 	width: 100%;
 	outline: none;
 	overflow-y: auto;
-	color: #111827;
-	caret-color: #111827;
+	color: var(--fg);
+	caret-color: var(--fg);
 }
 
 .notes-teleprompter-content[data-mirrored="true"] {
@@ -100,17 +100,17 @@
 }
 
 .tiptap code {
-	background-color: #ede9fe;
+	background-color: var(--surface-2);
 	border-radius: 0.4rem;
-	color: #111827;
+	color: var(--fg);
 	font-size: 0.85em;
 	padding: 0.25em 0.3em;
 }
 
 .tiptap pre {
-	background: #111827;
+	background: var(--surface-1);
 	border-radius: 0.5rem;
-	color: #ffffff;
+	color: var(--fg);
 	font-family: "JetBrainsMono", monospace;
 	margin: 1.5em 0;
 	padding: 0.75em 1em;
@@ -124,13 +124,13 @@
 }
 
 .tiptap blockquote {
-	border-left: 3px solid #d1d5db;
+	border-left: 3px solid var(--border-hi);
 	margin: 1.5em 0;
 	padding-left: 1em;
 }
 
 .tiptap hr {
 	border: none;
-	border-top: 1px solid #e5e7eb;
+	border-top: 1px solid var(--border);
 	margin: 2em 0;
 }

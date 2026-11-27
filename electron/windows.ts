@@ -626,8 +626,8 @@ export function createEditorWindow(query: Record<string, string> = {}): BrowserW
 		// (it already carries the logo, the title and a drag region). macOS keeps its
 		// traffic lights, Windows/Linux get the native Window Controls Overlay — which
 		// preserves Snap Layouts and the system close/maximise semantics instead of
-		// re-implementing them as HTML buttons. Its colours follow the app theme via
-		// the "set-titlebar-overlay" IPC (see handlers.ts).
+		// re-implementing them as HTML buttons. Its colours are the app's --bg and --muted
+		// (src/styles/design-tokens.css): the app is dark-only, so they never change.
 		titleBarStyle: "hidden",
 		...(isMac
 			? { trafficLightPosition: { x: 18, y: 21 } }
@@ -635,13 +635,13 @@ export function createEditorWindow(query: Record<string, string> = {}): BrowserW
 				// 46px each hover area is a square in the top-right corner, as in Chrome or Explorer,
 				// instead of a 58px-tall slab, and the top bar's bottom rule runs on under it.
 				// Native, so Snap Layouts stays on the maximise button.
-				{ titleBarOverlay: { color: "#09090b", symbolColor: "#a1a1aa", height: 46 } }),
+				{ titleBarOverlay: { color: "#0b0d0e", symbolColor: "#8f979c", height: 46 } }),
 		transparent: false,
 		resizable: true,
 		alwaysOnTop: false,
 		skipTaskbar: false,
 		title: "OpenScreen",
-		backgroundColor: "#09090b",
+		backgroundColor: "#0b0d0e",
 		show: false, // shown via ready-to-show to avoid white flash on first load
 		webPreferences: {
 			preload: path.join(__dirname, "preload.mjs"),
@@ -729,7 +729,7 @@ export function createEditorWindow(query: Record<string, string> = {}): BrowserW
 		// Windows/Linux the topbar uses the `titlebar-area-*` env vars instead.
 		win.webContents
 			.insertCSS(
-				`html, body, #root { background: #09090b !important; }
+				`html, body, #root { background: #0b0d0e !important; }
 				 :root { --titlebar-inset-left: ${isMac ? "68px" : "0px"}; }`,
 			)
 			.catch(() => {
@@ -866,7 +866,7 @@ export function createPermissionsWindow(): BrowserWindow {
 		maximizable: false,
 		fullscreenable: false,
 		title: "OpenScreen",
-		backgroundColor: "#0b0c0f",
+		backgroundColor: "#0b0d0e",
 		show: false,
 		webPreferences: {
 			preload: path.join(__dirname, "preload.mjs"),
@@ -1000,7 +1000,7 @@ export function createNotesWindow(): BrowserWindow {
 		minHeight: min.height,
 		...(wayland ? {} : { maxWidth: max.width, maxHeight: max.height }),
 		title: "OpenScreen - Notes",
-		backgroundColor: "#09090b",
+		backgroundColor: "#0b0d0e",
 		resizable: true,
 		alwaysOnTop: true,
 		skipTaskbar: false,

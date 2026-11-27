@@ -370,10 +370,14 @@ test.describe("v4 editor shell", () => {
 
 		// Scrub: press at 25% of the timeline canvas, drag to 75%, release. The
 		// playhead tracks the pointer and the store lands on the release position.
+		// Pressed on the ruler: the first row under it is the clip row, and a press on a
+		// clip selects it instead of scrubbing.
 		const canvas = page.locator('[class*="tlTracks"] [class*="tlCanvas"]').first();
 		const box = await canvas.boundingBox();
 		if (!box) throw new Error("timeline canvas has no bounding box");
-		const y = box.y + box.height / 2;
+		const ruler = await page.locator('[class*="tlRulerRow"]').boundingBox();
+		if (!ruler) throw new Error("timeline ruler has no bounding box");
+		const y = ruler.y + ruler.height / 2;
 		await page.mouse.move(box.x + box.width * 0.25, y);
 		await page.mouse.down();
 		await expect.poll(leftPct).toBeCloseTo(25, 0);
@@ -451,9 +455,9 @@ test.describe("v4 editor shell", () => {
 		const picker = page.getByRole("menu", { name: "Choose a clip to edit" });
 		await expect(picker).toBeVisible();
 
-		// Any unrelated point outside the popover — the timeline tracks are a
-		// stable target the other tests already click on.
-		await page.locator('[class*="tlTracks"]').click({ position: { x: 10, y: 10 } });
+		// Any unrelated point outside the popover: the timeline ruler, where a click
+		// selects nothing.
+		await page.locator('[class*="tlRulerRow"]').click({ position: { x: 10, y: 10 } });
 		await expect(picker).toBeHidden();
 	});
 });

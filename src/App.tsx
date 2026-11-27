@@ -152,7 +152,7 @@ export default function App() {
 			default:
 				return (
 					<div>
-						<div className="w-full h-full bg-background text-foreground">
+						<div className="w-full h-full bg-[var(--bg)] text-[var(--fg)]">
 							<h1>Openscreen</h1>
 						</div>
 					</div>
@@ -164,7 +164,16 @@ export default function App() {
 		<TooltipProvider>
 			{showNotes ? <NotesWindow /> : content}
 			{/* The HUD mounts its own, placed clear of the bar (LaunchWindow). */}
-			{windowType !== "hud-overlay" && <Toaster />}
+			{/* The editor's toasts go bottom-centre, lifted clear of the timeline whose height
+			    the shell publishes as --timeline-h. The HUD mounts its own toaster. */}
+			{windowType === "editor" ? (
+				<Toaster
+					position="bottom-center"
+					offset={{ bottom: "calc(var(--timeline-h, 0px) + 16px)" }}
+				/>
+			) : (
+				windowType !== "hud-overlay" && <Toaster />
+			)}
 		</TooltipProvider>
 	);
 }

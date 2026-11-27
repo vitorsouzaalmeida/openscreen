@@ -141,7 +141,6 @@ describe("NewEditorShell togglePlay cross-asset replay", () => {
 		mocks.previewPause.mockClear();
 		mocks.latestSeekTarget = null;
 		(window as unknown as { electronAPI?: unknown }).electronAPI = {
-			setTitleBarOverlay: () => {},
 			setHasUnsavedChanges: () => {},
 			onRequestCloseConfirm: () => () => {},
 			onRequestSaveBeforeClose: () => () => {},

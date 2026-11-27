@@ -207,6 +207,7 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 					<span className={styles.label}>{t("captions.show")}</span>
 					<Toggle
 						checked={settings.enabled}
+						ariaLabel={t("captions.show")}
 						disabled={disabled || !hasTranscript}
 						onChange={(next) => void set({ enabled: next })}
 					/>
@@ -406,6 +407,7 @@ export function CaptionsPane({ onClose }: { onClose?: () => void } = {}) {
 						<span className={styles.label}>{t("captions.bold")}</span>
 						<Toggle
 							checked={settings.fontWeight === "bold"}
+							ariaLabel={t("captions.bold")}
 							disabled={disabled}
 							onChange={(next) => void set({ fontWeight: next ? "bold" : "normal" })}
 						/>

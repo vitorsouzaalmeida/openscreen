@@ -539,11 +539,10 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 		>
 			<div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 				<div
-					style={{
-						display: "grid",
-						gridTemplateColumns: "1fr 1fr",
-						gap: 8,
-					}}
+					className="os-slides"
+					role="group"
+					aria-label={t("exportDialog.format")}
+					style={choiceGrid(2, format === "mp4" ? 0 : 1, 8)}
 				>
 					<FormatToggle
 						active={format === "mp4"}
@@ -564,11 +563,21 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 				{format === "mp4" ? (
 					<section>
 						<div className={styles.groupLabel}>{t("exportDialog.quality")}</div>
-						<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+						<div
+							className="os-slides"
+							role="group"
+							aria-label={t("exportDialog.quality")}
+							style={choiceGrid(
+								QUALITY_OPTIONS.length,
+								QUALITY_OPTIONS.findIndex((q) => q.value === quality),
+								8,
+							)}
+						>
 							{QUALITY_OPTIONS.map((q) => (
 								<button
 									type="button"
 									key={q.value}
+									aria-pressed={quality === q.value}
 									disabled={isBusy}
 									onClick={() => setQuality(q.value)}
 									style={{
@@ -614,11 +623,17 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 						</div>
 						<div style={{ marginTop: 12 }}>
 							<div className={styles.groupLabel}>{t("exportDialog.frameRate")}</div>
-							<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+							<div
+								className="os-slides"
+								role="group"
+								aria-label={t("exportDialog.frameRate")}
+								style={choiceGrid(MP4_FRAME_RATES.length, MP4_FRAME_RATES.indexOf(fps), 6)}
+							>
 								{MP4_FRAME_RATES.map((r) => (
 									<button
 										type="button"
 										key={r}
+										aria-pressed={fps === r}
 										disabled={isBusy}
 										onClick={() => setFps(r)}
 										style={segStyle(fps === r)}
@@ -633,11 +648,21 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 					<section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 						<div>
 							<div className={styles.groupLabel}>{t("exportDialog.frameRate")}</div>
-							<div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+							<div
+								className="os-slides"
+								role="group"
+								aria-label={t("exportDialog.frameRate")}
+								style={choiceGrid(
+									GIF_FRAME_RATES.length,
+									GIF_FRAME_RATES.findIndex((r) => r.value === gifFrameRate),
+									6,
+								)}
+							>
 								{GIF_FRAME_RATES.map((r) => (
 									<button
 										type="button"
 										key={r.value}
+										aria-pressed={gifFrameRate === r.value}
 										disabled={isBusy}
 										onClick={() => setGifFrameRate(r.value)}
 										style={segStyle(gifFrameRate === r.value)}
@@ -649,13 +674,25 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 						</div>
 						<div>
 							<div className={styles.groupLabel}>{t("exportDialog.size")}</div>
-							<div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
+							<div
+								className="os-slides"
+								role="group"
+								aria-label={t("exportDialog.size")}
+								data-sel={gifPicked ? undefined : "none"}
+								style={choiceGrid(
+									2,
+									gifChoices.findIndex((choice) => choice === gifPicked),
+									6,
+									gifChoices.length,
+								)}
+							>
 								{gifChoices.map((choice) => {
 									const active = choice === gifPicked;
 									return (
 										<button
 											type="button"
 											key={choice.preset}
+											aria-pressed={active}
 											disabled={isBusy}
 											onClick={() => setGifSize(choice.preset)}
 											style={{
@@ -724,7 +761,7 @@ export function ExportDialog({ open, onClose, document }: ExportDialogProps) {
 					// wait reads as a hang.
 					<p
 						data-testid="export-cpu-warning"
-						// Amber as a tint, not as the text colour: --warn text is ~2:1 on the light theme.
+						// Amber as a tint, not as the text colour.
 						style={{
 							margin: "0 0 4px",
 							padding: "10px 12px",
@@ -802,6 +839,7 @@ function FormatToggle({
 	return (
 		<button
 			type="button"
+			aria-pressed={active}
 			disabled={disabled}
 			onClick={onClick}
 			style={{
@@ -811,10 +849,8 @@ function FormatToggle({
 				gap: 8,
 				padding: "12px 16px",
 				...choiceStyle(active),
-				// Selection is conveyed by border + tinted background (like the quality
-				// cards below), not by swapping text color -- `--accent-on` is meant
-				// for text on a SOLID accent fill, and paired with a near-transparent
-				// tint it read as near-invisible dark-on-dark text.
+				// Selection is the grid's sliding plate (like the quality cards below), not a
+				// change of text colour.
 				color: "var(--fg)",
 				cursor: "pointer",
 				font: "600 14px/1 var(--font-body)",
@@ -1024,11 +1060,34 @@ function ProgressBlock({
 /** The one selected look, shared by every choice in this dialog: accent border + accent-soft
  *  fill when picked, a soft fill otherwise. The segments used to go solid mint while the cards
  *  above them were tinted — two ways of saying "selected" on one screen. */
+/** The grid of an exclusive choice: equal columns, and under the chosen cell the sliding
+ *  selection plate every such group in the editor shares (`.os-slides`, index.css).
+ *  `count` is the number of cells when they wrap onto more than one row. */
+function choiceGrid(
+	cols: number,
+	selected: number,
+	gap: number,
+	count: number = cols,
+): React.CSSProperties {
+	const at = Math.max(selected, 0);
+	return {
+		display: "grid",
+		gridTemplateColumns: `repeat(${cols}, 1fr)`,
+		gap,
+		"--cols": cols,
+		"--rows": Math.ceil(count / cols),
+		"--sel-col": at % cols,
+		"--sel-row": Math.floor(at / cols),
+		"--slide-gap": `${gap}px`,
+	} as React.CSSProperties;
+}
+
+/** A cell of such a grid. The chosen one is clear, so the plate shows through it. */
 function choiceStyle(active: boolean): React.CSSProperties {
 	return {
-		border: `1px solid ${active ? "var(--accent)" : "transparent"}`,
+		border: 0,
 		borderRadius: 10,
-		background: active ? "var(--accent-soft)" : "color-mix(in oklab, var(--fg) 5%, transparent)",
+		background: active ? "transparent" : "color-mix(in oklab, var(--fg) 5%, transparent)",
 	};
 }
 

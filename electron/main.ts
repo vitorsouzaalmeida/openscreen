@@ -7,6 +7,7 @@ import {
 	ipcMain,
 	Menu,
 	nativeImage,
+	nativeTheme,
 	net,
 	session,
 	shell,
@@ -1309,6 +1310,10 @@ app.on("will-quit", () => {
 const appReady = !cliCommand && hasSingleInstanceLock ? app.whenReady() : null;
 
 appReady?.then(async () => {
+	// The app is dark-only: native menus, dialogs and scrollbars follow it whatever the OS
+	// setting is, instead of opening light next to a dark window.
+	nativeTheme.themeSource = "dark";
+
 	// Force "regular" activation policy so the Dock icon appears. The HUD overlay
 	// (transparent, frameless, skipTaskbar) is the first window, and AppKit would
 	// otherwise classify us as an accessory app.

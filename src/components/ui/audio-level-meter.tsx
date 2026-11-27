@@ -25,7 +25,7 @@ export function AudioLevelMeter({ level, className = "" }: AudioLevelMeterProps)
 			{bars.map((bar, index) => (
 				<div
 					key={index}
-					className={`flex-1 rounded-sm transition-all duration-100 ease-out ${getBarColor(level, bar.threshold)}`}
+					className={`flex-1 rounded transition-all duration-100 ease-out ${getBarColor(level, bar.threshold)}`}
 					style={{
 						height: level >= bar.threshold ? bar.height : "15%",
 						opacity: level >= bar.threshold ? 1 : 0.4,

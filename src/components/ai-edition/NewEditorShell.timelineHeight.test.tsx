@@ -23,19 +23,35 @@ vi.mock("@/contexts/I18nContext", () => ({
 }));
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AUDIO_ROW_EXPANSION_PX } from "@/lib/ai-edition/document/audioTracks";
+import {
+	AUDIO_LANE_PAD_PX,
+	AUDIO_ROW_EXPANSION_PX,
+	AUDIO_ROW_HEIGHT_PX,
+} from "@/lib/ai-edition/document/audioTracks";
 import {
 	annotationRegionSchema,
 	createAudioTrack,
 	createEmptyDocument,
 } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
+import { regionLaneHeight } from "@/lib/ai-edition/timeline/regionTracks";
 import {
-	DEFAULT_TIMELINE_HEIGHT_PX,
+	EMPTY_TIMELINE_CONTENT_HEIGHT_PX,
+	timelineContentHeightPx,
+} from "@/lib/ai-edition/timeline/timelineHeight";
+import {
 	MAX_TIMELINE_HEIGHT_PX,
 	MIN_TIMELINE_HEIGHT_PX,
 	NewEditorShell,
+	TIMELINE_HEIGHT_OFFSET_KEY,
 } from "./NewEditorShell";
+
+/** The panel height for a project whose only lanes under the clip row are these. Every
+ *  fixture here leaves some kind missing, so the hint row is always drawn. */
+const withLanes = (...laneHeights: number[]) =>
+	timelineContentHeightPx({ laneHeights, layoutLane: false, hintRow: true });
+const ONE_AUDIO_ROW_PX = AUDIO_ROW_HEIGHT_PX + AUDIO_LANE_PAD_PX * 2;
+const rows = (heightPx: number) => `58px 1fr ${heightPx}px`;
 
 function renderShell() {
 	return render(
@@ -49,9 +65,6 @@ describe("NewEditorShell timeline height", () => {
 	beforeEach(() => {
 		localStorage.clear();
 		(window as unknown as { electronAPI?: unknown }).electronAPI = {
-			setTitleBarOverlay: () => {
-				/* noop */
-			},
 			setHasUnsavedChanges: () => {
 				/* noop */
 			},
@@ -89,70 +102,58 @@ describe("NewEditorShell timeline height", () => {
 		localStorage.clear();
 	});
 
-	it("exports expected constants allowing all lanes to fit without vertical clipping", () => {
-		expect(DEFAULT_TIMELINE_HEIGHT_PX).toBe(392);
+	it("keeps the panel between its two clamps", () => {
 		expect(MIN_TIMELINE_HEIGHT_PX).toBe(160);
 		expect(MAX_TIMELINE_HEIGHT_PX).toBe(560);
 	});
 
-	it("uses DEFAULT_TIMELINE_HEIGHT_PX on first opening when localStorage has no saved height", () => {
+	it("opens an empty project at the clip row plus the hint row", () => {
 		const { container } = renderShell();
 		const root = container.firstElementChild as HTMLElement;
 		expect(root).not.toBeNull();
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX));
 	});
 
-	it("migrates legacy cramped 308px default to DEFAULT_TIMELINE_HEIGHT_PX and persists it", () => {
-		localStorage.setItem("os-editor-timeline-height", "308");
-		const { container } = renderShell();
-		const root = container.firstElementChild as HTMLElement;
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
-		expect(localStorage.getItem("os-editor-timeline-height")).toBe(
-			String(DEFAULT_TIMELINE_HEIGHT_PX),
-		);
-		expect(localStorage.getItem("os-editor-timeline-height-migrated")).toBe("true");
-	});
-
-	it("migrates intermediate 344px default to DEFAULT_TIMELINE_HEIGHT_PX and persists it", () => {
-		localStorage.setItem("os-editor-timeline-height", "344");
-		const { container } = renderShell();
-		const root = container.firstElementChild as HTMLElement;
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
-		expect(localStorage.getItem("os-editor-timeline-height")).toBe(
-			String(DEFAULT_TIMELINE_HEIGHT_PX),
-		);
-	});
-
-	it("preserves an intentional user choice of 308px after migration has run", () => {
-		localStorage.setItem("os-editor-timeline-height-migrated", "true");
-		localStorage.setItem("os-editor-timeline-height", "308");
-		const { container } = renderShell();
-		const root = container.firstElementChild as HTMLElement;
-		expect(root.style.gridTemplateRows).toBe("58px 1fr 308px");
-	});
-
-	it("respects a custom user preference saved in localStorage within valid bounds", () => {
+	// That height was tuned to five always-drawn lanes: read back, it would open every
+	// project far taller than what it holds.
+	it("does not read the height an earlier version stored", () => {
 		localStorage.setItem("os-editor-timeline-height", "450");
 		const { container } = renderShell();
 		const root = container.firstElementChild as HTMLElement;
-		expect(root.style.gridTemplateRows).toBe("58px 1fr 450px");
+		expect(root.style.gridTemplateRows).toBe(rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX));
 	});
 
-	it("clamps out-of-bounds custom heights from localStorage at lower and upper bounds", () => {
-		localStorage.setItem("os-editor-timeline-height-migrated", "true");
-		localStorage.setItem("os-editor-timeline-height", "50");
+	it("adds the stored offset to what the content asks for, and ignores one that is not a number", () => {
+		localStorage.setItem(TIMELINE_HEIGHT_OFFSET_KEY, "40");
 		const { container: c1 } = renderShell();
-		const root1 = c1.firstElementChild as HTMLElement;
-		expect(root1.style.gridTemplateRows).toBe(`58px 1fr ${MIN_TIMELINE_HEIGHT_PX}px`);
+		expect((c1.firstElementChild as HTMLElement).style.gridTemplateRows).toBe(
+			rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX + 40),
+		);
 
 		cleanup();
-		localStorage.setItem("os-editor-timeline-height", "999");
+		localStorage.setItem(TIMELINE_HEIGHT_OFFSET_KEY, "tall");
 		const { container: c2 } = renderShell();
-		const root2 = c2.firstElementChild as HTMLElement;
-		expect(root2.style.gridTemplateRows).toBe(`58px 1fr ${MAX_TIMELINE_HEIGHT_PX}px`);
+		expect((c2.firstElementChild as HTMLElement).style.gridTemplateRows).toBe(
+			rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX),
+		);
 	});
 
-	it("clamps pointer resizing through startTimelineResize to MIN and MAX bounds", () => {
+	it("clamps an offset that would take the panel past either bound", () => {
+		localStorage.setItem(TIMELINE_HEIGHT_OFFSET_KEY, "-500");
+		const { container: c1 } = renderShell();
+		expect((c1.firstElementChild as HTMLElement).style.gridTemplateRows).toBe(
+			rows(MIN_TIMELINE_HEIGHT_PX),
+		);
+
+		cleanup();
+		localStorage.setItem(TIMELINE_HEIGHT_OFFSET_KEY, "999");
+		const { container: c2 } = renderShell();
+		expect((c2.firstElementChild as HTMLElement).style.gridTemplateRows).toBe(
+			rows(MAX_TIMELINE_HEIGHT_PX),
+		);
+	});
+
+	it("clamps pointer resizing to MIN and MAX and stores how far the panel moved", () => {
 		const { container } = renderShell();
 		const root = container.firstElementChild as HTMLElement;
 		const handle = container.querySelector(
@@ -160,35 +161,38 @@ describe("NewEditorShell timeline height", () => {
 		) as HTMLElement;
 		expect(handle).not.toBeNull();
 
-		// Drag down significantly (clientY increases): should clamp to MIN_TIMELINE_HEIGHT_PX
+		// Drag down significantly (clientY increases): clamps to MIN_TIMELINE_HEIGHT_PX.
 		act(() => {
 			fireEvent.pointerDown(handle, { clientY: 400 });
 			fireEvent.pointerMove(window, { clientY: 1000 });
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${MIN_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(MIN_TIMELINE_HEIGHT_PX));
 		act(() => {
 			fireEvent.pointerUp(window);
 		});
-		expect(localStorage.getItem("os-editor-timeline-height")).toBe(String(MIN_TIMELINE_HEIGHT_PX));
+		expect(localStorage.getItem(TIMELINE_HEIGHT_OFFSET_KEY)).toBe(
+			String(MIN_TIMELINE_HEIGHT_PX - EMPTY_TIMELINE_CONTENT_HEIGHT_PX),
+		);
 
-		// Drag up significantly (clientY decreases): should clamp to MAX_TIMELINE_HEIGHT_PX
+		// Drag up significantly (clientY decreases): clamps to MAX_TIMELINE_HEIGHT_PX.
 		act(() => {
 			fireEvent.pointerDown(handle, { clientY: 400 });
 			fireEvent.pointerMove(window, { clientY: -500 });
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${MAX_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(MAX_TIMELINE_HEIGHT_PX));
 		act(() => {
 			fireEvent.pointerUp(window);
 		});
-		expect(localStorage.getItem("os-editor-timeline-height")).toBe(String(MAX_TIMELINE_HEIGHT_PX));
+		expect(localStorage.getItem(TIMELINE_HEIGHT_OFFSET_KEY)).toBe(
+			String(MAX_TIMELINE_HEIGHT_PX - EMPTY_TIMELINE_CONTENT_HEIGHT_PX),
+		);
 	});
 
-	it("dynamically expands height by AUDIO_ROW_EXPANSION_PX when transitioning from 1 to 2 audio lanes and shrinks back", () => {
+	it("grows by a lane for the first audio track, by a row for one that overlaps it, and shrinks back", () => {
 		const { container } = renderShell();
 		const root = container.firstElementChild as HTMLElement;
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX));
 
-		// Add voiceover and music tracks (creating 2 audio rows)
 		const doc = createEmptyDocument({ projectId: "p", title: "t" });
 		doc.audioTracks = [
 			createAudioTrack({
@@ -207,32 +211,32 @@ describe("NewEditorShell timeline height", () => {
 			}),
 		];
 
+		// Voiceover and music over the same stretch: the audio lane, two rows tall.
 		act(() => {
 			useProjectStore.setState({ document: doc });
 		});
-
-		const expectedExpandedHeight = DEFAULT_TIMELINE_HEIGHT_PX + AUDIO_ROW_EXPANSION_PX;
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${expectedExpandedHeight}px`);
-
-		// Remove music track (returning to 1 audio row)
-		const singleTrackDoc = {
-			...doc,
-			audioTracks: [doc.audioTracks[0]],
-		};
+		expect(root.style.gridTemplateRows).toBe(
+			rows(withLanes(ONE_AUDIO_ROW_PX + AUDIO_ROW_EXPANSION_PX)),
+		);
 
 		act(() => {
-			useProjectStore.setState({ document: singleTrackDoc });
+			useProjectStore.setState({ document: { ...doc, audioTracks: [doc.audioTracks[0]] } });
 		});
+		expect(root.style.gridTemplateRows).toBe(rows(withLanes(ONE_AUDIO_ROW_PX)));
 
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
+		// No audio left: the lane goes, and the panel with it.
+		act(() => {
+			useProjectStore.setState({ document: { ...doc, audioTracks: [] } });
+		});
+		expect(root.style.gridTemplateRows).toBe(rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX));
 	});
 
-	it("expands for overlapping annotation rows, caps the panel height and restores the saved base height", () => {
+	it("grows with overlapping annotation rows, caps at MAX and comes back when they go", () => {
 		useProjectStore.getState().clear();
 		const { container } = renderShell();
 		const root = container.firstElementChild as HTMLElement;
 		const doc = createEmptyDocument({ projectId: "p", title: "t" });
-		doc.annotations = Array.from({ length: 8 }, (_, i) =>
+		doc.annotations = Array.from({ length: 16 }, (_, i) =>
 			annotationRegionSchema.parse({
 				id: `ann-${i}`,
 				startMs: 0,
@@ -248,11 +252,12 @@ describe("NewEditorShell timeline height", () => {
 		act(() => {
 			useProjectStore.setState({ document: { ...doc, annotations: doc.annotations.slice(0, 2) } });
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX + 27}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(withLanes(regionLaneHeight(2))));
 		act(() => {
 			useProjectStore.setState({ document: doc });
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${MAX_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(MAX_TIMELINE_HEIGHT_PX));
+		// The same sixteen, one after another: one row.
 		act(() => {
 			useProjectStore.setState({
 				document: {
@@ -265,25 +270,27 @@ describe("NewEditorShell timeline height", () => {
 				},
 			});
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(withLanes(regionLaneHeight(1))));
 
 		act(() => {
 			useProjectStore.setState({ document: { ...doc, annotations: [] } });
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${DEFAULT_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX));
 	});
 
+	// A drag against the cap moves nothing, so it must store nothing: otherwise the panel
+	// would come back a different height once the content shrank under the cap.
 	it.each([
-		{ rowCount: 10, deltaY: 0, expectedBase: DEFAULT_TIMELINE_HEIGHT_PX },
-		{ rowCount: 10, deltaY: -1, expectedBase: DEFAULT_TIMELINE_HEIGHT_PX },
-		{ rowCount: 10, deltaY: 1, expectedBase: DEFAULT_TIMELINE_HEIGHT_PX - 1 },
-		{ rowCount: 16, deltaY: 0, expectedBase: DEFAULT_TIMELINE_HEIGHT_PX },
-		{ rowCount: 16, deltaY: -1, expectedBase: DEFAULT_TIMELINE_HEIGHT_PX },
-		{ rowCount: 16, deltaY: 1, expectedBase: DEFAULT_TIMELINE_HEIGHT_PX - 1 },
-	])("preserves the base after a $deltaY px resize with $rowCount capped annotation rows", async ({
+		{ rowCount: 16, deltaY: 0, expectedOffset: 0 },
+		{ rowCount: 16, deltaY: -1, expectedOffset: 0 },
+		{ rowCount: 16, deltaY: 1, expectedOffset: -1 },
+		{ rowCount: 20, deltaY: 0, expectedOffset: 0 },
+		{ rowCount: 20, deltaY: -1, expectedOffset: 0 },
+		{ rowCount: 20, deltaY: 1, expectedOffset: -1 },
+	])("stores only what the panel moved by after a $deltaY px resize with $rowCount capped annotation rows", async ({
 		rowCount,
 		deltaY,
-		expectedBase,
+		expectedOffset,
 	}) => {
 		useProjectStore.getState().clear();
 		const doc = createEmptyDocument({ projectId: "p", title: "t" });
@@ -306,18 +313,20 @@ describe("NewEditorShell timeline height", () => {
 		const handle = container.querySelector(
 			'[role="separator"][aria-orientation="horizontal"]',
 		) as HTMLElement;
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${MAX_TIMELINE_HEIGHT_PX}px`);
+		expect(root.style.gridTemplateRows).toBe(rows(MAX_TIMELINE_HEIGHT_PX));
 
 		await act(async () => {
 			fireEvent.pointerDown(handle, { clientY: 400 });
 			fireEvent.pointerMove(window, { clientY: 400 + deltaY });
 			fireEvent.pointerUp(window);
 		});
-		expect(localStorage.getItem("os-editor-timeline-height")).toBe(String(expectedBase));
+		expect(localStorage.getItem(TIMELINE_HEIGHT_OFFSET_KEY)).toBe(String(expectedOffset));
 
 		await act(async () => {
 			useProjectStore.setState({ document: { ...doc, annotations: [] } });
 		});
-		expect(root.style.gridTemplateRows).toBe(`58px 1fr ${expectedBase}px`);
+		expect(root.style.gridTemplateRows).toBe(
+			rows(EMPTY_TIMELINE_CONTENT_HEIGHT_PX + expectedOffset),
+		);
 	});
 });

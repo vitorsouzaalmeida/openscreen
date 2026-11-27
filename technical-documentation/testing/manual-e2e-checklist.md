@@ -509,7 +509,7 @@ must be visible, and at the insertion point rather than at the end of the clip.
 
 `openscreen mcp` is the only way a model drives OpenScreen: the installed executable, started by the agent's own client on stdio. `claude mcp add openscreen -- "<exe>" mcp`, with `<exe>` `%LOCALAPPDATA%\Programs\Openscreen\Openscreen.exe` on Windows or `/Applications/Openscreen.app/Contents/MacOS/Openscreen` on macOS, or install the plugin in `plugin/`. It serves the document tools, recording, export and frames (#1174), with no port, no token and nothing to turn on in the app. Drive these checks from a real MCP client against the installed build, never with a hand-written JSON request.
 
-- [ ] Confirm the app offers no model of its own and no server to turn on: no *Chat panel* button in the editor's top bar, no *AI settings* row in the wordmark menu, no *Translate* button in the caption settings, and only *Automatic zooms* in the timeline's *Auto-enhance* menu.
+- [ ] Confirm the app offers no model of its own and no server to turn on: no *Chat panel* button in the editor's top bar, no *AI settings* row in the app menu, no *Translate* button in the caption settings, and only *Automatic zooms* in the timeline's *Auto-enhance* menu.
 - [ ] On an install that had the former in-app MCP server enabled (`mcp-server.json` still in `userData`), launch the app and confirm nothing answers on `127.0.0.1:47821`. The files of the removed features are left on disk and read by nothing.
 - [ ] Confirm `"<exe>" help` lists `mcp`, register the stdio server in an MCP client, and confirm `listProjects` answers with the user's projects and `listSources` lists displays, windows, microphones and cameras.
 - [ ] Run `startRecording` on a window, click inside it a few times, `stopRecording`, and confirm the returned project is in the editor's project list with one clip and the zooms its `autoZooms` count announces. Clicks close in time (3 s or less) and on screen share one zoom, and a click in the first seconds or the stopping click gets none, so there can be fewer zooms than clicks. On macOS 15.2+, confirm Apple's picker never appears; on Linux, confirm the portal asks.
@@ -609,7 +609,6 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 - [ ] Change *Size*, *Smoothing* and *Motion blur*, pick each *Click bounce* (None, Light, Strong), and toggle *Click impact*; confirm each committed value remains visible.
 - [ ] Pick each *Cursor style* and toggle *3D cursor*; confirm the preview cursor changes. Under *Cursor types*, switch a type off and confirm that type is drawn as the arrow.
 - [ ] Record a take with *Editable cursor* Off (the system cursor), open it in the editor, and confirm the rail has no Cursor facet; confirm a take recorded with it On shows the facet, and an imported video does not.
-- [ ] Open OpenScreen menu → *Switch to light theme* (or dark) and confirm the editor switches between dark and light themes.
 - [ ] In the Composition facet, pick another *Format* (16:9, 9:16, 1:1, 4:3, 4:5, 16:10, 10:16, or a timeline shape under *Original*) and confirm the preview frame changes shape.
 - [ ] With a Format whose shape differs from the recording's, confirm the *Recording* row offers *Whole* and *Follow cursor*; confirm Follow cursor fills the frame with a window on the recording that follows the cursor, and Whole shows all of it.
 - [ ] Pick **Auto** in the Format row, drag padding from 0 to 100, and confirm the frame reshapes live with one border thickness on all four sides; switch the camera layout to Dual frame, then Vertical stack, and confirm the frame widens, then turns portrait, with a square camera. Export and confirm the file has the preview frame's shape and the same even border. Then add a clip of another shape, a differently cropped clip, or a clip without a camera, and confirm the frame does not move and Auto stays listed, disabled with the reason shown ("Clips differ"); pick 16:9 and confirm Auto is no longer offered.
@@ -620,15 +619,15 @@ The inspector's rail holds five facets: Composition (background, format, frame, 
 - [ ] On macOS, open the application menu and confirm it lists About OpenScreen, Permissions…, Save Diagnostics, Star on GitHub and Check for Updates.
 - [ ] On Windows and Linux, right-click the tray icon and confirm it lists About OpenScreen, and Check for Updates on a self-updating install. The HUD is frameless and the editor has no menu bar there, its top bar being the title bar, so the only Help menu is the Notes window's, which auto-hides its menu bar until Alt is pressed.
 - [ ] On Windows and Linux, open the Notes window from the HUD, press Alt, and confirm its Help menu lists About OpenScreen and Save Diagnostics, and Check for Updates on a self-updating install. Alt does nothing in the editor.
-- [ ] In the editor, click the OpenScreen wordmark in the top bar and confirm it opens a menu listing New project, Open project and Save project; Keyboard Shortcuts and the theme switch; then About OpenScreen and Star on GitHub, with Check for Updates before them on a self-updating install. This is the discoverable path on Windows and Linux, where the two above are not.
+- [ ] In the editor, click the OpenScreen mark in the top bar and confirm it opens a menu listing New project, Open project and Save project; Keyboard Shortcuts; then About OpenScreen and Star on GitHub, with Check for Updates before them on a self-updating install. This is the discoverable path on Windows and Linux, where the two above are not.
 - [ ] Confirm the About row in that menu shows the running version, and that it matches what the About box then reports.
-- [ ] Open the wordmark menu and pick Keyboard Shortcuts; confirm the shortcuts configuration dialog opens and that only one dialog appears.
-- [ ] Open the wordmark menu, then press Escape, click elsewhere in the top bar, and click the wordmark again — confirm each closes it and that the window does not start dragging instead of registering the click.
+- [ ] Open the app menu and pick Keyboard Shortcuts; confirm the shortcuts configuration dialog opens and that only one dialog appears.
+- [ ] Open the app menu, then press Escape, click elsewhere in the top bar, and click the mark again — confirm each closes it and that the window does not start dragging instead of registering the click.
 - [ ] **post-1.10.0** — Confirm a background check that finds nothing shows no dialog at all — the background path never reports "you are current".
 - [ ] **post-1.10.0** — Confirm a failed or unavailable download stops short of the restart prompt rather than offering to restart into an installer that was never fetched.
 - [ ] **post-1.10.0** — Reach **Save Diagnostics** from every place that offers it: the tray context menu while idle, the Notes window's Help menu (Alt) on Windows and Linux, the app menu on macOS, and the editor if it has an entry of its own. Confirm each writes a bundle.
-- [ ] With the wordmark menu open, walk it with the Down and Up arrows and confirm focus wraps at both ends.
-- [ ] Confirm the wordmark menu's labels match what they open — Keyboard Shortcuts matching the dialog it opens, Check for Updates and About OpenScreen the wording the macOS app menu and the tray use.
+- [ ] With the app menu open, walk it with the Down and Up arrows and confirm focus wraps at both ends.
+- [ ] Confirm the app menu's labels match what they open — Keyboard Shortcuts matching the dialog it opens, Check for Updates and About OpenScreen the wording the macOS app menu and the tray use.
 - [ ] Open About and confirm it names the running version, the Electron/Chromium/Node versions, and the install channel.
 - [ ] Confirm the About box opens in front of the HUD rather than behind it.
 - [ ] On Windows and Linux, press Copy in the About box and confirm the clipboard holds that same block.
@@ -732,12 +731,13 @@ The mask comes from the native compositor (ONNX Runtime + the vendored selfie-se
 - [ ] Double-click a clip and confirm the Edit Clip preview box carries the **source's own aspect ratio**, not a fixed 16:9 box — a portrait source must fill it rather than letterbox.
 - [ ] Focus the crop frame in *Edit clip* and press an arrow key; confirm the frame moves by 1% of the source, and that with Shift held it resizes from its right or bottom edge, keeping a picked ratio. The arrows must not seek the timeline behind the dialog.
 - [ ] Change the *Ratio* between a preset and *Free*, apply, and confirm the preview reframes and the clip's stale crop metadata does not survive.
-- [ ] Hold Ctrl and scroll **over the ruler, over the hint labels, and over the navigator bar** — not only over the lanes — and confirm the timeline zooms in each case.
+- [ ] Hold Ctrl and scroll **over the ruler, over the hint row, and over the navigator bar** — not only over the lanes — and confirm the timeline zooms in each case.
+- [ ] Open a fresh take and confirm the clip row sits directly under the ruler, with a lane under it only for what the take has (zooms after an auto-zoomed recording), and one hint row naming the keys for the rest. Add a trim, a speed region, an annotation and an audio track: each gets its lane, leaves the hint row, and the panel grows by that lane; undo each and confirm the lane and its height go again.
+- [ ] Click the ruler away from the playhead and confirm the playhead travels there in a short glide rather than jumping, and that the preview shows the new frame at once. Press and drag instead and confirm the playhead tracks the pointer exactly. Play, and confirm it advances with no easing.
 - [ ] Hold Shift and scroll over those same three places and confirm the visible range pans.
 - [ ] Open the clip picker, click outside it, and confirm it closes.
 - [ ] Select a clip and confirm its delete button is the same round raised button as the edit pencil, rather than sitting bare on the waveform; on a clip too narrow to hold them, confirm both sit beside it.
-- [ ] Switch to the light theme and confirm the gradient picker and the dialogs follow it instead of staying dark.
-- [ ] Confirm the top bar carries no second settings button beside the wordmark menu.
+- [ ] Confirm the top bar carries no second settings button beside the app menu.
 - [ ] Start a transcription and confirm the status reads **Downloading speech model** (first run) or **Starting speech model** before **Transcribing**, then a percentage, on every surface that shows it.
 - [ ] Regenerate a transcript and confirm the busy label stays visible for the duration and is scoped to the timeline rather than leaking to unrelated surfaces.
 - [ ] Open the media asset card's **Regenerate as** picker and confirm it lists every whisper language (101 entries including Auto), sorted by localized name — not a hand-picked handful.

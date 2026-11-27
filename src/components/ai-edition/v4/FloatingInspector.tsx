@@ -28,7 +28,7 @@ import {
 	X,
 	ZoomIn,
 } from "lucide-react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, CSSProperties } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -174,6 +174,8 @@ export function FloatingInspector({
 	// takes over the inspector body with its own pane (see AudioTrackPane).
 	const audioTrackSelected = Boolean(tl.selectedAudioTrackId);
 	const effectiveOpen = open || selection !== null || audioTrackSelected;
+	const pressedFacet =
+		!selection && !audioTrackSelected && open ? facets.findIndex((f) => f.id === facet) : -1;
 	return (
 		<div className={styles.inspectorWrap}>
 			{effectiveOpen ? (
@@ -187,7 +189,19 @@ export function FloatingInspector({
 					)}
 				</div>
 			) : null}
-			<div className={styles.facetRail}>
+			{/* The plate under the open facet is the rail's own (`.os-slides`), one row per button:
+			    the facets, then the edit-clip pencil. No facet is pressed while the panel is closed
+			    or shows a selection. */}
+			<div
+				className={`os-slides ${styles.facetRail}`}
+				data-sel={pressedFacet < 0 ? "none" : undefined}
+				style={
+					{
+						"--rows": facets.length + 1,
+						"--sel-row": Math.max(pressedFacet, 0),
+					} as CSSProperties
+				}
+			>
 				{facets.map(({ id, labelKey, icon: Icon }) => (
 					// The name is the pane's title; the tip says what the pane holds. They are two keys
 					// because the title is also the pane's heading and cannot carry the list.
@@ -238,7 +252,6 @@ export function FloatingInspector({
 						align="start"
 						sideOffset={RAIL_TOOLTIP.sideOffset}
 						collisionPadding={12}
-						animated={false}
 						className="w-auto border-0 bg-transparent p-0 shadow-none"
 						onCloseAutoFocus={(event) => {
 							// The clip's dialog has the focus by then: handing it back to this button would

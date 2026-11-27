@@ -3,10 +3,6 @@ import { toast } from "sonner";
 import { toFileUrl } from "@/components/video-editor/projectPersistence";
 import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
-import {
-	AUDIO_ROW_EXPANSION_PX,
-	computeAudioRowCount,
-} from "@/lib/ai-edition/document/audioTracks";
 import { createId } from "@/lib/ai-edition/document/ids";
 import {
 	documentAfterProbedDuration,
@@ -41,7 +37,7 @@ import { useTimeline } from "@/lib/ai-edition/store/useTimeline";
 import { isGeneratedAssetId } from "@/lib/ai-edition/timeline/clip-parts";
 import { mergeCloseCuts } from "@/lib/ai-edition/timeline/cut-breath";
 import { newRegionDurationSec } from "@/lib/ai-edition/timeline/newRegionDuration";
-import { REGION_ROW_STEP_PX } from "@/lib/ai-edition/timeline/regionTracks";
+import { EMPTY_TIMELINE_CONTENT_HEIGHT_PX } from "@/lib/ai-edition/timeline/timelineHeight";
 import {
 	dropTrimPillsByIds,
 	trimAppliesToClip,
@@ -127,12 +123,12 @@ function NativePlaybackSync({
 	return null;
 }
 
-export const DEFAULT_TIMELINE_HEIGHT_PX = 392;
 export const MIN_TIMELINE_HEIGHT_PX = 160;
 export const MAX_TIMELINE_HEIGHT_PX = 560;
-/** The Effects lane's height (`.tlLane`: 24px and a 5px margin), added while the project has an
- *  effect: the lane only shows then (`V4Timeline`). */
-export const EFFECT_LANE_EXPANSION_PX = 29;
+/** How far the user dragged the timeline's edge away from the height its content asks for.
+ *  An offset rather than a height: the panel follows its content as lanes come and go, and
+ *  the drag is kept on top of that. */
+export const TIMELINE_HEIGHT_OFFSET_KEY = "os-editor-timeline-height-offset";
 
 /**
  * What one `loadedmetadata` event does, from the front of the write queue.
@@ -228,45 +224,18 @@ export function NewEditorShell() {
 	// v4 shell: three modes (Media / Edit / Rec) and a floating facet inspector
 	// over the stage.
 	const [mode, setMode] = useState<EditorMode>("edit");
-	const [timelineBaseHeightPx, setTimelineBaseHeightPx] = useState(() => {
-		const raw = localStorage.getItem("os-editor-timeline-height");
-		// One-time migration: if legacy 308px default exists without the migration marker,
-		// migrate it once to DEFAULT_TIMELINE_HEIGHT_PX so existing users see all lanes,
-		// but allow them to intentionally choose 308px in the future.
-		// Also migrate intermediate 344px default to DEFAULT_TIMELINE_HEIGHT_PX.
-		const migrated = localStorage.getItem("os-editor-timeline-height-migrated");
-		if (!migrated && (!raw || Number(raw) === 308 || Number(raw) === 344)) {
-			localStorage.setItem("os-editor-timeline-height-migrated", "true");
-			localStorage.setItem("os-editor-timeline-height", String(DEFAULT_TIMELINE_HEIGHT_PX));
-			return DEFAULT_TIMELINE_HEIGHT_PX;
-		}
-		if (raw === "344") {
-			localStorage.setItem("os-editor-timeline-height", String(DEFAULT_TIMELINE_HEIGHT_PX));
-			return DEFAULT_TIMELINE_HEIGHT_PX;
-		}
-		const val = raw ? Number(raw) : 0;
-		if (!val) {
-			return DEFAULT_TIMELINE_HEIGHT_PX;
-		}
-		return Math.min(MAX_TIMELINE_HEIGHT_PX, Math.max(MIN_TIMELINE_HEIGHT_PX, val));
+	// The timeline is as tall as what it holds, plus what the user dragged its edge by. The
+	// height an earlier version stored ("os-editor-timeline-height") was tuned to five
+	// always-drawn lanes and is not read: it would open every project too tall.
+	const [timelineOffsetPx, setTimelineOffsetPx] = useState(() => {
+		const stored = Number(localStorage.getItem(TIMELINE_HEIGHT_OFFSET_KEY));
+		return Number.isFinite(stored) ? stored : 0;
 	});
-
-	// The timeline height automatically expands by AUDIO_ROW_EXPANSION_PX (+29px)
-	// whenever the project transitions between 1 and 2 stacked audio rows (e.g. voiceover + music).
-	const audioRowCount = useMemo(
-		() => computeAudioRowCount(document?.audioTracks ?? []),
-		[document?.audioTracks],
-	);
-	const hasEffects = (document?.shaderEffectRanges?.length ?? 0) > 0;
-	const extraAudioHeightPx = Math.max(0, audioRowCount - 1) * AUDIO_ROW_EXPANSION_PX;
-	// The rendered annotation layout reports its live row count, including a drag preview.
-	const [annotationRowCount, setAnnotationRowCount] = useState(1);
-	const extraAnnotationHeightPx = (annotationRowCount - 1) * REGION_ROW_STEP_PX;
-	const extraLaneHeightPx =
-		extraAudioHeightPx + extraAnnotationHeightPx + (hasEffects ? EFFECT_LANE_EXPANSION_PX : 0);
+	// Reported by the timeline, which knows which lanes it draws, a drag preview included.
+	const [timelineContentPx, setTimelineContentPx] = useState(EMPTY_TIMELINE_CONTENT_HEIGHT_PX);
 	const timelineHeightPx = Math.min(
 		MAX_TIMELINE_HEIGHT_PX,
-		Math.max(MIN_TIMELINE_HEIGHT_PX, timelineBaseHeightPx + extraLaneHeightPx),
+		Math.max(MIN_TIMELINE_HEIGHT_PX, timelineContentPx + timelineOffsetPx),
 	);
 	const [inspectorOpen, setInspectorOpen] = useState(true);
 	const [facet, setFacet] = useState<Facet>("effects");
@@ -1591,6 +1560,18 @@ export function NewEditorShell() {
 
 	const showTimeline = mode !== "rec";
 	const timelineRow = mode === "media" ? "188px" : `${timelineHeightPx}px`;
+	// Toasts sit at the bottom centre of the stage, not over the timeline they would cover
+	// for three seconds. The toaster is mounted beside the shell (App.tsx), not inside it,
+	// so it reads the timeline's height from the document root.
+	const timelineInset = showTimeline ? timelineRow : "0px";
+	useEffect(() => {
+		// `window.document`: a bare `document` here is the project document.
+		const root = window.document.documentElement;
+		root.style.setProperty("--timeline-h", timelineInset);
+		return () => {
+			root.style.removeProperty("--timeline-h");
+		};
+	}, [timelineInset]);
 	// Drag the timeline's top edge (row-resize) to resize. Pointer-driven like
 	// V4Timeline's pill/nav/clip drags — pointerdown arms a window-level
 	// pointermove/pointerup pair, no drag library. Persisted to localStorage (a UI
@@ -1600,9 +1581,9 @@ export function NewEditorShell() {
 		(e: React.PointerEvent) => {
 			e.preventDefault();
 			const startY = e.clientY;
-			const startBase = timelineBaseHeightPx;
+			const startOffset = timelineOffsetPx;
 			const startRendered = timelineHeightPx;
-			let latestBase = startBase;
+			let latestOffset = startOffset;
 			const move = (ev: PointerEvent) => {
 				// Dragging the handle up (negative clientY delta) enlarges the
 				// timeline, since it sits below the handle.
@@ -1610,22 +1591,20 @@ export function NewEditorShell() {
 					MAX_TIMELINE_HEIGHT_PX,
 					Math.max(MIN_TIMELINE_HEIGHT_PX, startRendered - (ev.clientY - startY)),
 				);
-				// Apply only the rendered-height delta, preserving the base when expansion hits the cap.
-				latestBase = Math.min(
-					MAX_TIMELINE_HEIGHT_PX,
-					Math.max(MIN_TIMELINE_HEIGHT_PX, startBase + (renderedTarget - startRendered)),
-				);
-				setTimelineBaseHeightPx(latestBase);
+				// Only what the panel actually moved by: a drag against the cap changes nothing,
+				// so the offset is still right when the content shrinks back under it.
+				latestOffset = startOffset + (renderedTarget - startRendered);
+				setTimelineOffsetPx(latestOffset);
 			};
 			const up = () => {
 				window.removeEventListener("pointermove", move);
 				window.removeEventListener("pointerup", up);
-				localStorage.setItem("os-editor-timeline-height", String(latestBase));
+				localStorage.setItem(TIMELINE_HEIGHT_OFFSET_KEY, String(latestOffset));
 			};
 			window.addEventListener("pointermove", move);
 			window.addEventListener("pointerup", up);
 		},
-		[timelineBaseHeightPx, timelineHeightPx],
+		[timelineOffsetPx, timelineHeightPx],
 	);
 
 	const transcriptProps = {
@@ -1797,8 +1776,8 @@ export function NewEditorShell() {
 						position: "relative",
 						gridRow: 3,
 						minHeight: 0,
-						background: "var(--surface)",
-						borderTop: "1px solid var(--shell-rule)",
+						// The window's own surface and no rule above: space separates it from the stage.
+						background: "var(--bg)",
 					}}
 				>
 					{mode !== "media" ? (
@@ -1811,7 +1790,7 @@ export function NewEditorShell() {
 						/>
 					) : null}
 					<V4Timeline
-						onAnnotationRowCountChange={setAnnotationRowCount}
+						onContentHeightChange={setTimelineContentPx}
 						tl={tl}
 						setCurrentTime={handleSeek}
 						canSeek={canSeek}

@@ -88,7 +88,7 @@ function HudTooltip({ content, children }: { content: string; children: ReactEle
 
 // The browser's default focus outline all but disappears on the dark bar.
 const hudFocusClasses =
-	"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]/70";
+	"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]";
 
 // Exact values from the design's renderVals() (comfortable density, rounded
 // shape, #10b981 accent) — btnSize 34 / btnRadius 10 / containerRadius 17
@@ -97,17 +97,17 @@ const hudFocusClasses =
 // reads purely from proximity + the divider spans between logical sections.
 // Hover is a white wash rather than a darker grey: #1a1e25 on the #14171c bar
 // was all but invisible.
-const hudIconBtnClasses = `flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[#828c99] transition-all duration-150 hover:bg-white/[0.08] hover:text-[#f5f7fa] active:scale-95 ${hudDisabledClasses} ${hudFocusClasses} ${styles.electronNoDrag}`;
+const hudIconBtnClasses = `flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[var(--muted)] transition-all duration-150 hover:bg-white/[0.08] hover:text-[var(--fg)] active:scale-95 ${hudDisabledClasses} ${hudFocusClasses} ${styles.electronNoDrag}`;
 
 // The icon button in blue, spelled out: appending a second `text-*` to the class above would
 // leave the winner to the order Tailwind happens to emit the two rules in.
-const hudUpdateBtnClasses = `flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[#60a5fa] transition-all duration-150 hover:bg-white/[0.08] hover:text-[#93c5fd] active:scale-95 ${hudFocusClasses} ${styles.electronNoDrag}`;
+const hudUpdateBtnClasses = `flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[var(--update)] transition-all duration-150 hover:bg-white/[0.08] hover:text-[var(--update)] active:scale-95 ${hudFocusClasses} ${styles.electronNoDrag}`;
 
-const hudAuxIconBtnClasses = `flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[#9aa3ae] transition-colors duration-150 hover:bg-white/[0.08] hover:text-[#f5f7fa] ${hudDisabledClasses} ${hudFocusClasses}`;
+const hudAuxIconBtnClasses = `flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[var(--muted)] transition-colors duration-150 hover:bg-white/[0.08] hover:text-[var(--fg)] ${hudDisabledClasses} ${hudFocusClasses}`;
 
-const windowBtnClasses = `flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[#828c99] transition-all duration-150 hover:bg-white/[0.08] hover:text-[#e9edf3] ${hudDisabledClasses} ${hudFocusClasses}`;
+const windowBtnClasses = `flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[var(--muted)] transition-all duration-150 hover:bg-white/[0.08] hover:text-[var(--fg)] ${hudDisabledClasses} ${hudFocusClasses}`;
 
-const closeBtnClasses = `flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[#828c99] transition-all duration-150 hover:bg-[rgba(248,113,113,0.16)] hover:text-[#f87171] ${hudDisabledClasses} ${hudFocusClasses}`;
+const closeBtnClasses = `flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border-0 bg-transparent cursor-pointer text-[var(--muted)] transition-all duration-150 hover:bg-[rgba(248,113,113,0.16)] hover:text-[var(--danger)] ${hudDisabledClasses} ${hudFocusClasses}`;
 
 export const HudDivider = memo(function HudDivider({ vertical }: { vertical: boolean }) {
 	return (
@@ -155,7 +155,7 @@ export const HudDragHandle = memo(function HudDragHandle({
 			onPointerUp={onPointerEnd}
 			onPointerCancel={onPointerEnd}
 		>
-			{getIcon("drag", "text-[#5c6672]")}
+			{getIcon("drag", "text-[var(--meta)]")}
 		</div>
 	);
 });
@@ -209,7 +209,7 @@ export const HudSourceButton = memo(function HudSourceButton({
 				data-testid="launch-source-selector-button"
 				data-remembered={remembered || undefined}
 				className={`flex h-[34px] shrink-0 items-center gap-[7px] rounded-[10px] border-0 bg-transparent ${
-					remembered ? "text-[#828c99] hover:text-[#f5f7fa]" : "text-[#f5f7fa]"
+					remembered ? "text-[var(--muted)] hover:text-[var(--fg)]" : "text-[var(--fg)]"
 				} transition-all duration-150 hover:bg-white/[0.08] active:scale-[0.97] ${hudDisabledClasses} ${hudFocusClasses} ${
 					vertical ? "w-[34px] justify-center px-0" : "pr-3 pl-2.5"
 				} ${styles.electronNoDrag}`}
@@ -256,7 +256,7 @@ export const HudSystemAudioButton = memo(function HudSystemAudioButton({
 				aria-disabled={locked || undefined}
 				onClick={locked ? undefined : onClick}
 			>
-				<VolumeIcon muted={!enabled} className={enabled ? "text-[#10b981]" : ""} />
+				<VolumeIcon muted={!enabled} className={enabled ? "text-[var(--accent)]" : ""} />
 			</button>
 		</HudTooltip>
 	);
@@ -287,7 +287,7 @@ export const HudKeySoundsButton = memo(function HudKeySoundsButton({
 				aria-disabled={locked || undefined}
 				onClick={locked ? undefined : onClick}
 			>
-				<Keyboard size={ICON_SIZE} className={enabled ? "text-[#10b981]" : ""} />
+				<Keyboard size={ICON_SIZE} className={enabled ? "text-[var(--accent)]" : ""} />
 			</button>
 		</HudTooltip>
 	);
@@ -317,7 +317,7 @@ export const HudMicButton = memo(function HudMicButton({
 				aria-disabled={locked || undefined}
 				onClick={locked ? undefined : onClick}
 			>
-				<MicIcon muted={!enabled} className={enabled ? "text-[#10b981]" : ""} />
+				<MicIcon muted={!enabled} className={enabled ? "text-[var(--accent)]" : ""} />
 			</button>
 		</HudTooltip>
 	);
@@ -346,7 +346,7 @@ export function HudCameraPreviewButton({
 				onClick={disabled ? undefined : onClick}
 			>
 				{visible ? (
-					<Eye className="text-[#10b981]" size={ICON_SIZE} />
+					<Eye className="text-[var(--accent)]" size={ICON_SIZE} />
 				) : (
 					<EyeOff size={ICON_SIZE} />
 				)}
@@ -379,7 +379,7 @@ export const HudCameraButton = memo(function HudCameraButton({
 				aria-disabled={locked || undefined}
 				onClick={locked ? undefined : onClick}
 			>
-				<CameraIcon off={!enabled} className={enabled ? "text-[#10b981]" : ""} />
+				<CameraIcon off={!enabled} className={enabled ? "text-[var(--accent)]" : ""} />
 			</button>
 		</HudTooltip>
 	);
@@ -410,7 +410,7 @@ export const HudSettingsButton = memo(function HudSettingsButton({
 				aria-disabled={locked || undefined}
 				// Dimmer at rest than the toggles it configures, so it reads as their
 				// accessory rather than a fourth peer control.
-				className={`${hudIconBtnClasses} ${hudLockedClasses} text-[#5c6672]`}
+				className={`${hudIconBtnClasses} ${hudLockedClasses} text-[var(--meta)]`}
 				onClick={locked ? undefined : onClick}
 			>
 				<Settings size={17} />
@@ -443,8 +443,8 @@ export const HudCursorButton = memo(function HudCursorButton({
 				aria-disabled={locked || undefined}
 				className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] border-0 cursor-pointer transition-all duration-150 active:scale-95 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:active:scale-100 ${hudFocusClasses} ${styles.electronNoDrag} ${
 					editableOverlay
-						? "bg-[#10b981] text-[#08090d] hover:bg-[#0e9e6e] aria-disabled:hover:bg-[#10b981]"
-						: "bg-transparent text-[#828c99] hover:bg-white/[0.08] hover:text-[#f5f7fa] aria-disabled:hover:bg-transparent"
+						? "bg-[var(--accent)] text-[var(--accent-on)] hover:bg-[var(--brand-lo)] aria-disabled:hover:bg-[var(--accent)]"
+						: "bg-transparent text-[var(--muted)] hover:bg-white/[0.08] hover:text-[var(--fg)] aria-disabled:hover:bg-transparent"
 				}`}
 				onClick={locked ? undefined : onClick}
 			>
@@ -491,20 +491,22 @@ export const HudRecordButton = memo(function HudRecordButton({
 				<div className={`flex items-center justify-center ${recording || saving ? "gap-1.5" : ""}`}>
 					{saving ? (
 						<div className="animate-spin flex items-center justify-center">
-							{getIcon("spinner", "text-[#f87171]")}
+							{getIcon("spinner", "text-[var(--danger)]")}
 						</div>
 					) : (
 						<RecordGlyph
 							recording={recording}
-							className={paused ? "text-amber-400" : "text-[#f87171]"}
+							className={paused ? "text-amber-400" : "text-[var(--danger)]"}
 						/>
 					)}
 					{saving && (
-						<span className="text-[#f87171] text-xs font-semibold select-none">{savingLabel}</span>
+						<span className="text-[var(--danger)] text-xs font-semibold select-none">
+							{savingLabel}
+						</span>
 					)}
 					{recording && (
 						<span
-							className={`${paused ? "text-amber-400" : "text-[#f87171]"} inline-block w-[34px] text-left text-xs font-semibold tabular-nums`}
+							className={`${paused ? "text-amber-400" : "text-[var(--danger)]"} inline-block w-[34px] text-left text-xs font-semibold tabular-nums`}
 						>
 							{formatTimePadded(elapsedSeconds)}
 						</span>
@@ -735,7 +737,7 @@ export const HudNotice = memo(function HudNotice({
 					type="button"
 					size="sm"
 					onClick={onConfirm}
-					className={`h-8 rounded-[9px] bg-[#10b981] text-[13px] font-semibold text-[#08090d] hover:bg-[#10b981]/85 ${hudFocusClasses}`}
+					className={`h-8 rounded-[9px] bg-[var(--accent)] text-[13px] font-semibold text-[var(--accent-on)] hover:bg-[var(--brand-lo)] ${hudFocusClasses}`}
 				>
 					{confirmLabel}
 				</Button>

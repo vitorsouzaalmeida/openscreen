@@ -77,7 +77,7 @@ function TooltipContent({
 					// long line. 260px is about 40 characters a line at this size. `text-balance` evens the
 					// lines out, so a translation does not end on one orphan word.
 					// A narrow HUD can have less room beside its bar; wrap within Popper's available space.
-					"max-w-[min(260px,var(--radix-tooltip-content-available-width))] break-words text-balance px-2.5 py-1.5 text-xs leading-4 font-medium text-white/95 bg-black/85 border border-white/10 rounded-lg shadow-lg",
+					"max-w-[min(260px,var(--radix-tooltip-content-available-width))] break-words text-balance px-2.5 py-1.5 text-xs leading-4 font-medium text-[var(--fg)] bg-[var(--surface-hi)] border border-[var(--border-hi)] rounded-lg shadow-[var(--elev-pop)]",
 					// Above every layer it can open in: the dialogs reach z 10000 (`dialog.tsx`), the
 					// editor's modals 100. At z 50 the Edit-clip dialog's tips opened under it, unseen.
 					"z-[10001]",
