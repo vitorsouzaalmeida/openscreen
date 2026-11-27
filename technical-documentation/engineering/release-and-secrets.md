@@ -1,6 +1,6 @@
 # Release and secrets
 
-OpenScreen's release machinery lives in `.github/workflows/prerelease.yml`, `promote.yml`, and `build.yml`; its credentials are secrets of the `release` environment (see [Release environment](#release-environment)), plus repository secrets and variables for the Discord automations. This page is the operational reference for cutting releases and maintaining those credentials.
+OpenScreen's release machinery lives in `.github/workflows/prerelease.yml`, `promote.yml`, and `build.yml`; its credentials are secrets of the `release` environment (see [Release environment](#release-environment)). This page is the operational reference for cutting releases and maintaining those credentials.
 
 ## Release flow
 
@@ -12,7 +12,7 @@ Run the `Cut a release candidate` workflow (`prerelease.yml`) with:
 - `rc_number`: the numeric `rc.N` counter; default `1`.
 - `target_version`: optional stable-version override such as `2.0.0`.
 
-The workflow computes `X.Y.Z-rc.N`, migrates items from `Next Release` to the `vX.Y.Z` milestone, creates or reuses `release/vX.Y.Z`, commits the prerelease version there, tags the frozen branch tip, explicitly dispatches `build.yml` at the RC tag, and announces the pre-release in the configured RC Discord channel.
+The workflow computes `X.Y.Z-rc.N`, migrates items from `Next Release` to the `vX.Y.Z` milestone, creates or reuses `release/vX.Y.Z`, commits the prerelease version there, tags the frozen branch tip, and explicitly dispatches `build.yml` at the RC tag.
 
 `build.yml` does have a `push:` trigger on `v*` tags, but the release workflows do not rely on it. The dispatch is explicit *and* pinned to the tag, for two separate reasons:
 
@@ -30,7 +30,6 @@ RC tags are signed and notarized exactly like stable ones. That keeps testers ou
 Run `Promote RC to stable release` (`promote.yml`) with:
 
 - `rc_tag`: required tag matching `vX.Y.Z-(rc|beta|alpha).N`.
-- `release_notes_extra`: optional text prepended to the stable Discord announcement.
 
 The workflow validates the tag, closes the version milestone, checks out `release/vX.Y.Z`, changes `package.json` to the stable version, tags that branch tip, explicitly dispatches `build.yml` at the stable tag, then sets `main` to the stable version through a rebase-merged PR. That sync carries only the version: every fix on the release branch is a cherry-pick already on `main`. Replaying the whole branch instead stopped applying once `main` had moved on, and left `main` at 2.0.0 after v2.1.0 (#1312). A commit found on the release branch alone fails the step with its name, after the version sync. The build publishes signed/notarized artifacts when Apple credentials are complete; publication with `OPENSCREEN_RELEASE_TOKEN` emits the event that starts stable Homebrew, WinGet, Nix, and AUR workflows.
 
@@ -58,7 +57,7 @@ The branch **stays around** indefinitely: it is the frozen history of the releas
 
 This contract exists because of the **v1.6.0 incident (2026-07-05)**: the original `promote.yml` checked out `main`, so the stable tag captured the post-RC tip of `main` rather than the RC snapshot. Twenty-three commits (Tiptap, NotesWindow, an in-recorder lint button, AI handoff) shipped in v1.6.0 without ever having been in v1.6.0-rc.1. The re-release the same day used `release/v1.6.0` and cherry-picked only the commits that were genuinely safe.
 
-Day-to-day branching, PR, and review procedure is maintained in [the operational git workflow](../../.harness/docs/git-workflow.md).
+Day-to-day branching and PR conventions are in [`AGENTS.md`](../../AGENTS.md#pr--commit-conventions).
 
 ### Manual fallback
 
@@ -67,7 +66,7 @@ When the dispatch UI is unavailable, the release can be cut from a shell. Set th
 ```bash
 RC=1.5.0-rc.1                          # bump the rc.N for every later candidate
 
-# Cut RC (skips milestone migration and Discord announce)
+# Cut RC (skips milestone migration)
 git checkout -b release/v1.5.0 main    # rc.2+: git checkout release/v1.5.0 instead
 node .github/scripts/set-release-version.mjs "$RC"
 bash .github/scripts/refresh-nix-npm-hash.sh   # needs Nix; the lockfile version is in the hash
@@ -79,7 +78,7 @@ gh workflow run build.yml --ref "v$RC" -f release_tag="v$RC" -f arch=both   # [s
 # STOP: promote only once that build published the RC and it passed the
 # whole manual e2e checklist (see "Promote to stable" above).
 
-# Promote (skips milestone close and Discord announce)
+# Promote (skips milestone close)
 git checkout release/v1.5.0
 node .github/scripts/set-release-version.mjs 1.5.0
 bash .github/scripts/refresh-nix-npm-hash.sh
@@ -90,7 +89,7 @@ git tag v1.5.0 && git push origin v1.5.0
 
 A tag pushed with your own credentials fires `build.yml`'s `push:` trigger, **except** when the tagged commit says `[skip ci]`, and the bump commits above do. So the block above dispatches the RC build itself; after the promote, dispatch the stable one the same way: `gh workflow run build.yml --ref v1.5.0 -f release_tag=v1.5.0 -f arch=both`. Do not dispatch the RC again: a second build re-uploads its assets with `--clobber` over the tested ones. That is how `v2.3.0-rc.1` was built.
 
-The fallback skips milestone migration/closure, release-branch automation, main synchronization, and Discord announcements, so the operator must preserve the freeze and the version/tag match by hand.
+The fallback skips milestone migration/closure, release-branch automation, and main synchronization, so the operator must preserve the freeze and the version/tag match by hand.
 
 ### Backports / patch on a previous line
 
@@ -108,7 +107,7 @@ No new workflow code is needed; the tag-pushed trigger is branch-agnostic.
 - **Daily state**: issues/PRs accumulate in the rolling `Next Release` milestone. `merged-pr-bookkeeping.yml` adds them automatically on PR merge; maintainers can also drag issues in by hand.
 - **At RC cut**: `prerelease.yml` snapshots `Next Release` into a versioned `vX.Y.Z` milestone. The rolling milestone is left open and empty for new work.
 - **Between RC cut and promote**: any PR that merges during the RC window lands back in the empty `Next Release`. It is **not** retroactively added to `vX.Y.Z`. If a critical fix lands, cut `vX.Y.Z-rc.(N+1)` instead of promoting.
-- **At promote**: `promote.yml` closes the `vX.Y.Z` milestone and uses its closed issues to populate the Discord release announcement.
+- **At promote**: `promote.yml` closes the `vX.Y.Z` milestone.
 
 ## Release environment
 
@@ -118,7 +117,7 @@ Write access merges code; it does not reach the release credentials or run the r
 - **The `release-tags` ruleset** stops anyone but the owner and `github-actions[bot]` from moving or deleting a `v*` tag. Creating one stays open, because `promote.yml` pushes the stable tag with `GITHUB_TOKEN` (see above) and the GitHub Actions app cannot be a bypass actor of a repository ruleset. A stray tag publishes nothing: the build it starts still waits for approval.
 - **The `release-branches` ruleset** reserves `release/*` to the owner, so the frozen branch only moves through the owner or the token.
 
-Each job that reads a release credential declares `environment: release`: `prerelease`, `promote`, `build-macos`, `publish-release` and `publish-msstore` in `build.yml`, `publish-msstore.yml`, `publish-winget.yml`, `aur-publish.yml`, `update-homebrew-cask.yml` and `announce-release.yml`. A new job that needs one must declare it too, or it reads an empty value. Set or rotate a release secret with `gh secret set <NAME> --env release --repo getopenscreen/openscreen`, which prompts for the value. Variables (`AUR_PACKAGE_NAME`, `HOMEBREW_TAP_*`, the Discord channel IDs) stay repository variables: job-level `if:` conditions read them before the environment loads.
+Each job that reads a release credential declares `environment: release`: `prerelease`, `promote`, `build-macos`, `publish-release` and `publish-msstore` in `build.yml`, `publish-msstore.yml`, `publish-winget.yml`, `aur-publish.yml` and `update-homebrew-cask.yml`. A new job that needs one must declare it too, or it reads an empty value. Set or rotate a release secret with `gh secret set <NAME> --env release --repo getopenscreen/openscreen`, which prompts for the value. Variables (`AUR_PACKAGE_NAME`, `HOMEBREW_TAP_*`) stay repository variables: job-level `if:` conditions read them before the environment loads.
 
 **What it does not stop.** GitHub's write role can still create, edit and attach assets to a release by hand, and GitHub has no role that merges pull requests without also allowing that. Such a release is unsigned and starts no package publication without approval, but it is still a public release.
 
@@ -213,22 +212,6 @@ It exists because `build.yml`'s own job has no usable retry. Re-running the fail
 **`dry_run: true` is the only safe way to test this path.** It passes `-nc, --noCommit`, which creates the submission and leaves it in draft instead of sending it to certification. Without it — and this is what `build.yml` does — `msstore publish` commits, so a dispatch fired "just to see whether the `.appx` is accepted" puts a build in front of users. Validate with the dry run first; submit for real only once it comes back clean.
 
 Rotate by issuing a new client secret on the Entra registration, updating `AZURE_AD_APPLICATION_SECRET`, publishing one release to confirm, then deleting the old secret. The tenant, client and seller IDs change only when the registration or account does.
-
-## Discord secrets and variables
-
-| Name | Kind | Used for |
-|---|---|---|
-| `DISCORD_BOT_TOKEN` | Secret | RC/stable announcements, PR forum sync, roadmap sync, and weekly leaderboard posts. |
-| `DISCORD_REVIEWER_ROLE_ID` | Secret | Role mention used by PR-to-Discord synchronization. |
-| `DISCORD_RC_TESTING_CHANNEL_ID` | Variable | RC announcement destination. |
-| `DISCORD_RELEASE_CHANNEL_ID` | Variable | Stable announcement destination. |
-| `DISCORD_PR_FORUM_CHANNEL_ID` | Variable | Forum that receives PR threads. |
-| `DISCORD_ALERT_CHANNEL_ID` | Variable | Optional alert destination for PR sync failures. |
-| `DISCORD_ROADMAP_CHANNEL_ID` | Variable | Channel containing the synchronized roadmap message. |
-| `DISCORD_ROADMAP_MESSAGE_ID` | Variable | Optional explicit message override; pin discovery is otherwise used. |
-| `DISCORD_SPOTLIGHT_CHANNEL_ID` | Variable | Weekly leaderboard destination. |
-
-The bot token comes from a Discord application authorized with the `bot` scope. Grant only the channel permissions each automation needs: View Channel, Send Messages, Embed Links, Create Public Threads and Send Messages in Threads for forum use, Manage Threads for forum state, and Manage Messages when roadmap pinning is required. Rotate by resetting the bot token in the Discord developer portal, updating `DISCORD_BOT_TOKEN`, testing a non-release post/sync, then invalidating the old token automatically through the reset. Channel and role IDs are identifiers rather than credentials; update their repository variable/secret when channels or roles are replaced.
 
 ## Package registry credentials and variables
 

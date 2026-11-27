@@ -3,19 +3,12 @@
 #   compositor/            la bibliothèque : D3D11, pipeline, effets HLSL, scène, curseur, audio,
 #                          vue live. C'est du code de PRODUCTION — l'addon Electron s'y lie.
 #   compositor-view-napi/  l'addon napi-rs empaqueté dans l'app (compositor_view.node).
-#   poc-d3d/               le POC d'origine (GUI Win32 de preview/export + bench fps). Rien ici
-#                          n'est packagé ; il est conservé comme banc de mesure et pièce d'époque.
 #
-# Le tout vivait sous `poc-d3d/`, ce qui laissait croire que la bibliothèque était jetable alors
-# que l'app en dépend : un `.node` périmé s'est ainsi retrouvé packagé sans que personne tique.
 # Les dépendances communes sont déclarées ici une seule fois plutôt que recopiées par crate.
 
 [workspace]
 resolver = "2"
-members = ["compositor", "compositor-view-napi", "poc-d3d"]
-# `cargo build` (x.bat) ne construit que le POC ; l'addon se build explicitement
-# (`cargo build -p compositor-view-napi`), comme avant le découpage.
-default-members = ["poc-d3d"]
+members = ["compositor", "compositor-view-napi"]
 
 [workspace.package]
 version = "0.0.0"
@@ -68,13 +61,13 @@ features = [
     "Win32_Graphics_Direct2D",       # cible de rendu D2D sur surface DXGI (texte, text.rs)
     "Win32_Graphics_Direct2D_Common", # D2D1_COLOR_F / PIXEL_FORMAT
     "Win32_Graphics_DirectWrite",    # mise en page + rastérisation du texte
-    "Win32_Graphics_Gdi",            # brosses/police GUI de la preview (poc-d3d/src/app.rs)
+    "Win32_Graphics_Gdi",            # HBRUSH de la fenêtre du harnais live (live.rs)
     "Win32_Security",                # IDXGIResource1::CreateSharedHandle (shared_frames.rs)
     "Win32_System_Performance",      # QueryPerformanceCounter / Frequency (§10)
     "Win32_System_LibraryLoader",    # GetModuleHandleW (hInstance)
-    "Win32_UI_WindowsAndMessaging",  # fenêtres (harnais live + GUI du POC)
-    "Win32_UI_Controls",             # barre de progression (poc-d3d/src/app.rs)
-    "Win32_UI_Input_KeyboardAndMouse", # EnableWindow (poc-d3d/src/app.rs)
+    "Win32_UI_WindowsAndMessaging",  # fenêtres (harnais live)
+    "Win32_UI_Controls",             # hérité de la GUI du POC (retiré) ; plus aucun appelant
+    "Win32_UI_Input_KeyboardAndMouse", # hérité de la GUI du POC (retiré) ; plus aucun appelant
 ]
 
 [profile.release]

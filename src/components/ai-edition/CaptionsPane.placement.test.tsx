@@ -11,7 +11,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { getCaptionSettings } from "@/lib/ai-edition/captions";
 import type { AxcutAsset, AxcutDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -89,11 +88,7 @@ function show(captions: Record<string, unknown>) {
 		error: null,
 		dirty: false,
 	});
-	render(
-		<I18nProvider>
-			<CaptionsPane />
-		</I18nProvider>,
-	);
+	render(<CaptionsPane />);
 	return getCaptionSettings(document);
 }
 

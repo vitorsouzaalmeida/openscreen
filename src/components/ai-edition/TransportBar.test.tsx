@@ -4,7 +4,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { ShortcutsProvider } from "@/contexts/ShortcutsContext";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { getPreviewPerformance, setPreviewPerformance } from "@/native/previewPerformanceStore";
@@ -22,11 +21,9 @@ class StubResizeObserver {
 
 function providers(children: ReactNode) {
 	return (
-		<I18nProvider>
-			<ShortcutsProvider>
-				<TooltipProvider>{children}</TooltipProvider>
-			</ShortcutsProvider>
-		</I18nProvider>
+		<ShortcutsProvider>
+			<TooltipProvider>{children}</TooltipProvider>
+		</ShortcutsProvider>
 	);
 }
 

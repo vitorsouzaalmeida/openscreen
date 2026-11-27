@@ -8,8 +8,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { parseCssGradient } from "@/lib/exporter/gradientParser";
 import { WallpaperPicker } from "./RightPanes";
 
@@ -27,7 +25,6 @@ beforeAll(() => {
 
 beforeEach(() => {
 	localStorage.clear();
-	localStorage.setItem(LOCALE_STORAGE_KEY, "en");
 });
 
 afterEach(() => {
@@ -40,17 +37,15 @@ function renderPicker(value: string) {
 	const onLiveChange = vi.fn();
 	const onCommit = vi.fn();
 	render(
-		<I18nProvider>
-			<WallpaperPicker
-				value={value}
-				hasDocument
-				onChange={onChange}
-				onLiveChange={onLiveChange}
-				onCommit={onCommit}
-				onPickFile={() => undefined}
-				updateNativeBackground={false}
-			/>
-		</I18nProvider>,
+		<WallpaperPicker
+			value={value}
+			hasDocument
+			onChange={onChange}
+			onLiveChange={onLiveChange}
+			onCommit={onCommit}
+			onPickFile={() => undefined}
+			updateNativeBackground={false}
+		/>,
 	);
 	return { onChange, onLiveChange, onCommit };
 }
@@ -66,20 +61,16 @@ describe("tabs", () => {
 			updateNativeBackground: false,
 		};
 		const { rerender } = render(
-			<I18nProvider>
-				<TooltipProvider>
-					<WallpaperPicker value="/wallpapers/wallpaper11.jpg" {...props} />
-				</TooltipProvider>
-			</I18nProvider>,
+			<TooltipProvider>
+				<WallpaperPicker value="/wallpapers/wallpaper11.jpg" {...props} />
+			</TooltipProvider>,
 		);
 		expect(screen.getByRole("tab", { name: "Image" })).toHaveAttribute("aria-selected", "true");
 
 		rerender(
-			<I18nProvider>
-				<TooltipProvider>
-					<WallpaperPicker value="#1e293b" {...props} />
-				</TooltipProvider>
-			</I18nProvider>,
+			<TooltipProvider>
+				<WallpaperPicker value="#1e293b" {...props} />
+			</TooltipProvider>,
 		);
 		expect(screen.getByRole("tab", { name: "Color" })).toHaveAttribute("aria-selected", "true");
 	});
@@ -142,11 +133,7 @@ function Stateful({ initial, onLive }: { initial: string; onLive: (v: string) =>
 describe("typing a hex in a Custom row", () => {
 	function typeHex(button: string, initial: string, text: string) {
 		const onLive = vi.fn();
-		render(
-			<I18nProvider>
-				<Stateful initial={initial} onLive={onLive} />
-			</I18nProvider>,
-		);
+		render(<Stateful initial={initial} onLive={onLive} />);
 		fireEvent.click(screen.getByRole("button", { name: button }));
 		const input = screen.getByRole("textbox", { name: "Color wheel" }) as HTMLInputElement;
 		fireEvent.change(input, { target: { value: text } });

@@ -75,7 +75,7 @@ jobs:
           # This job compiles third-party source in the same workspace. Leaving the
           # token in .git/config would put it within reach of ONNX Runtime's own build
           # scripts — and this workflow holds `attestations: write`. Same setting
-          # build.yml, docs.yml and nix-build.yml already use.
+          # build.yml and nix-build.yml already use.
           persist-credentials: false
 
       - name: Read the pinned version from fetch-onnxruntime.mjs

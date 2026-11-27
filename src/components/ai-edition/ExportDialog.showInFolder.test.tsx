@@ -24,7 +24,6 @@ vi.mock("@/native/sceneDescription", () => ({
 }));
 
 import { toast } from "sonner";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { type AxcutDocument, axcutSchemaVersion } from "@/lib/ai-edition/schema";
 import { ExportDialog } from "./ExportDialog";
 
@@ -96,11 +95,7 @@ function stubElectronAPI(reveal: () => Promise<unknown>) {
 
 /** Runs an export to completion and hands back the done panel's reveal button. */
 async function exportAndFindRevealButton() {
-	render(
-		<I18nProvider>
-			<ExportDialog open={true} onClose={noop} document={DOC} />
-		</I18nProvider>,
-	);
+	render(<ExportDialog open={true} onClose={noop} document={DOC} />);
 	fireEvent.click(screen.getByRole("button", { name: /export mp4/i }));
 	return await screen.findByTestId("export-show-in-folder");
 }

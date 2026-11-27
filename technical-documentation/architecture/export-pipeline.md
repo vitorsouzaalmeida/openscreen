@@ -172,14 +172,14 @@ and **one** encoder + muxer pair:
   (which logs the original error and redacts paths), and `NativeBridgeRequestError`
   to `ExportDialog`. The dialog uses
   [`exportErrorMessage`](../../src/components/ai-edition/exportError.ts) to present
-  these known frame/source/validation failures through the existing `editor`
-  translations in all supported locales, in both the error panel and notification.
+  these known frame/source/validation failures as friendly copy from the `editor`
+  string catalog, in both the error panel and notification.
   Decoder context remains in the main-process log; unknown errors retain their
   original bridge message. Cancellation still returns to the export options
   without an error notification. The bridge currently carries error text, so
   the presentation adapter's contract tests check the native wording as well as
-  localized messages and clip placeholders. Developer-only timeline warnings
-  are not translated.
+  the presented messages and clip placeholders. Developer-only timeline warnings
+  are passed through as they are.
 
 - **Imported audio tracks** (voiceover / BGM / SFX, issue #350) are mixed
   on top of the assembled programme by `audio.rs::mix_external_tracks`,

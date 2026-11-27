@@ -42,7 +42,7 @@ export function offersStarPrompt(state: StarPromptState): boolean {
  *  menu and the export prompt cannot drift to three different links. */
 export const REPO_URL = "https://github.com/getopenscreen/openscreen";
 
-/** The Store listing this app ships under: the same id in the website's Store link and in the
+/** The Store listing this app ships under: the same id as in the
  *  `winget install --source msstore` command the README recommends. */
 export const MS_STORE_PRODUCT_ID = "9MXQ1HQJL5G5";
 

@@ -8,7 +8,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutAsset, AxcutClip } from "@/lib/ai-edition/schema";
 import type { TranscriptGateReason } from "@/lib/ai-edition/transcription/status";
 import { TranscriptPane } from "./RightPanes";
@@ -46,26 +45,24 @@ function renderPane(
 	} = {},
 ) {
 	return render(
-		<I18nProvider>
-			<TranscriptPane
-				clips={CLIPS}
-				audioTracks={[]}
-				transcripts={[]}
-				assets={[ASSET]}
-				trimRanges={[]}
-				busyAssetIds={[]}
-				onSeek={vi.fn()}
-				onTrimTimelineSpan={vi.fn()}
-				onRemoveTrimRanges={vi.fn()}
-				onSetWordText={vi.fn()}
-				onInsertWord={vi.fn()}
-				onRemoveWords={vi.fn()}
-				onTranscribe={vi.fn()}
-				canTranscribe
-				isTranscribing={overrides.isTranscribing ?? false}
-				blocked={overrides.blocked}
-			/>
-		</I18nProvider>,
+		<TranscriptPane
+			clips={CLIPS}
+			audioTracks={[]}
+			transcripts={[]}
+			assets={[ASSET]}
+			trimRanges={[]}
+			busyAssetIds={[]}
+			onSeek={vi.fn()}
+			onTrimTimelineSpan={vi.fn()}
+			onRemoveTrimRanges={vi.fn()}
+			onSetWordText={vi.fn()}
+			onInsertWord={vi.fn()}
+			onRemoveWords={vi.fn()}
+			onTranscribe={vi.fn()}
+			canTranscribe
+			isTranscribing={overrides.isTranscribing ?? false}
+			blocked={overrides.blocked}
+		/>,
 	);
 }
 

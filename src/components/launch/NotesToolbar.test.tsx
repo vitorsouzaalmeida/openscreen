@@ -3,21 +3,13 @@ import "@testing-library/jest-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Editor } from "@tiptap/react";
-import { type ReactNode, useLayoutEffect, useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider, useI18n } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { NotesToolbar, type NotesToolbarProps } from "./NotesToolbar";
 
 vi.mock("@/components/ui/tooltip", () => ({
 	Tooltip: ({ children }: { children: React.ReactNode }) => children,
 }));
-
-beforeEach(() => {
-	// `setLocale` persists its choice, and `I18nProvider` reads it back on mount — without
-	// this, the one test that switches language would leak into every test after it.
-	localStorage.removeItem(LOCALE_STORAGE_KEY);
-});
 
 function createEditor(): Editor {
 	const chain: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -62,24 +54,8 @@ function createProps(overrides: Partial<NotesToolbarProps> = {}): NotesToolbarPr
 	};
 }
 
-function ActiveLocale({ children, locale }: { children: ReactNode; locale: string }) {
-	const { setLocale } = useI18n();
-
-	useLayoutEffect(() => {
-		setLocale(locale);
-	}, [locale, setLocale]);
-
-	return children;
-}
-
-function renderToolbar(props: NotesToolbarProps, locale = "en") {
-	return render(
-		<I18nProvider>
-			<ActiveLocale locale={locale}>
-				<NotesToolbar {...props} />
-			</ActiveLocale>
-		</I18nProvider>,
-	);
+function renderToolbar(props: NotesToolbarProps) {
+	return render(<NotesToolbar {...props} />);
 }
 
 describe("NotesToolbar teleprompter controls", () => {
@@ -125,11 +101,7 @@ describe("NotesToolbar teleprompter controls", () => {
 		expect(screen.getByRole("button", { name: "Decrease scroll speed" })).toBeDisabled();
 		expect(screen.getByRole("button", { name: "Decrease font size" })).toBeDisabled();
 
-		rerender(
-			<I18nProvider>
-				<NotesToolbar {...createProps({ speed: 100, fontSize: 48 })} />
-			</I18nProvider>,
-		);
+		rerender(<NotesToolbar {...createProps({ speed: 100, fontSize: 48 })} />);
 		expect(screen.getByRole("button", { name: "Increase scroll speed" })).toBeDisabled();
 		expect(screen.getByRole("button", { name: "Increase font size" })).toBeDisabled();
 	});
@@ -146,11 +118,7 @@ describe("NotesToolbar teleprompter controls", () => {
 			"aria-pressed",
 		);
 
-		rerender(
-			<I18nProvider>
-				<NotesToolbar {...createProps({ isPlaying: true, formattingDisabled: true })} />
-			</I18nProvider>,
-		);
+		rerender(<NotesToolbar {...createProps({ isPlaying: true, formattingDisabled: true })} />);
 		expect(screen.getByRole("button", { name: "Pause auto-scroll" })).not.toHaveAttribute(
 			"aria-pressed",
 		);
@@ -177,17 +145,6 @@ describe("NotesToolbar teleprompter controls", () => {
 		expect(screen.getByRole("button", { name: "Decrease scroll speed" })).toBeEnabled();
 		expect(screen.getByRole("button", { name: "Increase font size" })).toBeEnabled();
 	});
-
-	it("formats readout values for the active locale", () => {
-		renderToolbar(createProps(), "ar");
-		const speed = within(screen.getByRole("group", { name: "سرعة التمرير" })).getByRole("status");
-		const fontSize = within(screen.getByRole("group", { name: "حجم الخط" })).getByRole("status");
-
-		expect(speed).not.toHaveAccessibleName();
-		expect(speed).toHaveTextContent(`${new Intl.NumberFormat("ar").format(40)} بكسل/ثانية`);
-		expect(fontSize).not.toHaveAccessibleName();
-		expect(fontSize).toHaveTextContent(`${new Intl.NumberFormat("ar").format(16)} بكسل`);
-	});
 });
 
 function ToolbarHarness() {
@@ -210,11 +167,7 @@ function ToolbarHarness() {
 describe("NotesToolbar keyboard reachability", () => {
 	it("walks every teleprompter control in order and toggles them from the keyboard", async () => {
 		const user = userEvent.setup();
-		const { container } = render(
-			<I18nProvider>
-				<ToolbarHarness />
-			</I18nProvider>,
-		);
+		const { container } = render(<ToolbarHarness />);
 
 		const row = container.querySelector<HTMLElement>('[data-testid="notes-teleprompter-controls"]');
 		const controls = Array.from(

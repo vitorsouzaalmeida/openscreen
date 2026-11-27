@@ -6,7 +6,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutDocument } from "@/lib/ai-edition/schema";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -17,11 +16,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.f
 function mount(legacy: Record<string, unknown>) {
 	const base = createEmptyDocument({ title: "T", projectId: "p1" });
 	useProjectStore.setState({ document: { ...base, legacyEditor: legacy } as AxcutDocument });
-	render(
-		<I18nProvider>
-			<VideoEffectsPane />
-		</I18nProvider>,
-	);
+	render(<VideoEffectsPane />);
 	return screen.getByRole("slider", { name: "Roundness" });
 }
 

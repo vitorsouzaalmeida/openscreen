@@ -162,7 +162,7 @@ rustPlatform.buildRustPackage {
     export FFMPEG_DIR="$stage"
   '';
 
-  # poc-d3d is in the workspace and is Direct3D, so it must not be built here.
+  # Only the addon: the workspace's other member is the library it links.
   cargoBuildFlags = [
     "-p"
     "compositor-view-napi"

@@ -2,7 +2,6 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { DEFAULT_TEXT_PLATE } from "../annotations/background";
 import { layoutRuns } from "../document/layout";
 import { type RegionKind, readSpeedRegions } from "../document/timeline";
@@ -14,12 +13,7 @@ import { clearHistory, redo, undo } from "./undo";
 import { future, past } from "./undoStack";
 import { useTimeline } from "./useTimeline";
 
-/**
- * `useTimeline` reads the locale — `addAnnotation` seeds a new region with the
- * translated default text — so it needs the provider. One helper rather than a
- * wrapper argument on every call site.
- */
-const renderTimeline = () => renderHook(() => useTimeline(), { wrapper: I18nProvider });
+const renderTimeline = () => renderHook(() => useTimeline());
 
 const probeVideoDurationMock = vi.hoisted(() => vi.fn());
 const probeVideoDimensionsMock = vi.hoisted(() =>
@@ -1450,7 +1444,7 @@ describe("useTimeline.addAnnotation", () => {
 		// Real text, not an empty field. An empty annotation renders nothing at
 		// all, so adding one used to change nothing on the canvas; the
 		// inspector's placeholder is CSS ghost text that never reaches `content`
-		// and therefore never reached the compositor. DEFAULT_LOCALE is `en`.
+		// and therefore never reached the compositor.
 		expect(annotations[0]).toMatchObject({ type: "text", content: "Hello" });
 		// Still auto-selected, so its inspector opens ready to be typed over.
 		expect(result.current.selection).toEqual({
@@ -2186,13 +2180,10 @@ describe("useTimeline is not re-rendered by playhead ticks", () => {
 
 	it("does not re-render across a second of 60 Hz playhead writes", () => {
 		let renders = 0;
-		renderHook(
-			() => {
-				renders++;
-				return useTimeline();
-			},
-			{ wrapper: I18nProvider },
-		);
+		renderHook(() => {
+			renders++;
+			return useTimeline();
+		});
 		const baseline = renders;
 
 		// One act() per write: a single batched act() would collapse all 60 into one

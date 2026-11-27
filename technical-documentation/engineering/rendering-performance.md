@@ -41,7 +41,9 @@ The direction is thermal-robust: absolute fps drifts with the passive iGPU's boo
 
 ### Measuring it today
 
-The live harness is the one in `crates/`, not the deleted `npm run bench:export`:
+The harness was the `poc-d3d` crate (`x.bat run`), which replaced `npm run bench:export`.
+**That crate has since been removed from the repository**, so the `x.bat run … --cfg` commands
+on this page no longer run on this tree. They stay as the record of how each number was taken:
 
 ```bash
 x.bat run --release -- --cfg C0..C8 --fixture fixture --repeat 3 --out out/
@@ -65,7 +67,7 @@ It writes `out/C{0..8}.mp4` (1080p60, 360 frames), frame PNGs at 60/180/300, `ou
 
 #### One admissible run — 2026-07-27
 
-Reference machine, `--repeat 3`, one full C0..C8 warm-up sweep discarded first, fixture regenerated from the frozen manifest (`-c copy`, bitstream untouched). Every config passes the protocol's < 15 % spread gate. `fps` is the harness's **best of 3**, not a median — it reports `best` and derives spread from best-vs-worst ([`bench.rs:105`](../../crates/poc-d3d/src/bench.rs)).
+Reference machine, `--repeat 3`, one full C0..C8 warm-up sweep discarded first, fixture regenerated from the frozen manifest (`-c copy`, bitstream untouched). Every config passes the protocol's < 15 % spread gate. `fps` is the harness's **best of 3**, not a median — it reports `best` and derives spread from best-vs-worst (`bench.rs:105` in the removed `poc-d3d` crate).
 
 | cfg | adds | fps | ms/f | Δ ms/f | spread |
 |---|---|---:|---:|---:|---:|
@@ -892,7 +894,7 @@ Unit tests never look at a pixel. The `native*` arms write real files: export th
 > us on CPU regardless. Writing it in pure Rust skips a swscale
 > round-trip and keeps the readback / quantize / LZW layers
 > auditable in one file. See [`crates/compositor/src/gif_export.rs`](../../crates/compositor/src/gif_export.rs) for
-> the implementation, [`crates/poc-d3d/src/bench.rs`](../../crates/poc-d3d/src/bench.rs) for the bench.
+> the implementation; the bench was `bench.rs` in the since-removed `poc-d3d` crate.
 >
 > **No prior `gif.js` baseline is documented in this file.** The browser-side
 > `npm run bench:export` that measured `gif.js` (Canvas2D compositor +
@@ -909,8 +911,8 @@ Unit tests never look at a pixel. The `native*` arms write real files: export th
 > is exercised through the same harness, and a follow-up PR will pick
 > that up.
 
-The slice-1 bench lives at `--cfg GIF` on the existing
-`crates/poc-d3d/src/bench.rs` (the same C0..C8 harness, just a separate
+The slice-1 bench lived at `--cfg GIF` on `bench.rs` of the since-removed
+`poc-d3d` crate (the same C0..C8 harness, just a separate
 mode). It drives `compositor::export_gif` end-to-end on the fixture
 (`fixture/screen.mp4` + `fixture/webcam.mp4` + `fixture/screen.cursor.json`,
 360 frames at 60 fps = 6 s source), defaulting to 854×480 / 12 fps /
@@ -954,7 +956,7 @@ the bench runs on the reference machine.
 - **The macOS preview's decode backend has never been measured.** `DecodeIntent` splits preview from export precisely so the preview could keep the old arbitration; the export won on throughput, but the preview scrubs, where seek latency after `avcodec_flush_buffers` may matter more, and it shares the machine with the editor UI. Changing it without measuring it would be the same mistake the export change corrects.
 - **The energy cost of software decode on macOS is unmeasured, and the CPU figure is not a proxy for it.** The export burns 3.5× the **CPU-seconds** it used to (8.4 → 29.8 s), and that is the only thing measured. It does not follow that energy moved by the same factor: on an M-series the P and E cores draw very differently, clock is not fixed, and a shorter run at higher occupancy can spend less total energy than a longer one — racing to idle. Nor is the jump waste: VideoToolbox does the same decoding in a fixed-function block that CPU accounting never sees, so the work did not grow, it moved somewhere visible and got 12× faster on the way. Capping the decoder's threads does **not** recover it (see Rejected routes); what it would buy is lower peak core occupancy — how unusable the machine feels during an export — which is a different question and also unmeasured. `powermetrics` would answer the energy half and needs sudo.
 - **The C0→C8 table rests on one run, on one machine.** [Recorded above](#one-admissible-run--2026-07-27) and admissible on its own gate, but a single sweep: the C5–C7 plateau is the part most likely to move under a second run, since the layers it prices are individually smaller than the machine's own noise. A repeat on a cool machine — and on the discrete-GPU box that is [owed anyway](#known-gaps) — would settle whether those three are genuinely free or merely under the floor.
-- **The fixture media is not versioned, and its cursor track has no provenance entry.** `crates/fixture/fixture.json` documents the exact `-c copy` cuts for `screen.mp4` and `webcam.mp4` (which is what made the run above reproducible), but says nothing about `screen.cursor.json`, which C7 needs. It happens to be the raw, uncut `.cursor.json` beside the origin recording — the loader windows it itself at `offset 100_000 ms, 6 s` ([`bench.rs:70`](../../crates/poc-d3d/src/bench.rs)), matching the manifest's `cut_offset_s: 100`. That is recoverable by reading the code, not by reading the manifest; the manifest should carry it.
+- **The fixture media is not versioned, and its cursor track has no provenance entry.** `crates/fixture/fixture.json` documents the exact `-c copy` cuts for `screen.mp4` and `webcam.mp4` (which is what made the run above reproducible), but says nothing about `screen.cursor.json`, which C7 needs. It happens to be the raw, uncut `.cursor.json` beside the origin recording — the loader windows it itself at `offset 100_000 ms, 6 s` (`bench.rs:70` in the removed `poc-d3d` crate), matching the manifest's `cut_offset_s: 100`. That is recoverable by reading the code, not by reading the manifest; the manifest should carry it.
 - **One bench fixture is still corrupt, from a bug since fixed.** Two concurrent saves used to be able to interleave and truncate a project file, which destroyed at least two real ones (a valid JSON prefix followed by the tail of a longer version). `proj_de6ffaaa` (`os_parity`) is still in that state — 4006 bytes, 3485 of them valid JSON — with a byte-exact backup beside it (`*.corrupt-backup-20260716`); recovery is mechanical (truncate to the 3485-byte prefix). The bug itself is gone: `DocumentService` now serialises saves through a per-project write queue and writes atomically (unique temp file → `fsync` → rename), which is why Gate G0 was run on `proj_5b3ac6bc` instead. The reference project for M1–M4 is `proj_a7468696`.
 - **A discrete-GPU and Intel QSV run is owed** (G3). Every number in this record is from a single iGPU laptop. A hybrid-GPU laptop (Intel iGPU + NVIDIA dGPU; AMD APU + AMD dGPU) is the case that must be measured and adapter-pinned before any native number is trusted there: if decode, composite and encode land on **different** adapters, the single-device zero-copy assumption breaks and a cross-adapter copy through system RAM / PCIe is forced — a descent in disguise, reintroducing exactly the wall this architecture removes.
 - **Shadow-on-GPU spike.** Reimplement the exact 3-pass cascade (the SVG `feGaussianBlur` for the project's radii) in a shader, pixel-diffed against the Canvas2D output. Falsifiable: if the GPU and Canvas2D outputs do not match, the claim is wrong. Skia's real path may not follow the spec's letter. The product call (2026-07-17) that a moving camera is the norm is what makes this the remaining lever on heavy timelines.

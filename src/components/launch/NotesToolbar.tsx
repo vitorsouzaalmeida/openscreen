@@ -13,9 +13,9 @@ import {
 	Quote,
 	Strikethrough,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useReducer } from "react";
+import { type ReactNode, useEffect, useReducer } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useI18n, useScopedT } from "@/contexts/I18nContext";
+import { useScopedT } from "@/contexts/I18nContext";
 import { cn } from "@/lib/utils";
 import {
 	MAX_NOTES_FONT_SIZE,
@@ -23,6 +23,8 @@ import {
 	MIN_NOTES_FONT_SIZE,
 	MIN_TELEPROMPTER_SPEED,
 } from "./notesTeleprompter";
+
+const numberFormatter = new Intl.NumberFormat("en");
 
 export type NotesToolbarProps = {
 	editor: Editor | null;
@@ -123,10 +125,8 @@ export function NotesToolbar({
 	onToggleMirror,
 }: NotesToolbarProps) {
 	useEditorRevision(editor);
-	const { locale } = useI18n();
 	const t = useScopedT("launch");
 	const tCommon = useScopedT("common");
-	const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
 	// The icon swaps and the wording follows, so this is an action button, not a toggle: no
 	// `aria-pressed`. Two literal keys, so `npm run i18n:check` resolves both.
 	const playPauseLabel = isPlaying

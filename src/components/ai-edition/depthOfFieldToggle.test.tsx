@@ -5,7 +5,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutDocument } from "@/lib/ai-edition/schema";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -32,11 +31,7 @@ function documentWithZoom(rotationPreset?: "left"): AxcutDocument {
 
 function mount(doc: AxcutDocument) {
 	useProjectStore.setState({ document: doc });
-	render(
-		<I18nProvider>
-			<VideoEffectsPane />
-		</I18nProvider>,
-	);
+	render(<VideoEffectsPane />);
 	return screen.queryByRole("button", { name: "Depth of field" });
 }
 

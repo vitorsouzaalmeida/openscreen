@@ -15,7 +15,6 @@ import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import {
 	type AxcutAsset,
 	type AxcutClip,
@@ -129,11 +128,7 @@ describe("restoring a cut word with the mouse", () => {
 				/>
 			);
 		}
-		const view = render(
-			<I18nProvider>
-				<Harness />
-			</I18nProvider>,
-		);
+		const view = render(<Harness />);
 		return { ...view, onRemoveTrimRanges };
 	}
 
@@ -195,11 +190,7 @@ describe("restoring a cut word with Ctrl/Cmd+Z in the transcript", () => {
 			const trims = useProjectStore((s) => s.document?.timeline.trimRanges ?? []);
 			return <Pane trimRanges={trims} onRemoveTrimRanges={vi.fn()} />;
 		}
-		const view = render(
-			<I18nProvider>
-				<Harness />
-			</I18nProvider>,
-		);
+		const view = render(<Harness />);
 		const editor = view.getByRole("textbox");
 		// jsdom does not implement `isContentEditable`; a browser reports it for the block,
 		// and it is what used to hand the shortcut to the browser's text undo, which never

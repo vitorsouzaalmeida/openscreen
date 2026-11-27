@@ -236,7 +236,7 @@ electron/native/bin/linux-x64/openscreen-pipewire-helper '{"probeOnly":true}'
   sample is tagged `"click"`. Scope is deliberately narrow: `BTN_LEFT` only,
   never keystrokes (see `pipewire-capture/src/input.rs`), and
   `OPENSCREEN_DISABLE_CLICK_CAPTURE=1` turns it off entirely. User setup:
-  [Mouse clicks on Wayland](../../website/docs/installation.md#mouse-clicks-on-wayland).
+  [Mouse clicks on Wayland](https://getopenscreen.com/docs/installation/#mouse-clicks-on-wayland).
 - **Window takes keep the client-side shadow as a black border, and a window
   take in which the pointer never enters the window has no cursor data.** Both
   were observed on GNOME 46. The border comes from mutter's crop, which is the

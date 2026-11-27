@@ -11,8 +11,7 @@
 // finer than a week, and not an identifier. GeoIP is off on every event, and the PostHog
 // project discards IP addresses. The tool counts are a tool's name and a number: never an
 // argument, a path or anything a tool returned. They ride the daily ping, so counting adds no
-// connection. The website FAQ ("Does OpenScreen work offline?") and the privacy policy list
-// this payload; keep them in step.
+// connection.
 
 import { randomBytes, randomUUID } from "node:crypto";
 import {

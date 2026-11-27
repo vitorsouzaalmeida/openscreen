@@ -49,7 +49,7 @@ of those are local React state, with the document itself read through
 
 | Surface | Component file | What the user does there |
 |---|---|---|
-| **Top bar** | `src/components/ai-edition/v4/EditorTopBar.tsx` | Chooses the editor mode; opens / saves / renames the project; exports; switches theme and language. (`EditorTopBar` props in `NewEditorShell.tsx` `:1114-1130`.) |
+| **Top bar** | `src/components/ai-edition/v4/EditorTopBar.tsx` | Chooses the editor mode; opens / saves / renames the project; exports; switches theme. (`EditorTopBar` props in `NewEditorShell.tsx` `:1114-1130`.) |
 | **Stage — Edit mode** | `src/components/ai-edition/Preview.tsx` (mounted at `NewEditorShell.tsx` `:1180`) | Plays the timeline through the in-DOM preview; live drag of zoom focus and annotation position/size calls back into `useTimeline`; selection of an annotation id routes through `useTimeline.selectRegion`. |
 | **Stage — Media mode** | `src/components/ai-edition/v4/MediaStage.tsx` | Searches, adds, regenerates transcripts for the assets in the project. The variant that the timeline shows in this mode is "media" (timeline height, no lanes). |
 | **Stage — Rec mode** | `src/components/ai-edition/v4/RecStage.tsx` | Pre-flight config for a new recording — mic / camera / system audio / cursor capture mode — then hands off to the standalone recorder HUD window when the user hits record. |

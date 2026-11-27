@@ -182,7 +182,7 @@ export const HudDeviceSettings = memo(function HudDeviceSettings({
 									role="menuitemradio"
 									aria-checked={isActive}
 									onClick={() => onSelectMic(device)}
-									className={`${styles.languageMenuItem} ${isActive ? styles.languageMenuItemActive : ""}`}
+									className={`${styles.hudMenuItem} ${isActive ? styles.hudMenuItemActive : ""}`}
 								>
 									<span className="truncate">{device.label}</span>
 									{isActive ? <Check size={14} className="text-white/85" /> : null}
@@ -215,7 +215,7 @@ export const HudDeviceSettings = memo(function HudDeviceSettings({
 							role="menuitemradio"
 							aria-checked={isActive}
 							onClick={() => onSelectCamera(device)}
-							className={`${styles.languageMenuItem} ${isActive ? styles.languageMenuItemActive : ""}`}
+							className={`${styles.hudMenuItem} ${isActive ? styles.hudMenuItemActive : ""}`}
 						>
 							<span className="truncate">{device.label}</span>
 							{isActive ? <Check size={14} className="text-white/85" /> : null}
@@ -241,7 +241,7 @@ export const HudDeviceSettings = memo(function HudDeviceSettings({
 								aria-checked={isActive}
 								data-testid={`camera-quality-${quality}`}
 								onClick={() => onSelectCameraQuality(quality)}
-								className={`${styles.languageMenuItem} ${isActive ? styles.languageMenuItemActive : ""}`}
+								className={`${styles.hudMenuItem} ${isActive ? styles.hudMenuItemActive : ""}`}
 							>
 								<span className="truncate">{labels.cameraQualityOptions[quality]}</span>
 								{isActive ? <Check size={11} className="text-white/85" /> : null}

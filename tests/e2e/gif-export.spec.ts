@@ -22,7 +22,7 @@ async function launchApp(userDataDir: string, tmpDir: string) {
 			"--no-sandbox",
 			// Force software WebGL in headless CI to avoid GPU framebuffer errors.
 			"--enable-unsafe-swiftshader",
-			// The selectors below are the English accessible names, so pin the locale.
+			// Pins Chromium's own strings and number formats; the app's copy is English regardless.
 			"--lang=en-US",
 			`--user-data-dir=${userDataDir}`,
 		],

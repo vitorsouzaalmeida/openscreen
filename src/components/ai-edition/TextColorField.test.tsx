@@ -2,17 +2,12 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { TextColorField } from "./TextColorField";
 
 afterEach(cleanup);
 
 function renderOn(plate: string, onChange = vi.fn()) {
-	render(
-		<I18nProvider>
-			<TextColorField label="Text colour" value="#ffffff" plate={plate} onChange={onChange} />
-		</I18nProvider>,
-	);
+	render(<TextColorField label="Text colour" value="#ffffff" plate={plate} onChange={onChange} />);
 	return onChange;
 }
 

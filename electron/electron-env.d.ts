@@ -586,7 +586,6 @@ interface Window {
 		cliExportFileWrite: (data: Uint8Array, position: number) => Promise<void>;
 		cliExportFileCommit: () => Promise<void>;
 		onCliStopRecording: (callback: () => void) => () => void;
-		setLocale: (locale: string) => Promise<void>;
 		saveDiagnostic: (payload: {
 			error: string;
 			stack?: string;

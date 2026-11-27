@@ -55,7 +55,7 @@ import {
 	type WallpaperMotion,
 	type WebcamBackgroundMode,
 } from "@/components/video-editor/types";
-import { useI18n, useScopedT } from "@/contexts/I18nContext";
+import { useScopedT } from "@/contexts/I18nContext";
 import { resolveCaptionLane } from "@/lib/ai-edition/captions/settings";
 import {
 	AUDIO_FADE_MAX_MS,
@@ -2312,27 +2312,6 @@ function restoreCaretBeforeWord(editor: HTMLElement | null, wordId: string): voi
 // pulling the schema into the helpers block.
 export type { AxcutWord };
 
-/**
- * The catalog key for a count, by CLDR plural category.
- *
- * `translate` interpolates and nothing else, so each form is its own key. Selecting by
- * category rather than by `count === 1` is what makes French say "0 clip" — and, more to the
- * point, what lets a locale carry more than two forms at all: Russian needs "клипа" for 2–4
- * and "клипов" for 5+, so mapping everything that is not `one` onto a single plural produced
- * "2 клипов", which is simply wrong rather than merely coarse.
- *
- * Falls back to `fitClipMany` for any category a locale has not authored, so adding a form is
- * a catalog change and never a code change. Arabic still needs its `two`, `few` and `many`
- * forms — it has six categories and I could not verify the grammar, so it is deliberately
- * left on the fallback rather than filled in with a guess.
- */
-function pluralKey(locale: string, count: number): string {
-	const category = new Intl.PluralRules(locale).select(count);
-	return category === "one"
-		? "effects.fitClipOne"
-		: `effects.fitClip${category === "few" ? "Few" : "Many"}`;
-}
-
 // ─── Video Effects ─────────────────────────────────────────────────
 
 const RECORDING_FRAME_LABEL_KEYS: Record<RecordingFrame, string> = {
@@ -2409,8 +2388,8 @@ export function VideoEffectsPane() {
 	// dragging the slider: a clamped scroll on the way to 0, a scrollbar appearing on the way
 	// out of it.
 	const [scrubStartPadding, setScrubStartPadding] = useState<number | null>(null);
-	const { locale } = useI18n();
-	const clipCountLabel = (count: number) => ts(pluralKey(locale, count), { count });
+	const clipCountLabel = (count: number) =>
+		ts(count === 1 ? "effects.fitClipOne" : "effects.fitClipMany", { count });
 
 	// Le rayon natif = rayon de base de la fixture (~24px @1920) × cette échelle. Diviser la
 	// valeur px de l'UI par ce même rayon de base fait que le coin natif ≈ les px affichés
@@ -2428,9 +2407,7 @@ export function VideoEffectsPane() {
 		<Pane
 			title={ts("effects.title")}
 			icon={<Sliders size={16} />}
-			// Two complete sentences, one per merged half, rather than a third string to
-			// translate 13 times — both already exist in every locale and neither is a
-			// fragment of the other, so joining them survives translation and RTL alike.
+			// Two complete sentences, one per merged half, rather than a third string.
 			helpText={`${ts("background.help")} ${ts("effects.help")}`}
 		>
 			<BackgroundSection />

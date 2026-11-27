@@ -23,7 +23,6 @@ vi.mock("@/contexts/ShortcutsContext", async () => {
 });
 
 vi.mock("@/contexts/I18nContext", () => ({
-	useI18n: () => ({ locale: "en", setLocale: vi.fn() }),
 	useScopedT: () => (key: string) => key,
 }));
 

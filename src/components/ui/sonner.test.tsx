@@ -13,7 +13,6 @@ import path from "node:path";
 import { render, screen } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { Toaster } from "./sonner";
 
 afterEach(() => {
@@ -22,24 +21,15 @@ afterEach(() => {
 
 describe("Toaster", () => {
 	it("gives every toast a close button", async () => {
-		render(
-			<I18nProvider>
-				<Toaster />
-			</I18nProvider>,
-		);
+		render(<Toaster />);
 		toast("Export finished");
 		expect(await screen.findByText("Export finished")).toBeInTheDocument();
 		expect(await screen.findByRole("button", { name: /close notification/i })).toBeInTheDocument();
 	});
 
-	// Sonner's default label is the untranslated "Close toast", and a screen reader in any
-	// of the other twelve locales would hear it.
+	// Sonner's own default label is "Close toast"; the app names it from its own catalog.
 	it("labels it from the app's own strings, not sonner's default", async () => {
-		render(
-			<I18nProvider>
-				<Toaster />
-			</I18nProvider>,
-		);
+		render(<Toaster />);
 		toast.error("Could not export");
 		const close = await screen.findByRole("button", { name: /close notification/i });
 		expect(close).toHaveAttribute("data-close-button", "true");

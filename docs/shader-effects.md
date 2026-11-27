@@ -731,8 +731,6 @@ dans `mcpToolDeps`.
   d'effets (J) lui donnera un contenu.
 - **Le copier-coller** (`regionClipboard`) copie la région avec sa définition. Collée dans un
   autre projet, la définition y est recréée.
-- **Le site** (`website/scripts/gen-recreation.mjs`) recopie `LANE_ORDER` à la main. La nouvelle
-  piste n'y casse rien, et la recréation ne la montrera pas tant qu'on ne l'y ajoute pas.
 
 ### F.2 L'inspecteur
 
@@ -939,5 +937,4 @@ Chaque PR met à jour la documentation qu'elle rend fausse, dans le même change
 - `ai-agent.md`, dont le tableau d'outils annonce encore « 26 tools » ;
 - `mcp-server.md` ;
 - une ligne de [decisions.md](../technical-documentation/architecture/decisions.md) : WGSL et
-  naga 24, compilation hors du rendu, effet pur ;
-- et, à la PR 6, une page de `website/docs/`.
+  naga 24, compilation hors du rendu, effet pur.

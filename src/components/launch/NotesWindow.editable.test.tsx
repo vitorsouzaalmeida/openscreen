@@ -3,7 +3,6 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { NotesWindow } from "./NotesWindow";
 
 // The sibling suite stubs `@tiptap/react`, so nothing in it can show that the real note ever
@@ -33,11 +32,7 @@ function noteBody(): HTMLElement {
 describe("NotesWindow read-only wiring against the real editor", () => {
 	it("stops and resumes accepting edits with the mirror", async () => {
 		const user = userEvent.setup();
-		render(
-			<I18nProvider>
-				<NotesWindow />
-			</I18nProvider>,
-		);
+		render(<NotesWindow />);
 		const mirror = screen.getByRole("button", { name: "Mirror horizontally" });
 
 		expect(noteBody()).toHaveAttribute("contenteditable", "true");

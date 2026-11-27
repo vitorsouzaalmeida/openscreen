@@ -147,7 +147,7 @@ jobs:
   # from homebrew-core at run time, and Homebrew only builds bottles for the macOS versions
   # it still supports. Pinned to macos-14 it fell off that list, fell back to compiling x265
   # from source, and died in libtool — failing every pull request, including ones that touch
-  # nothing but `website/`. What the job actually needs is an arm64 runner (a real Metal
+  # nothing but documentation. What the job actually needs is an arm64 runner (a real Metal
   # device for the tests below, `/opt/homebrew` paths, the aarch64 toolchain), and that is
   # what `macos-latest` has been since macos-14. Re-pin it and this breaks again on
   # Homebrew's schedule rather than on ours.

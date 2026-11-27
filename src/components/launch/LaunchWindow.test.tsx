@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -157,26 +156,7 @@ const appInfoState = vi.hoisted(() => ({
 }));
 const updateCheckMock = vi.hoisted(() => vi.fn(async () => undefined));
 
-const i18nState = vi.hoisted(() => ({
-	value: {
-		locale: "en",
-		setLocale: vi.fn(),
-		systemLocaleSuggestion: null as string | null,
-		acceptSystemLocaleSuggestion: vi.fn(),
-		dismissSystemLocaleSuggestion: vi.fn(),
-		resolveSystemLocaleSuggestion: vi.fn(),
-	},
-}));
-
-vi.mock("@/i18n/loader", () => ({
-	// The active "en" sits between two others, so the arrows have somewhere to go both ways.
-	getAvailableLocales: () => ["de", "en", "fr"],
-	getLocaleName: (locale: string) =>
-		({ de: "Deutsch", fr: "Français" })[locale as "de" | "fr"] ?? "English",
-}));
-
 vi.mock("@/contexts/I18nContext", () => ({
-	useI18n: () => i18nState.value,
 	useScopedT: () => (key: string, vars?: Record<string, string | number>) => {
 		const translations: Record<string, string> = {
 			"sourceSelector.defaultSourceName": "Screen",
@@ -221,13 +201,6 @@ vi.mock("@/contexts/I18nContext", () => ({
 			"tooltips.closeApp": "Close App",
 			"tooltips.restartRecording": "Delete this recording and start a new one",
 			"tooltips.cancelRecording": "Stop and delete this recording",
-			language: "Language",
-			languageWithName: "Language: {{language}}",
-			"systemLanguagePrompt.title": "Use your system language?",
-			"systemLanguagePrompt.description":
-				"We detected English as your system language. Do you want to switch OpenScreen to English?",
-			"systemLanguagePrompt.keepDefault": "Keep current language",
-			"systemLanguagePrompt.switch": "Switch to English",
 			"softwareEncoderFallback.title": "Switched to software encoding",
 			"softwareEncoderFallback.description":
 				"The default GPU encoder failed to start, so OpenScreen fell back to software H.264 encoding. Recording should continue as normal, but CPU usage may be higher.",
@@ -383,11 +356,6 @@ function resetLaunchMocks() {
 	selectedSourceChangedListeners = [];
 	sourceSelectorClosedListeners = [];
 	lastPickedSourceName = null;
-	i18nState.value.systemLocaleSuggestion = null;
-	i18nState.value.acceptSystemLocaleSuggestion.mockClear();
-	i18nState.value.dismissSystemLocaleSuggestion.mockClear();
-	i18nState.value.resolveSystemLocaleSuggestion.mockClear();
-	i18nState.value.setLocale.mockClear();
 	linuxHelperAvailable.value = true;
 	vi.mocked(nativeBridgeClient.system.getPlatform).mockImplementation(
 		async () => platformState.value,
@@ -528,7 +496,6 @@ describe("LaunchWindow record button", () => {
 		);
 		expect(screen.getByRole("button", { name: "Hide HUD" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Close App" })).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Language: English" })).toBeInTheDocument();
 	});
 
 	// The name never changes with the state: "Disable microphone, pressed" reads as the opposite
@@ -625,7 +592,6 @@ describe("LaunchWindow record button", () => {
 			].map((testId) => screen.getByTestId(testId)),
 			screen.getByRole("button", { name: "Hide HUD" }),
 			screen.getByRole("button", { name: "Close App" }),
-			screen.getByRole("button", { name: "Language: English" }),
 		];
 		for (const control of controls) {
 			expect(control).not.toHaveAttribute("title");
@@ -1423,27 +1389,6 @@ describe("LaunchWindow overlay sizing", () => {
 		expect(height).toBeLessThan(inflatedHeight);
 	});
 
-	it("does not resize the overlay when a popover opens", async () => {
-		renderLaunchWindow();
-
-		const bar = (await screen.findByTestId("hud-drag-handle")).closest(
-			"[data-tray-layout]",
-		) as HTMLElement;
-		stubBox(bar, 400, 56);
-		await flushResizeObservers();
-
-		const sizeMock = window.electronAPI.setHudOverlaySize as unknown as {
-			mockClear: () => void;
-		};
-		sizeMock.mockClear();
-
-		fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
-		await screen.findByTestId("hud-language-menu");
-		await flushResizeObservers();
-
-		expect(window.electronAPI.setHudOverlaySize).not.toHaveBeenCalled();
-	});
-
 	it("does not resize the overlay when the device-settings panel opens", async () => {
 		renderLaunchWindow();
 
@@ -1485,9 +1430,9 @@ describe("LaunchWindow overlay sizing", () => {
 		stubBox(bar, 400, 56);
 		await flushResizeObservers();
 
-		fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
-		await screen.findByTestId("hud-language-menu");
-		// The anchor wraps the bar and the stack above it: with the menu open it is
+		fireEvent.click(screen.getByTestId("launch-device-settings-button"));
+		await screen.findByTestId("hud-device-settings");
+		// The anchor wraps the bar and the stack above it: with the panel open it is
 		// taller than the bar, and that whole height must stay inside the work area.
 		const stackHeight = 56 + HUD_POPOVER_GAP + 300;
 		stubBox(bar.parentElement as HTMLElement, 400, stackHeight);
@@ -1537,12 +1482,12 @@ describe("LaunchWindow overlay sizing", () => {
 		}
 	});
 
-	it("grows the HUD overlay tall enough to fit the system language prompt", async () => {
-		i18nState.value.systemLocaleSuggestion = "zh-CN";
+	it("grows the HUD overlay tall enough to fit a notice", async () => {
+		recorderState.value.softwareEncoderFallbackNoticeVisible = true;
 
 		renderLaunchWindow();
 
-		expect(await screen.findByText("Use your system language?")).toBeInTheDocument();
+		expect(await screen.findByText("Switched to software encoding")).toBeInTheDocument();
 
 		const bar = (await screen.findByTestId("hud-drag-handle")).closest(
 			"[data-tray-layout]",
@@ -1564,36 +1509,6 @@ describe("LaunchWindow overlay sizing", () => {
 	});
 });
 
-describe("LaunchWindow language menu", () => {
-	beforeEach(() => {
-		platformState.value = "darwin";
-		resetLaunchMocks();
-	});
-
-	afterEach(() => {
-		cleanup();
-		vi.unstubAllGlobals();
-	});
-
-	it("sizes the menu from CSS instead of the overlay window's own height", async () => {
-		renderLaunchWindow();
-
-		fireEvent.click(await screen.findByRole("button", { name: "Language: English" }));
-
-		const menu = await screen.findByTestId("hud-language-menu");
-		// A measured maxHeight/bottom is what used to truncate the list to whatever
-		// the (initially tiny) overlay window could fit, then let it grow later when
-		// the window grew for an unrelated reason -- e.g. after dragging the HUD.
-		expect(menu.style.maxHeight).toBe("");
-		expect(menu.style.bottom).toBe("");
-		// And it lives inside the HUD stack, not portaled out to the document body.
-		expect(menu.closest("[data-tray-layout]")).toBeNull();
-		expect(menu.parentElement?.parentElement).toContainElement(
-			screen.getByTestId("hud-drag-handle"),
-		);
-	});
-});
-
 describe("LaunchWindow popover dismissal", () => {
 	beforeEach(() => {
 		platformState.value = "darwin";
@@ -1605,125 +1520,11 @@ describe("LaunchWindow popover dismissal", () => {
 		vi.unstubAllGlobals();
 	});
 
-	/** Opens the language menu the way a user does, and hands back its panel. */
-	async function openLanguageMenu() {
-		fireEvent.click(await screen.findByRole("button", { name: "Language: English" }));
-		return await screen.findByTestId("hud-language-menu");
-	}
-
-	/** Same for the device-settings panel. */
+	/** Opens the device-settings panel the way a user does, and hands it back. */
 	async function openDeviceSettings() {
 		fireEvent.click(await screen.findByTestId("launch-device-settings-button"));
 		return await screen.findByTestId("hud-device-settings");
 	}
-
-	it("closes the language menu on Escape without changing the locale", async () => {
-		renderLaunchWindow();
-		await openLanguageMenu();
-
-		fireEvent.keyDown(window, { key: "Escape" });
-
-		await waitFor(() => {
-			expect(screen.queryByTestId("hud-language-menu")).not.toBeInTheDocument();
-		});
-		// Escape dismisses; it must never pick whatever entry happened to be under
-		// the cursor or focused.
-		expect(i18nState.value.setLocale).not.toHaveBeenCalled();
-		expect(i18nState.value.resolveSystemLocaleSuggestion).not.toHaveBeenCalled();
-	});
-
-	it("closes the language menu on a pointerdown outside the trigger and the panel", async () => {
-		renderLaunchWindow();
-		await openLanguageMenu();
-
-		// The HUD window is mostly empty reserve above the bar; a press there is a
-		// real DOM pointerdown on the root, and it has to dismiss.
-		fireEvent.pointerDown(document.body);
-
-		await waitFor(() => {
-			expect(screen.queryByTestId("hud-language-menu")).not.toBeInTheDocument();
-		});
-		expect(i18nState.value.setLocale).not.toHaveBeenCalled();
-	});
-
-	it("keeps the language menu open for a pointerdown inside the panel", async () => {
-		renderLaunchWindow();
-		const menu = await openLanguageMenu();
-
-		fireEvent.pointerDown(menu);
-
-		expect(screen.getByTestId("hud-language-menu")).toBeInTheDocument();
-	});
-
-	it("closes the language menu when the HUD window loses focus", async () => {
-		renderLaunchWindow();
-		await openLanguageMenu();
-
-		// A click that lands beyond the HUD's native window produces no pointerdown
-		// in this renderer at all — the only signal it gets is the window blur. And
-		// once focus is gone, Escape can no longer be delivered here either, so this
-		// is the one listener that can unstick that state (issue #435).
-		fireEvent.blur(window);
-
-		await waitFor(() => {
-			expect(screen.queryByTestId("hud-language-menu")).not.toBeInTheDocument();
-		});
-		expect(i18nState.value.setLocale).not.toHaveBeenCalled();
-	});
-
-	it("hands focus back to the language button when Escape closes its menu", async () => {
-		renderLaunchWindow();
-		const menu = await openLanguageMenu();
-		// Tabbed into the list: unmounting it must not leave focus on <body>.
-		const item = within(menu).getAllByRole("menuitemradio")[0];
-		act(() => item.focus());
-
-		fireEvent.keyDown(item, { key: "Escape" });
-
-		await waitFor(() => {
-			expect(screen.queryByTestId("hud-language-menu")).not.toBeInTheDocument();
-		});
-		expect(screen.getByRole("button", { name: "Language: English" })).toHaveFocus();
-		expect(i18nState.value.setLocale).not.toHaveBeenCalled();
-	});
-
-	it("focuses the language in use as the menu opens", async () => {
-		renderLaunchWindow();
-		const menu = await openLanguageMenu();
-
-		expect(within(menu).getByRole("menuitemradio", { name: "English" })).toHaveFocus();
-		expect(within(menu).getByRole("menuitemradio", { name: "English" })).toHaveAttribute(
-			"aria-checked",
-			"true",
-		);
-	});
-
-	it("moves between languages with the arrow keys, wrapping at both ends", async () => {
-		renderLaunchWindow();
-		const menu = await openLanguageMenu();
-		const item = (name: string) => within(menu).getByRole("menuitemradio", { name });
-
-		fireEvent.keyDown(document.activeElement as HTMLElement, { key: "ArrowDown" });
-		expect(item("Français")).toHaveFocus();
-		fireEvent.keyDown(document.activeElement as HTMLElement, { key: "ArrowDown" });
-		expect(item("Deutsch")).toHaveFocus();
-		fireEvent.keyDown(document.activeElement as HTMLElement, { key: "ArrowUp" });
-		expect(item("Français")).toHaveFocus();
-		expect(i18nState.value.setLocale).not.toHaveBeenCalled();
-	});
-
-	it("picks the focused language on Enter", async () => {
-		const user = userEvent.setup();
-		renderLaunchWindow();
-		await openLanguageMenu();
-
-		await user.keyboard("{ArrowDown}{Enter}");
-
-		expect(i18nState.value.setLocale).toHaveBeenCalledWith("fr");
-		await waitFor(() => {
-			expect(screen.queryByTestId("hud-language-menu")).not.toBeInTheDocument();
-		});
-	});
 
 	it("closes the device-settings panel on Escape", async () => {
 		renderLaunchWindow();
@@ -1754,6 +1555,8 @@ describe("LaunchWindow popover dismissal", () => {
 		renderLaunchWindow();
 		await openDeviceSettings();
 
+		// The HUD window is mostly empty reserve above the bar; a press there is a
+		// real DOM pointerdown on the root, and it has to dismiss.
 		fireEvent.pointerDown(document.body);
 
 		await waitFor(() => {
@@ -1765,6 +1568,10 @@ describe("LaunchWindow popover dismissal", () => {
 		renderLaunchWindow();
 		await openDeviceSettings();
 
+		// A click that lands beyond the HUD's native window produces no pointerdown
+		// in this renderer at all — the only signal it gets is the window blur. And
+		// once focus is gone, Escape can no longer be delivered here either, so this
+		// is the one listener that can unstick that state (issue #435).
 		fireEvent.blur(window);
 
 		await waitFor(() => {
@@ -1772,13 +1579,22 @@ describe("LaunchWindow popover dismissal", () => {
 		});
 	});
 
+	it("keeps the device-settings panel open for a pointerdown inside it", async () => {
+		renderLaunchWindow();
+		const panel = await openDeviceSettings();
+
+		fireEvent.pointerDown(panel);
+
+		expect(screen.getByTestId("hud-device-settings")).toBeInTheDocument();
+	});
+
 	it("leaves a key that is not Escape alone", async () => {
 		renderLaunchWindow();
-		await openLanguageMenu();
+		await openDeviceSettings();
 
 		fireEvent.keyDown(window, { key: "a" });
 
-		expect(screen.getByTestId("hud-language-menu")).toBeInTheDocument();
+		expect(screen.getByTestId("hud-device-settings")).toBeInTheDocument();
 	});
 });
 
@@ -2368,65 +2184,6 @@ describe("LaunchWindow software encoder fallback notice", () => {
 	});
 });
 
-// #1428: the prompt's buttons need the mouse, and a window with nothing focused took Enter nowhere.
-describe("LaunchWindow system language prompt", () => {
-	beforeEach(() => {
-		platformState.value = "win32";
-		resetLaunchMocks();
-		i18nState.value.systemLocaleSuggestion = "zh-CN";
-	});
-
-	afterEach(() => {
-		cleanup();
-		vi.unstubAllGlobals();
-	});
-
-	it("accepts the suggestion on Enter while no control has focus", async () => {
-		renderLaunchWindow();
-		await screen.findByRole("button", { name: "Switch to English" });
-
-		fireEvent.keyDown(document.body, { key: "Enter" });
-
-		expect(i18nState.value.acceptSystemLocaleSuggestion).toHaveBeenCalledTimes(1);
-		expect(i18nState.value.dismissSystemLocaleSuggestion).not.toHaveBeenCalled();
-	});
-
-	it("leaves Enter to a control that has focus", async () => {
-		renderLaunchWindow();
-		const keep = await screen.findByRole("button", { name: "Keep current language" });
-		const user = userEvent.setup();
-
-		keep.focus();
-		await user.keyboard("{Enter}");
-
-		expect(i18nState.value.dismissSystemLocaleSuggestion).toHaveBeenCalledTimes(1);
-		expect(i18nState.value.acceptSystemLocaleSuggestion).not.toHaveBeenCalled();
-	});
-
-	it("ignores a held Enter, and other keys", async () => {
-		renderLaunchWindow();
-		await screen.findByRole("button", { name: "Switch to English" });
-
-		fireEvent.keyDown(document.body, { key: "Enter", repeat: true });
-		fireEvent.keyDown(document.body, { key: " " });
-		fireEvent.keyDown(document.body, { key: "Enter", ctrlKey: true });
-		fireEvent.keyDown(document.body, { key: "Enter", altKey: true });
-		fireEvent.keyDown(document.body, { key: "Enter", shiftKey: true });
-		fireEvent.keyDown(document.body, { key: "Enter", metaKey: true });
-
-		expect(i18nState.value.acceptSystemLocaleSuggestion).not.toHaveBeenCalled();
-	});
-
-	it("leaves Enter alone while a popover is open", async () => {
-		renderLaunchWindow();
-		fireEvent.click(await screen.findByRole("button", { name: "Language: English" }));
-
-		fireEvent.keyDown(document.body, { key: "Enter" });
-
-		expect(i18nState.value.acceptSystemLocaleSuggestion).not.toHaveBeenCalled();
-	});
-});
-
 // #1149: sonner's default corner of the HUD window is where the bar is, so a toast covered
 // Record, Pause and Stop, and the window being click-through there passed a click on its
 // close button to the app behind.
@@ -2486,8 +2243,8 @@ describe("LaunchWindow toasts", () => {
 		await flushResizeObservers();
 		const { list } = await showToast();
 
-		fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
-		await screen.findByTestId("hud-language-menu");
+		fireEvent.click(screen.getByTestId("launch-device-settings-button"));
+		await screen.findByTestId("hud-device-settings");
 		const stackHeight = 56 + HUD_POPOVER_GAP + 300;
 		stubBox(bar.parentElement as HTMLElement, 400, stackHeight);
 		await flushResizeObservers();

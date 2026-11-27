@@ -53,7 +53,6 @@ A raw capture goes in and comes out ready to post — on X, Reddit, YouTube, a d
 - Timeline snapping guides and an audio waveform to make trimming easier.
 - Customizable keyboard shortcuts.
 - Export to MP4 or GIF in multiple aspect ratios and resolutions, rendered and encoded on the GPU (Metal on macOS, D3D11 on Windows, Vulkan on Linux) with an automatic CPU fallback.
-- Languages supported: Arabic, Czech, English, Spanish, French, German, Italian, Japanese, Korean, Dutch, Polish, Portuguese (Brazil), Russian, Turkish, Vietnamese, Simplified Chinese, and Traditional Chinese.
 
 ## Command-line interface (headless)
 
@@ -67,7 +66,7 @@ openscreen record --duration 20 --project demo.openscreen --json
 openscreen export demo.openscreen -o demo.mp4 --json
 ```
 
-See the [CLI reference](https://getopenscreen.com/docs/cli/).
+See the [CLI reference](docs/cli.md).
 
 ### Let your AI agent ship the feature with its video
 
@@ -81,7 +80,7 @@ The skill sets everything up: it installs OpenScreen if it is missing (once you
 agree), connects its MCP server, then asks you to open a new session and say
 *"continue the OpenScreen demo"*, the one step an agent cannot do for itself.
 By hand, in Claude Code, it is these two commands, where `<executable>` is the app's executable
-on your system ([where to find it](https://getopenscreen.com/docs/cli/#running-the-cli)):
+on your system ([where to find it](docs/cli.md#running-the-cli)):
 
 ```bash
 claude mcp add openscreen -- "<executable>" mcp
@@ -217,7 +216,7 @@ You may need to grant screen recording permissions depending on your desktop env
 
 ### Platform differences
 
-Everything in the editor and export is the same on macOS, Windows, and Linux: zooms, backgrounds, motion blur, crop/trim/speed, blur regions, annotations, auto-captions, AI editing, projects, export, and all languages. All three now record through a native capture pipeline; the remaining differences are narrower than they used to be:
+Everything in the editor and export is the same on macOS, Windows, and Linux: zooms, backgrounds, motion blur, crop/trim/speed, blur regions, annotations, auto-captions, AI editing, projects, and export. All three now record through a native capture pipeline; the remaining differences are narrower than they used to be:
 
 - **Native recording**: macOS (ScreenCaptureKit), Windows (Windows Graphics Capture), and Linux (PipeWire via the ScreenCast portal, or direct X11 capture on an X11 desktop without one) all record through a native pipeline for higher quality and clean window-level capture. On Linux the browser pipeline stays as an automatic fallback if the helper isn't available.
 - **Custom cursors**: on macOS and Windows the real cursor is captured with shape, type, and clicks. On X11, the helper captures cursor shape through XFixes and mouse buttons through XInput2, without access to `/dev/input`. On Wayland, Linux captures position and cursor shape through the portal, so the editable cursor overlay works there too. Click effects work on Wayland as well, but not through the portal — Wayland exposes no portal for mouse buttons, so the capture helper reads the left button from evdev, which needs read access to your mouse: a udev rule for pointer devices (recommended) or the `input` group, set up as [Mouse clicks on Wayland](https://getopenscreen.com/docs/installation#mouse-clicks-on-wayland) shows. Without that, recording is unaffected and every cursor sample is simply a move.

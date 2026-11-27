@@ -5,7 +5,6 @@
 // pane that actually handles the upload. These pin the behaviour to the live code path.
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import { isSupportedBackgroundImage, VideoEffectsPane } from "./RightPanes";
 
 const toastError = vi.hoisted(() => vi.fn());
@@ -53,11 +52,7 @@ describe("background image upload validation", () => {
 
 describe("a rejected upload tells the user", () => {
 	function pick(file: File) {
-		const { container } = render(
-			<I18nProvider>
-				<VideoEffectsPane />
-			</I18nProvider>,
-		);
+		const { container } = render(<VideoEffectsPane />);
 		const input = container.querySelector('input[type="file"]');
 		if (!(input instanceof HTMLInputElement)) throw new Error("no file input rendered");
 		// jsdom leaves `files` unwritable, so define it the way a real pick would.

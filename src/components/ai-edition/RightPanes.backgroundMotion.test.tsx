@@ -6,8 +6,6 @@
 import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import { createEmptyDocument } from "@/lib/ai-edition/schema";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { VideoEffectsPane } from "./RightPanes";
@@ -20,11 +18,7 @@ function renderWith(legacyEditor: Record<string, unknown>) {
 		revision: 1,
 		status: "ready",
 	});
-	return render(
-		<I18nProvider>
-			<VideoEffectsPane />
-		</I18nProvider>,
-	);
+	return render(<VideoEffectsPane />);
 }
 
 const control = () => screen.getByRole("group", { name: "Animation" });
@@ -32,7 +26,6 @@ const choice = (name: string) => within(control()).getByRole("button", { name })
 
 beforeEach(() => {
 	localStorage.clear();
-	localStorage.setItem(LOCALE_STORAGE_KEY, "en");
 });
 
 afterEach(() => {

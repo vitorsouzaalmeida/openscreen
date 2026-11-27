@@ -2,7 +2,6 @@
 import "@testing-library/jest-dom";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type { AxcutClip } from "@/lib/ai-edition/schema";
 import { Preview } from "./Preview";
 import type { VideoSource } from "./VirtualPreview";
@@ -80,21 +79,19 @@ function previewProps(props: {
 	hasProject?: boolean;
 }) {
 	return (
-		<I18nProvider>
-			<Preview
-				hasProject={props.hasProject ?? true}
-				hasAsset={props.hasAsset ?? true}
-				videoSources={props.videoSources}
-				primaryAssetId={props.primaryAssetId}
-				clips={props.clips}
-				seekTarget={null}
-				onTimeChange={vi.fn()}
-				onSeek={vi.fn()}
-				onLoadedMetadata={vi.fn()}
-				onVideoElement={vi.fn()}
-				playing={false}
-			/>
-		</I18nProvider>
+		<Preview
+			hasProject={props.hasProject ?? true}
+			hasAsset={props.hasAsset ?? true}
+			videoSources={props.videoSources}
+			primaryAssetId={props.primaryAssetId}
+			clips={props.clips}
+			seekTarget={null}
+			onTimeChange={vi.fn()}
+			onSeek={vi.fn()}
+			onLoadedMetadata={vi.fn()}
+			onVideoElement={vi.fn()}
+			playing={false}
+		/>
 	);
 }
 

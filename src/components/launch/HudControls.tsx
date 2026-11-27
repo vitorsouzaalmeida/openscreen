@@ -1,23 +1,5 @@
-import {
-	Check,
-	CircleArrowDown,
-	Eye,
-	EyeOff,
-	Keyboard,
-	Languages,
-	NotepadText,
-	Settings,
-} from "lucide-react";
-import {
-	createContext,
-	memo,
-	type ReactElement,
-	useContext,
-	useEffect,
-	useRef,
-	useState,
-} from "react";
-import { moveMenuFocus } from "@/lib/menuKeyboard";
+import { CircleArrowDown, Eye, EyeOff, Keyboard, NotepadText, Settings } from "lucide-react";
+import { createContext, memo, type ReactElement, useContext, useRef, useState } from "react";
 import { formatTimePadded } from "../../utils/timeUtils";
 import { Button } from "../ui/button";
 import { TOOLTIP_GAP_PX, Tooltip } from "../ui/tooltip";
@@ -671,46 +653,6 @@ export const HudRecordingControls = memo(function HudRecordingControls({
 	);
 });
 
-export const HudLanguageButton = memo(function HudLanguageButton({
-	vertical,
-	code,
-	label,
-	disabled,
-	expanded,
-	onClick,
-	buttonRef,
-}: {
-	vertical: boolean;
-	code: string;
-	label: string;
-	disabled: boolean;
-	expanded: boolean;
-	onClick: () => void;
-	buttonRef: React.MutableRefObject<HTMLButtonElement | null>;
-}) {
-	return (
-		<HudTooltip content={label}>
-			<button
-				ref={buttonRef}
-				type="button"
-				aria-label={label}
-				aria-expanded={expanded}
-				aria-haspopup="menu"
-				disabled={disabled}
-				onClick={onClick}
-				className={`flex h-[34px] items-center rounded-[10px] border-0 bg-transparent text-[#828c99] transition-all duration-150 hover:bg-white/[0.08] hover:text-[#e9edf3] ${
-					vertical ? "w-[34px] justify-center px-0" : "gap-1.5 px-2.5"
-				} ${hudDisabledClasses} ${hudFocusClasses} ${styles.electronNoDrag}`}
-			>
-				<Languages size={16} className="shrink-0" />
-				<span className={`${vertical ? "sr-only" : ""} text-[12px] font-semibold text-[#f5f7fa]`}>
-					{code}
-				</span>
-			</button>
-		</HudTooltip>
-	);
-});
-
 export const HudWindowControls = memo(function HudWindowControls({
 	vertical,
 	disabled,
@@ -757,60 +699,6 @@ export const HudWindowControls = memo(function HudWindowControls({
 	);
 });
 
-export const HudLanguageMenu = memo(function HudLanguageMenu({
-	locales,
-	activeLocale,
-	getName,
-	onSelect,
-	panelRef,
-	onEnsureInteractive,
-}: {
-	locales: readonly string[];
-	activeLocale: string;
-	getName: (locale: string) => string;
-	onSelect: (locale: string) => void;
-	panelRef: (el: HTMLDivElement | null) => void;
-	onEnsureInteractive: () => void;
-}) {
-	// Into the list as it opens, on the language in use, so the arrows work straight away.
-	const activeItemRef = useRef<HTMLButtonElement>(null);
-	useEffect(() => {
-		activeItemRef.current?.focus();
-	}, []);
-
-	return (
-		<div
-			ref={panelRef}
-			data-hud-interactive="true"
-			data-testid="hud-language-menu"
-			role="menu"
-			onKeyDown={moveMenuFocus}
-			className={`${styles.hudPopover} ${styles.hudPopoverScroll} ${styles.hudScrollbar} animate-mic-panel-in ${styles.electronNoDrag}`}
-			onPointerDown={(event) => event.stopPropagation()}
-			onPointerEnter={onEnsureInteractive}
-			onWheel={(event) => {
-				onEnsureInteractive();
-				event.stopPropagation();
-			}}
-		>
-			{locales.map((loc) => (
-				<button
-					key={loc}
-					ref={loc === activeLocale ? activeItemRef : undefined}
-					type="button"
-					role="menuitemradio"
-					aria-checked={loc === activeLocale}
-					onClick={() => onSelect(loc)}
-					className={`${styles.languageMenuItem} ${loc === activeLocale ? styles.languageMenuItemActive : ""}`}
-				>
-					<span className="truncate">{getName(loc)}</span>
-					{loc === activeLocale ? <Check size={14} className="text-white/85" /> : null}
-				</button>
-			))}
-		</div>
-	);
-});
-
 export const HudNotice = memo(function HudNotice({
 	title,
 	description,
@@ -818,7 +706,6 @@ export const HudNotice = memo(function HudNotice({
 	confirmLabel,
 	onDismiss,
 	onConfirm,
-	confirmOnEnter = false,
 }: {
 	title: string;
 	description: string;
@@ -826,20 +713,7 @@ export const HudNotice = memo(function HudNotice({
 	confirmLabel: string;
 	onDismiss: () => void;
 	onConfirm: () => void;
-	/** Enter confirms while no control has focus; a focused control keeps its own Enter. */
-	confirmOnEnter?: boolean;
 }) {
-	useEffect(() => {
-		if (!confirmOnEnter) return;
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key !== "Enter" || event.repeat || event.target !== document.body) return;
-			if (event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
-			onConfirm();
-		};
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [confirmOnEnter, onConfirm]);
-
 	return (
 		<div
 			data-hud-interactive="true"

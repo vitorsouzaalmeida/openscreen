@@ -46,7 +46,7 @@ describe("star prompt policy", () => {
 	});
 
 	it("builds the Store review deep link from the shipped product id", () => {
-		// Same id as the website's Store link and the winget command; a typo here sends the user
+		// Same id as the winget command the README recommends; a typo here sends the user
 		// to a Store page that does not exist, and nothing else in the app would notice.
 		expect(MS_STORE_PRODUCT_ID).toBe("9MXQ1HQJL5G5");
 		expect(storeReviewUrl()).toBe("ms-windows-store://review/?ProductId=9MXQ1HQJL5G5");

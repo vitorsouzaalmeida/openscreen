@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Page } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { waitForAppWindow } from "./appWindows";
 
@@ -78,15 +77,6 @@ async function closeApp(app: ElectronApplication) {
 	}
 }
 
-async function dismissLanguagePrompt(page: Page) {
-	const keepCurrentLanguage = page
-		.getByRole("button")
-		.filter({ hasText: /Keep current language|Conserver la langue actuelle/ });
-	if ((await keepCurrentLanguage.count()) > 0) {
-		await keepCurrentLanguage.click();
-	}
-}
-
 type ElectronApplication = Awaited<ReturnType<typeof electron.launch>>;
 
 test.describe("Windows native checklist smoke tests", () => {
@@ -98,7 +88,6 @@ test.describe("Windows native checklist smoke tests", () => {
 		try {
 			const hudWindow = await waitForAppWindow(app, "hud-overlay", 60_000);
 			await hudWindow.waitForLoadState("domcontentloaded");
-			await dismissLanguagePrompt(hudWindow);
 
 			await expect(hudWindow.getByTestId("launch-record-button")).toBeEnabled();
 			await expect(hudWindow.getByTestId("launch-source-selector-button")).toBeVisible();
@@ -178,7 +167,6 @@ test.describe("Windows native checklist smoke tests", () => {
 		try {
 			const hudWindow = await waitForAppWindow(app, "hud-overlay", 60_000);
 			await hudWindow.waitForLoadState("domcontentloaded");
-			await dismissLanguagePrompt(hudWindow);
 
 			// A second window keeps the window list non-empty while the HUD is torn
 			// down below — emptying it fires window-all-closed, which quits the app.

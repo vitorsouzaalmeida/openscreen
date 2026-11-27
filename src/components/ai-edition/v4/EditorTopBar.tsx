@@ -6,7 +6,6 @@ import {
 	FolderPlus,
 	Info,
 	Keyboard,
-	Languages,
 	LifeBuoy,
 	Moon,
 	Redo2,
@@ -19,11 +18,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import logoMark from "@/assets/openscreen-mark.png";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useI18n, useScopedT } from "@/contexts/I18nContext";
+import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useUpdateBadge } from "@/hooks/useUpdateBadge";
-import { getAvailableLocales, getLocaleName } from "@/i18n/loader";
 import { moveMenuFocus } from "@/lib/menuKeyboard";
 import { formatFirstFixedBinding } from "@/lib/shortcuts";
 import { StylePresetsMenu } from "../StylePresetsMenu";
@@ -252,8 +250,7 @@ function ProjectNameField({
  *
  *  It costs the bar no width, which is the reason it is the wordmark and not a new button:
  *  .modeSwitch is the only flex-shrink:1 element in the topbar, so any control added here is
- *  paid for out of the mode labels, in the most verbose of 13 locales, at the 800px minimum
- *  window width.
+ *  paid for out of the mode labels at the 800px minimum window width.
  *
  *  No row invents a label. Each one reuses the key of the thing it opens: `common.actions.*`
  *  for the rows electron/main.ts also builds native menu items from (About, Check for
@@ -278,11 +275,7 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 	const tEditor = useScopedT("editor");
 	const tShortcuts = useScopedT("shortcuts");
 	const { theme, toggle: toggleTheme } = useTheme();
-	const { locale, setLocale } = useI18n();
 	const [open, setOpen] = useState(false);
-	// The language list unfolds inside the menu rather than in a second popover: the menu is
-	// anchored inline for the no-drag reason above, and a nested surface would need the same.
-	const [languagesOpen, setLanguagesOpen] = useState(false);
 	const [version, setVersion] = useState<string | null>(null);
 	const [canUpdate, setCanUpdate] = useState(false);
 	const ref = useRef<HTMLDivElement | null>(null);
@@ -319,10 +312,6 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 		return () => {
 			cancelled = true;
 		};
-	}, [open]);
-
-	useEffect(() => {
-		if (!open) setLanguagesOpen(false);
 	}, [open]);
 
 	useEffect(() => {
@@ -433,38 +422,6 @@ function AppMenu({ actions }: { actions: TopBarActions }) {
 							? tEditor("topbar.switchToLightTheme")
 							: tEditor("topbar.switchToDarkTheme")}
 					</button>
-					<button
-						type="button"
-						role="menuitem"
-						className={styles.appMenuRow}
-						aria-expanded={languagesOpen}
-						onClick={() => setLanguagesOpen((v) => !v)}
-					>
-						<Languages size={15} />
-						{tEditor("topbar.changeLanguage")}
-						<span className={styles.appMenuVersion}>{getLocaleName(locale)}</span>
-						<ChevronDown size={14} className={styles.appMenuChevron} aria-hidden />
-					</button>
-					{languagesOpen ? (
-						<div
-							className={styles.appMenuSub}
-							role="group"
-							aria-label={tEditor("topbar.changeLanguage")}
-						>
-							{getAvailableLocales().map((code) => (
-								<button
-									key={code}
-									type="button"
-									role="menuitemradio"
-									aria-checked={code === locale}
-									className={styles.appMenuRow}
-									onClick={run(() => setLocale(code))}
-								>
-									{getLocaleName(code)}
-								</button>
-							))}
-						</div>
-					) : null}
 					<div className={styles.appMenuSep} aria-hidden />
 					{/* Only the PERMANENT half of the veto is applied here. A Store/Flathub/Snap/Nix
 					    copy never offers the check at all; the transient half — not during a take —

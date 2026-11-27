@@ -9,7 +9,6 @@ import "@testing-library/jest-dom";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
 import type {
 	AxcutAsset,
 	AxcutClip,
@@ -75,25 +74,23 @@ function renderPane(
 	transcript: AxcutTranscript = TRANSCRIPT,
 ) {
 	const view = render(
-		<I18nProvider>
-			<TranscriptPane
-				clips={[CLIP]}
-				audioTracks={[]}
-				transcripts={[transcript]}
-				assets={[ASSET]}
-				trimRanges={trimRanges}
-				busyAssetIds={busyAssetIds}
-				onSeek={vi.fn()}
-				onTrimTimelineSpan={onTrimTimelineSpan}
-				onRemoveTrimRanges={vi.fn()}
-				onSetWordText={vi.fn()}
-				onInsertWord={vi.fn()}
-				onRemoveWords={vi.fn()}
-				onTranscribe={vi.fn()}
-				canTranscribe
-				isTranscribing={false}
-			/>
-		</I18nProvider>,
+		<TranscriptPane
+			clips={[CLIP]}
+			audioTracks={[]}
+			transcripts={[transcript]}
+			assets={[ASSET]}
+			trimRanges={trimRanges}
+			busyAssetIds={busyAssetIds}
+			onSeek={vi.fn()}
+			onTrimTimelineSpan={onTrimTimelineSpan}
+			onRemoveTrimRanges={vi.fn()}
+			onSetWordText={vi.fn()}
+			onInsertWord={vi.fn()}
+			onRemoveWords={vi.fn()}
+			onTranscribe={vi.fn()}
+			canTranscribe
+			isTranscribing={false}
+		/>,
 	);
 	const editor = view.container.querySelector<HTMLElement>('[role="textbox"]');
 	if (!editor) throw new Error("transcript editor not rendered");
@@ -210,38 +207,36 @@ describe("keyboard cut with the caret between words", () => {
 		function Harness() {
 			const [trims, setTrims] = useState<AxcutTrimRange[]>([W2_TRIMMED]);
 			return (
-				<I18nProvider>
-					<TranscriptPane
-						clips={[CLIP]}
-						audioTracks={[]}
-						transcripts={[TRANSCRIPT]}
-						assets={[ASSET]}
-						trimRanges={trims}
-						busyAssetIds={[]}
-						onSeek={vi.fn()}
-						onTrimTimelineSpan={(startSec: number, endSec: number) =>
-							setTrims((prev) => [
-								...prev,
-								{
-									id: `t_${prev.length}`,
-									assetId: "asset_1",
-									clipId: "clip_1",
-									startSec,
-									endSec,
-									origin: "user" as const,
-									reason: "",
-								},
-							])
-						}
-						onRemoveTrimRanges={vi.fn()}
-						onSetWordText={vi.fn()}
-						onInsertWord={vi.fn()}
-						onRemoveWords={vi.fn()}
-						onTranscribe={vi.fn()}
-						canTranscribe
-						isTranscribing={false}
-					/>
-				</I18nProvider>
+				<TranscriptPane
+					clips={[CLIP]}
+					audioTracks={[]}
+					transcripts={[TRANSCRIPT]}
+					assets={[ASSET]}
+					trimRanges={trims}
+					busyAssetIds={[]}
+					onSeek={vi.fn()}
+					onTrimTimelineSpan={(startSec: number, endSec: number) =>
+						setTrims((prev) => [
+							...prev,
+							{
+								id: `t_${prev.length}`,
+								assetId: "asset_1",
+								clipId: "clip_1",
+								startSec,
+								endSec,
+								origin: "user" as const,
+								reason: "",
+							},
+						])
+					}
+					onRemoveTrimRanges={vi.fn()}
+					onSetWordText={vi.fn()}
+					onInsertWord={vi.fn()}
+					onRemoveWords={vi.fn()}
+					onTranscribe={vi.fn()}
+					canTranscribe
+					isTranscribing={false}
+				/>
 			);
 		}
 

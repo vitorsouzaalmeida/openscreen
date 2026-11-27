@@ -90,8 +90,8 @@ Both platforms have a real CI job that runs `cargo test -p openscreen-compositor
   (lavapipe) so wgpu has a real adapter, `OPENSCREEN_REQUIRE_CPU_BACKEND=1`, ffmpeg vendored by
   `npm run fetch:ffmpeg:sdk`, and `LD_LIBRARY_PATH` pointed at it.
 
-There is **no bench off Windows**: `poc-d3d` is `cfg(windows)`-gated in its own `Cargo.toml`, so
-the `--cfg C8 --scene …` route used to prove the Windows path does not exist for you. Add a test
+There is **no bench**: the `--cfg C8 --scene …` route used to prove the Windows path ran on the
+Windows-only `poc-d3d` harness, which has since been removed from the repository. Add a test
 instead, and say in the PR what you actually saw on screen — a mask that composites is not the
 same claim as a mask that is correct.
 

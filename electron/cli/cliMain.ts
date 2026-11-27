@@ -193,7 +193,7 @@ async function writeProjectFile(projectOut: string, projectData: unknown): Promi
 
 function setupRecordStopSignals(stop: (reason: string) => void): void {
 	// SIGINT covers Ctrl+C everywhere; SIGTERM never fires on Windows, where
-	// stdin "stop" or --duration are the graceful alternatives (see website/docs/cli.md).
+	// stdin "stop" or --duration are the graceful alternatives (see docs/cli.md).
 	process.on("SIGINT", () => stop("SIGINT"));
 	process.on("SIGTERM", () => stop("SIGTERM"));
 	try {
@@ -389,11 +389,7 @@ export function runCli(command: CliCommand): void {
 			registerSttIpc(ipcMain);
 			milestone("stt ipc registered");
 
-			// Registered by the GUI boot path (main.ts) rather than registerIpcHandlers;
-			// the renderer's i18n init invokes it unconditionally.
-			ipcMain.handle("set-locale", () => {
-				// Locale only affects GUI menus/tray, which do not exist in CLI mode.
-			});
+			// Registered by the GUI boot path (main.ts) rather than registerIpcHandlers.
 			ipcMain.handle("update-global-shortcut", () => ({ success: false }));
 
 			// The latest runner is the app's "main window" for the recording handlers, as the
@@ -574,7 +570,7 @@ export function runCli(command: CliCommand): void {
 					await fs.mkdir(path.dirname(command.jsonOutPath), { recursive: true });
 					// Write beside the target and rename over it. writeFile truncates
 					// first, so a failure part-way through -- a full disk is the easy
-					// case -- would leave a half-written file where website/docs/cli.md promises
+					// case -- would leave a half-written file where docs/cli.md promises
 					// an earlier run's result is untouched by a later failure. rename is
 					// atomic within a directory, so the reader sees the old file or the
 					// new one and never a torn one.

@@ -407,7 +407,9 @@ Governed by [rendering-performance.md](rendering-performance.md) §C.2, which is
 crates\x.bat run --release -- --cfg C0..C8 --fixture fixture --repeat 3 --out out\
 ```
 
-`x.bat` wraps vcvars + ffmpeg-on-PATH + cargo. Its hardcoded Visual Studio path may need
+The `--cfg` harness behind this command was the `poc-d3d` crate, since removed from the
+repository, so the command no longer runs on this tree; the protocol above is what a
+replacement bench has to meet. `x.bat` wraps vcvars + ffmpeg-on-PATH + cargo. Its hardcoded Visual Studio path may need
 adjusting per machine — the file says so itself. A worktree also has no `crates/thirdparty/`
 (gitignored); it must be copied from a full checkout before anything builds.
 

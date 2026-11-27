@@ -2,8 +2,6 @@
 import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@/contexts/I18nContext";
-import { LOCALE_STORAGE_KEY } from "@/i18n/config";
 import type { AxcutAudioTrack } from "@/lib/ai-edition/schema";
 import type { useTimeline } from "@/lib/ai-edition/store/useTimeline";
 import { AudioTrackPane } from "./RightPanes";
@@ -47,11 +45,7 @@ describe("AudioTrackPane reset button", () => {
 			setAudioTrackGain,
 		} as unknown as TimelineApi;
 
-		render(
-			<I18nProvider>
-				<AudioTrackPane tl={tl} />
-			</I18nProvider>,
-		);
+		render(<AudioTrackPane tl={tl} />);
 
 		const gainSlider = screen.getByRole("slider", { name: "Output level" });
 		expect(gainSlider).toHaveAttribute("min", "-60");
@@ -100,11 +94,7 @@ describe("AudioTrackPane reset button", () => {
 			updateAudioTrack,
 		} as unknown as TimelineApi;
 
-		const { rerender } = render(
-			<I18nProvider>
-				<AudioTrackPane tl={tl} />
-			</I18nProvider>,
-		);
+		const { rerender } = render(<AudioTrackPane tl={tl} />);
 
 		const gainSlider = screen.getByRole("slider", { name: "Output level" });
 		const fadeInSlider = screen.getByRole("slider", { name: "Fade in" });
@@ -148,9 +138,7 @@ describe("AudioTrackPane reset button", () => {
 			loop: false,
 		};
 		rerender(
-			<I18nProvider>
-				<AudioTrackPane tl={{ ...tl, audioTracks: [resetTrack] } as unknown as TimelineApi} />
-			</I18nProvider>,
+			<AudioTrackPane tl={{ ...tl, audioTracks: [resetTrack] } as unknown as TimelineApi} />,
 		);
 
 		expect(gainSlider).toHaveValue("-18");
@@ -179,18 +167,16 @@ describe("AudioTrackPane reset button", () => {
 			origin: "user",
 		};
 		render(
-			<I18nProvider>
-				<AudioTrackPane
-					tl={
-						{
-							selectedAudioTrackId: "audio_track_1",
-							audioTracks: [voiceover],
-							assets: [],
-							updateAudioTrack,
-						} as unknown as TimelineApi
-					}
-				/>
-			</I18nProvider>,
+			<AudioTrackPane
+				tl={
+					{
+						selectedAudioTrackId: "audio_track_1",
+						audioTracks: [voiceover],
+						assets: [],
+						updateAudioTrack,
+					} as unknown as TimelineApi
+				}
+			/>,
 		);
 		fireEvent.click(screen.getByRole("button", { name: /reset/i }));
 		expect(updateAudioTrack).toHaveBeenCalledWith("audio_track_1", {
@@ -200,97 +186,6 @@ describe("AudioTrackPane reset button", () => {
 			muted: false,
 			loop: false,
 		});
-	});
-
-	it("resets all track parameters under French locale", () => {
-		localStorage.setItem(LOCALE_STORAGE_KEY, "fr");
-		const updateAudioTrack = vi.fn();
-		const mockTrack: AxcutAudioTrack = {
-			id: "audio_track_1",
-			clipId: "clip_1",
-			assetId: "asset_audio_1",
-			trackId: "audio_track_1",
-			startMs: 1000,
-			endMs: 5000,
-			durationSec: 10,
-			offsetMs: 0,
-			gainDb: -0.5,
-			fadeInMs: 300,
-			fadeOutMs: 400,
-			muted: true,
-			loop: false,
-			kind: "music",
-			label: "openscreen-test-voix.mp3",
-			origin: "user",
-		};
-
-		const tl = {
-			selectedAudioTrackId: "audio_track_1",
-			audioTracks: [mockTrack],
-			assets: [
-				{
-					id: "asset_audio_1",
-					kind: "audio",
-					label: "openscreen-test-voix.mp3",
-					originalPath: "/path/openscreen-test-voix.mp3",
-					durationSec: 10,
-				},
-			],
-			updateAudioTrack,
-		} as unknown as TimelineApi;
-
-		const { rerender } = render(
-			<I18nProvider>
-				<AudioTrackPane tl={tl} />
-			</I18nProvider>,
-		);
-
-		const gainSlider = screen.getByRole("slider", { name: /niveau de sortie/i });
-		const fadeInSlider = screen.getByRole("slider", { name: /fondu d['’]entrée/i });
-		const fadeOutSlider = screen.getByRole("slider", { name: /fondu de sortie/i });
-
-		fireEvent.change(gainSlider, { target: { value: "-12" } });
-		fireEvent.change(fadeInSlider, { target: { value: "800" } });
-		fireEvent.change(fadeOutSlider, { target: { value: "1200" } });
-
-		expect(gainSlider).toHaveValue("-12");
-		expect(fadeInSlider).toHaveValue("800");
-		expect(fadeOutSlider).toHaveValue("1200");
-
-		// French label: "Réinitialiser l’audio"
-		const resetBtn = screen.getByRole("button", { name: /réinitialiser l’audio/i });
-		fireEvent.click(resetBtn);
-
-		expect(updateAudioTrack).toHaveBeenCalledTimes(1);
-		expect(updateAudioTrack).toHaveBeenCalledWith("audio_track_1", {
-			gainDb: -18,
-			fadeInMs: 1000,
-			fadeOutMs: 1000,
-			muted: false,
-			loop: false,
-		});
-
-		expect(gainSlider).not.toHaveValue("-12");
-		expect(fadeInSlider).not.toHaveValue("800");
-		expect(fadeOutSlider).not.toHaveValue("1200");
-
-		const resetTrack: AxcutAudioTrack = {
-			...mockTrack,
-			gainDb: -18,
-			fadeInMs: 1000,
-			fadeOutMs: 1000,
-			muted: false,
-			loop: false,
-		};
-		rerender(
-			<I18nProvider>
-				<AudioTrackPane tl={{ ...tl, audioTracks: [resetTrack] } as unknown as TimelineApi} />
-			</I18nProvider>,
-		);
-
-		expect(gainSlider).toHaveValue("-18");
-		expect(fadeInSlider).toHaveValue("1000");
-		expect(fadeOutSlider).toHaveValue("1000");
 	});
 
 	it("retains slider value on release while async commit is in flight without jumping back", async () => {
@@ -347,11 +242,7 @@ describe("AudioTrackPane reset button", () => {
 			updateAudioTrack,
 		} as unknown as TimelineApi;
 
-		const { rerender } = render(
-			<I18nProvider>
-				<AudioTrackPane tl={tl} />
-			</I18nProvider>,
-		);
+		const { rerender } = render(<AudioTrackPane tl={tl} />);
 
 		const gainSlider = screen.getByRole("slider", { name: "Output level" });
 		const fadeInSlider = screen.getByRole("slider", { name: "Fade in" });
@@ -371,16 +262,14 @@ describe("AudioTrackPane reset button", () => {
 		});
 
 		rerender(
-			<I18nProvider>
-				<AudioTrackPane
-					tl={
-						{
-							...tl,
-							audioTracks: [{ ...mockTrack, gainDb: 2.5 }],
-						} as unknown as TimelineApi
-					}
-				/>
-			</I18nProvider>,
+			<AudioTrackPane
+				tl={
+					{
+						...tl,
+						audioTracks: [{ ...mockTrack, gainDb: 2.5 }],
+					} as unknown as TimelineApi
+				}
+			/>,
 		);
 		expect(gainSlider).toHaveValue("2.5");
 
@@ -397,16 +286,14 @@ describe("AudioTrackPane reset button", () => {
 		});
 
 		rerender(
-			<I18nProvider>
-				<AudioTrackPane
-					tl={
-						{
-							...tl,
-							audioTracks: [{ ...mockTrack, gainDb: 2.5, fadeInMs: 1500 }],
-						} as unknown as TimelineApi
-					}
-				/>
-			</I18nProvider>,
+			<AudioTrackPane
+				tl={
+					{
+						...tl,
+						audioTracks: [{ ...mockTrack, gainDb: 2.5, fadeInMs: 1500 }],
+					} as unknown as TimelineApi
+				}
+			/>,
 		);
 		expect(fadeInSlider).toHaveValue("1500");
 
@@ -423,16 +310,14 @@ describe("AudioTrackPane reset button", () => {
 		});
 
 		rerender(
-			<I18nProvider>
-				<AudioTrackPane
-					tl={
-						{
-							...tl,
-							audioTracks: [{ ...mockTrack, gainDb: 2.5, fadeInMs: 1500, fadeOutMs: 2500 }],
-						} as unknown as TimelineApi
-					}
-				/>
-			</I18nProvider>,
+			<AudioTrackPane
+				tl={
+					{
+						...tl,
+						audioTracks: [{ ...mockTrack, gainDb: 2.5, fadeInMs: 1500, fadeOutMs: 2500 }],
+					} as unknown as TimelineApi
+				}
+			/>,
 		);
 		expect(fadeOutSlider).toHaveValue("2500");
 	});

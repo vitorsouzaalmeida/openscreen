@@ -25,8 +25,6 @@ const ROOT = path.join(__dirname, "..");
 const ADDON = path.join(ROOT, "electron/native/compositor-view/build/compositor_view.node");
 
 // Everything the addon is compiled from. shaders.hlsl lives under src/, so it is covered.
-// crates/poc-d3d/ is deliberately absent: nothing links it, so editing the POC cannot
-// invalidate the shipped addon.
 const SOURCE_PATHS = [
 	"crates/compositor/src",
 	"crates/compositor-view-napi/src",

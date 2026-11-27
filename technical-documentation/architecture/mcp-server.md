@@ -7,7 +7,7 @@ The tools act on any of the user's projects, not only the one open in the editor
 | | `openscreen mcp` |
 |---|---|
 | Process | One of its own, started by the client: the app's executable with `mcp` |
-| Setup | `claude mcp add openscreen -- <executable> mcp` ([executables](../../website/docs/cli.md#running-the-cli)), or the plugin in [`plugin/`](../../plugin/README.md) |
+| Setup | `claude mcp add openscreen -- <executable> mcp` ([executables](../../docs/cli.md#running-the-cli)), or the plugin in [`plugin/`](../../plugin/README.md) |
 | Auth | None: the client launched the process with the user's rights. No port, no token, no switch in the app |
 | Edits, recording, export | Always allowed |
 | Project open in the editor | While the app runs, the call is forwarded to it and the edit lands live in the editor, one undo step per call. With no app answering, refused ([the marker](#the-open-in-editor-marker)) |
@@ -251,7 +251,6 @@ The stdio server (`openscreen mcp`, [`stdio-server.ts`](../../electron/mcp/stdio
 - Each call a client makes is counted by its tool's name, for the daily usage ping to carry (`countToolCall` in [`usage-ping.ts`](../../electron/usage-ping.ts)). `McpToolDeps.onToolCall` is told the name from one wrapper around `registerTool` (`countingToolCalls`), so the document tools and the media tools are counted alike. Nothing of the call is passed: no argument, no path, no result. The name is checked against the shape of a tool name before it is stored.
 - A call is counted once, where the client made it. The app's channel has no `onToolCall`: the `openscreen mcp` process counted the call itself.
 - The opt-outs are the ping's own: the tray's **Send Anonymous Usage Count**, `DO_NOT_TRACK`, CI and development builds count nothing, and unticking the tray's box drops what was counted. The counts ride the ping that already goes out, so counting adds no connection.
-- The website's FAQ and privacy policy list this payload. A change to it changes them, in every language.
 
 ## Lifecycle
 
@@ -259,7 +258,7 @@ The stdio server (`openscreen mcp`, [`stdio-server.ts`](../../electron/mcp/stdio
 
 ## Connecting a client
 
-The client starts the executable itself ([where it is on each platform](../../website/docs/cli.md#running-the-cli)):
+The client starts the executable itself ([where it is on each platform](../../docs/cli.md#running-the-cli)):
 
 ```sh
 claude mcp add openscreen -- "<executable>" mcp

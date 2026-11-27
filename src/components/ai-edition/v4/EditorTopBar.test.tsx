@@ -10,7 +10,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // the public topbar instead. The translator echoes keys; assertions read better
 // against keys than against prose that drifts with copy edits.
 vi.mock("@/contexts/I18nContext", () => ({
-	useI18n: () => ({ locale: "en", setLocale: () => {} }),
 	useScopedT: () => (key: string) => key,
 }));
 
@@ -282,19 +281,6 @@ describe("AppMenu", () => {
 		expect(toggleTheme).toHaveBeenCalledTimes(1);
 	});
 
-	it("unfolds the languages inside the menu and marks the current one", () => {
-		renderTopBar("Demo Project");
-		fireEvent.click(screen.getByRole("button", { name: /OpenScreen/ }));
-		const row = screen.getByRole("menuitem", { name: /topbar\.changeLanguage/ });
-		expect(row).toHaveAttribute("aria-expanded", "false");
-		fireEvent.click(row);
-		expect(row).toHaveAttribute("aria-expanded", "true");
-		expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveAttribute(
-			"aria-checked",
-			"true",
-		);
-	});
-
 	it("closes on Escape and hands focus back to the trigger", () => {
 		renderTopBar("Demo Project");
 		const trigger = screen.getByRole("button", { name: /OpenScreen/ });
@@ -466,11 +452,6 @@ describe("EditorTopBar responsive affordances and tooltips", () => {
 		const undo = await tooltipOn("fixedActions.undo");
 		expect(undo.text).toContain("fixedActions.undo");
 		expect(undo.chip).toBe("Ctrl + Z");
-	});
-
-	it("leaves the language to the menu, out of the bar", () => {
-		renderTopBar("Demo Project");
-		expect(screen.queryByRole("button", { name: "topbar.changeLanguage" })).not.toBeInTheDocument();
 	});
 });
 

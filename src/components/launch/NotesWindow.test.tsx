@@ -37,7 +37,6 @@ vi.mock("@/components/ui/tooltip", () => ({
 }));
 
 vi.mock("@/contexts/I18nContext", () => ({
-	useI18n: () => ({ locale: "en" }),
 	useScopedT: () => (key: string, vars?: Record<string, string | number>) => {
 		const labels: Record<string, string> = {
 			"tooltips.notesToolbar.bold": "Bold",
