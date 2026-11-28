@@ -1694,6 +1694,49 @@
 .laneShaderEffect {
 	--_c: var(--lane-effect);
 }
+.laneCursor {
+	--_c: var(--lane-cursor);
+}
+/* A point of a cursor override, on its pill: when the pointer arrives there. A thin bar in
+   the pill's own ink, standing on its bottom edge like a mark on a ruler, with a wider box
+   to grab. A point that clicks carries a dot on top. */
+.cursorPointTick {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 11px;
+	margin-left: -5.5px;
+	cursor: ew-resize;
+	z-index: 1;
+}
+.cursorPointTick::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: 2px;
+	width: 2px;
+	height: 9px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: var(--lane-ink);
+	opacity: 0.55;
+}
+.cursorPointTick[data-click]::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: 11px;
+	width: 5px;
+	height: 5px;
+	margin-left: -2.5px;
+	border-radius: 50%;
+	background: var(--lane-ink);
+	opacity: 0.55;
+}
+.cursorPointTick:hover::before,
+.cursorPointTick:hover::after {
+	opacity: 1;
+}
 /* A zoom's camera moves (#1028): a trail on each side of the pill, fading away from it, BELOW
    it (a chained neighbour's pill stays on top). Thinner than the pill so it reads as part of
    it, not as another region. The part a trim cuts is hatched in the trim lane's red. */
@@ -2259,17 +2302,3 @@
 	background: var(--danger);
 }
 
-/* The take's key presses, as ticks along the foot of its clip card (ClipKeyTicks.tsx). Drawn in
-   the card's own dark ink, like the waveform, and never in the way of a click. */
-.tlClipKeyTicks {
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	width: 100%;
-	height: 6px;
-	pointer-events: none;
-	stroke: currentColor;
-	stroke-width: 1px;
-	opacity: 0.55;
-}

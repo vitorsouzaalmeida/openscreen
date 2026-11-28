@@ -17,6 +17,7 @@ import { executeAgentTool, isMutatingTool, OPENSCREEN_TOOL_NAMES } from "./agent
 import {
 	type CursorTelemetryReader,
 	editingGuidance,
+	probeCursorTelemetry,
 	runDocumentTool,
 	TOOL_ARG_SCHEMAS,
 	TOOL_DESCRIPTIONS,
@@ -436,6 +437,61 @@ describe("cursor telemetry reaches the model", () => {
 // tool — which is why a zoom could name a focus and no layer, from the schema
 // down to the stored region, was ever in a position to say what was actually at
 // that point of the frame.
+// A cursor override is a stretch of the pointer drawn again, kept in the project while the
+// recorded file stays as it was. Every read an agent makes is of the pointer the project DRAWS.
+describe("the pointer an agent reads is the one the project draws", () => {
+	const override = {
+		id: "cursor_1",
+		assetId: "asset_1",
+		// Over the recorded click at 4 s; it clicks at 9 s instead, somewhere else.
+		sourceStartMs: 3000,
+		sourceEndMs: 10_000,
+		points: [{ timeMs: 9000, cx: 0.1, cy: 0.9, click: true }],
+		origin: "agent" as const,
+	};
+	const overridden = (): AxcutDocument => ({ ...fixtureDocument(), cursorOverrides: [override] });
+	const track = async (runtime: ToolRuntime, document = overridden()) =>
+		JSON.parse((await runDocumentTool(document, "getCursorTrack", {}, runtime)).resultJson);
+
+	it("applies the override over the recorded track", async () => {
+		const payload = await track({
+			cursor: { read: async ({ assetId }) => ({ status: "ok", assetId, samples: SAMPLES }) },
+		});
+		expect(payload.available).toBe(true);
+		const clicks = payload.points.filter((p: { kind?: string }) => p.kind === "click");
+		expect(clicks.map((p: { atSec: number }) => p.atSec)).toEqual([9]);
+		expect(clicks[0]).toMatchObject({ cx: 0.1, cy: 0.9 });
+	});
+
+	it("gives a take with no pointer file the override alone", async () => {
+		const payload = await track({
+			cursor: { read: async ({ assetId }) => ({ status: "no-sidecar", assetId }) },
+		});
+		expect(payload.available).toBe(true);
+		expect(payload.points.some((p: { kind?: string }) => p.kind === "click")).toBe(true);
+	});
+
+	it("still says it could not look when the recorded track was not readable", async () => {
+		// The override is then only part of the answer: reporting it as the whole track would
+		// hide that the rest was never read.
+		const payload = await track({});
+		expect(payload.available).toBe(false);
+		expect(payload.reason).toBe("unavailable");
+	});
+
+	it("reports an overridden asset as having a pointer, with or without a probe", async () => {
+		expect(await probeCursorTelemetry(overridden(), undefined)).toEqual({ asset_1: true });
+		expect(
+			await probeCursorTelemetry(overridden(), {
+				read: async ({ assetId }) => ({ status: "no-sidecar", assetId }),
+				probe: async () => false,
+			}),
+		).toEqual({ asset_1: true });
+		// Without an override the probe's answer stands, and no probe is still "not checked".
+		expect(await probeCursorTelemetry(fixtureDocument(), undefined)).toBeUndefined();
+	});
+});
+
 describe("a zoom write is measured against the recorded track", () => {
 	it("reads the track for a zoom, and not for a tool with no focus to answer for", async () => {
 		const asked: string[] = [];

@@ -15,6 +15,7 @@ import { useScopedT } from "@/contexts/I18nContext";
 import type { LayoutPreset } from "../../layoutTypes";
 import { DEFAULT_TEXT_PLATE } from "../annotations/background";
 import { fitTextBox } from "../annotations/placement";
+import { clickTakeOf, loadClickTelemetry } from "../clickSound";
 import type { ClipRotation } from "../clipRotation";
 import {
 	collapseTracksToPills,
@@ -49,9 +50,11 @@ import {
 	setClipRotation,
 	setClipSourceRange,
 } from "../document/timeline";
+import { type InputSoundKind, setInputSoundsMuted } from "../inputSounds";
 import type {
 	AxcutAudioTrack,
 	AxcutClipCropRegion,
+	AxcutCursorOverride,
 	AxcutDocument,
 	AxcutShaderEffectRange,
 } from "../schema";
@@ -62,6 +65,20 @@ import {
 } from "../shaderEffects";
 import { appendAutoZoomSuggestions } from "../timeline/apply-auto-zooms";
 import { hasAnyClipWithCamera } from "../timeline/camera";
+import { resolveClipSourceEndSec } from "../timeline/clipDuration";
+import {
+	applyCursorOverrides,
+	clampCursorOverrideSpan,
+	createCursorOverride,
+	cursorOverrideRulerSpans,
+	cursorOverridesForAsset,
+	cursorPositionAt,
+	MIN_CURSOR_OVERRIDE_MS,
+	mapCursorOverride,
+	type RecordedCursorAt,
+	withCursorOverrideSpan,
+	withCursorOverrides,
+} from "../timeline/cursor-overrides";
 import { probeAudioDuration, probeVideoDimensions, probeVideoDuration } from "../timeline/duration";
 import {
 	type AnnotationTrackDrop,
@@ -187,6 +204,35 @@ function patchShaderEffectPill(
 	};
 }
 
+/** Clicks or key presses picked on their lane: what the inspector's sound switch acts on. */
+export interface InputSoundSelection {
+	kind: InputSoundKind;
+	/** The recording millisecond of each press picked, on the project's take. */
+	timesMs: number[];
+}
+
+const NO_CURSOR_OVERRIDES: AxcutCursorOverride[] = [];
+
+/**
+ * Where the pointer of `assetId` is at a recording millisecond, as the document draws it
+ * WITHOUT the override `exceptId`: the recording, plus every other override. It is what an
+ * override joins onto at its edges, so two overrides set flush against each other meet without
+ * a jump, exactly as an override meets the recording.
+ */
+async function pointerAround(
+	document: AxcutDocument,
+	assetId: string,
+	exceptId: string | null,
+): Promise<RecordedCursorAt> {
+	const asset = document.assets.find((candidate) => candidate.id === assetId);
+	const recorded = asset?.originalPath ? await loadClickTelemetry(asset.originalPath) : [];
+	const drawn = applyCursorOverrides(
+		recorded,
+		cursorOverridesForAsset(document, assetId).filter((override) => override.id !== exceptId),
+	);
+	return (timeMs) => cursorPositionAt(drawn, timeMs);
+}
+
 export function useTimeline() {
 	const ts = useScopedT("settings");
 	const document = useProjectStore((s) => s.document);
@@ -199,6 +245,10 @@ export function useTimeline() {
 	// the Delete key operates on.
 	const [multiSelection, setMultiSelection] = useState<RegionHandle[]>([]);
 	const [clipSelection, setClipSelection] = useState<string | null>(null);
+	// Clicks or key presses picked on their lane. Not a region: nothing about them can be
+	// edited but their sound, so they carry no handle and Delete does not reach them. The same
+	// "this is the thing I mean" exclusivity as the selections around it.
+	const [soundSelection, setSoundSelection] = useState<InputSoundSelection | null>(null);
 	// The selected imported audio track (issue #350) lives in the project store —
 	// not here — because the media panel and the inspector, in different subtrees,
 	// both touch it (see projectStore). It shares "this is the thing I mean"
@@ -224,6 +274,8 @@ export function useTimeline() {
 	const annotationLiveRef = useRef<AxcutDocument | null>(null);
 	const shaderEffectRollbackRef = useRef<AxcutDocument | null>(null);
 	const shaderEffectLiveRef = useRef<AxcutDocument | null>(null);
+	const cursorRollbackRef = useRef<AxcutDocument | null>(null);
+	const cursorLiveRef = useRef<AxcutDocument | null>(null);
 
 	// A drag does not always end in a commit: `ZoomFocusOverlay` unmounts the moment
 	// `focusMode` flips to "auto", so `endDrag` never runs and the snapshot outlives the
@@ -240,6 +292,9 @@ export function useTimeline() {
 		annotationLiveRef.current = null;
 		shaderEffectRollbackRef.current = null;
 		shaderEffectLiveRef.current = null;
+		cursorRollbackRef.current = null;
+		cursorLiveRef.current = null;
+		setSoundSelection(null);
 	}, [projectId]);
 
 	const hasDoc = document !== null && projectId !== null;
@@ -1318,6 +1373,7 @@ export function useTimeline() {
 			const shaderEffectIds = new Set(
 				handles.filter((h) => h.kind === "shaderEffect").map((h) => h.id),
 			);
+			const cursorIds = new Set(handles.filter((h) => h.kind === "cursor").map((h) => h.id));
 			const legacy = (document.legacyEditor as Record<string, unknown>) ?? {};
 			const prevSpeed = dropPillsByIds(
 				(legacy.speedRegions as Array<{ id: string; startMs: number; endMs: number }>) ?? [],
@@ -1356,6 +1412,12 @@ export function useTimeline() {
 						? { ...legacy, speedRegions: prevSpeed, cameraFullscreenRegions: prevCameraFullscreen }
 						: document.legacyEditor,
 			});
+			if (cursorIds.size > 0) {
+				next = withCursorOverrides(
+					next,
+					(next.cursorOverrides ?? []).filter((override) => !cursorIds.has(override.id)),
+				);
+			}
 			// Layout deletion closes a change; it must never punch a hole in the partition.
 			const layoutIds = new Set(handles.filter((h) => h.kind === "layout").map((h) => h.id));
 			for (const run of getLayoutRuns(next).reverse()) {
@@ -1396,6 +1458,7 @@ export function useTimeline() {
 			const handle = { kind, id };
 			setClipSelection(null);
 			setSelectedAudioTrackId(null);
+			setSoundSelection(null);
 			if (opts?.additive) {
 				// Shift-click toggles membership; the focused region follows the click.
 				setMultiSelection((prev) => {
@@ -1416,6 +1479,7 @@ export function useTimeline() {
 		setMultiSelection([]);
 		setClipSelection(null);
 		setSelectedAudioTrackId(null);
+		setSoundSelection(null);
 	}, [setSelectedAudioTrackId]);
 
 	// The Edit Clip dialog's Apply, as ONE document and ONE save.
@@ -1641,6 +1705,7 @@ export function useTimeline() {
 			setSelection(null);
 			setMultiSelection([]);
 			setSelectedAudioTrackId(null);
+			setSoundSelection(null);
 		},
 		[setSelectedAudioTrackId],
 	);
@@ -1652,8 +1717,176 @@ export function useTimeline() {
 			setSelection(null);
 			setMultiSelection([]);
 			setClipSelection(null);
+			setSoundSelection(null);
 		},
 		[setSelectedAudioTrackId],
+	);
+
+	// ── Cursor overrides ────────────────────────────────────────────────────────────────────
+	// A stretch of the take's pointer drawn again (timeline/cursor-overrides.ts). Stored against
+	// the ASSET in recording milliseconds, not against a clip: the ruler positions these ops take
+	// are turned into recording time through the clip the user is working on.
+	const cursorOverrides = hasDoc
+		? (document.cursorOverrides ?? NO_CURSOR_OVERRIDES)
+		: NO_CURSOR_OVERRIDES;
+
+	// At the playhead, over the footage of the clip under it. Returns the new override's id, the
+	// id of the override already there (it is selected instead: two cannot share an instant), or
+	// null when the playhead is over no footage.
+	const addCursorOverride = useCallback(
+		async (durationSec = DEFAULT_NEW_REGION_SEC): Promise<string | null> => {
+			const before = useProjectStore.getState().document;
+			if (!before) return null;
+			const at = playheadSec();
+			const clip = before.timeline.clips.find(
+				(c) => at >= c.timelineStartSec && at < c.timelineEndSec,
+			);
+			if (!clip) return null;
+			const startMs = Math.round((clip.sourceStartSec + (at - clip.timelineStartSec)) * 1000);
+			const recordedAt = await pointerAround(before, clip.assetId, null);
+			// Read again after the wait: the telemetry of a take never opened is a disk read.
+			const doc = useProjectStore.getState().document;
+			if (!doc || useProjectStore.getState().projectId !== projectId) return null;
+			const asset = doc.assets.find((a) => a.id === clip.assetId);
+			const siblings = cursorOverridesForAsset(doc, clip.assetId);
+			const under = siblings.find((o) => startMs >= o.sourceStartMs && startMs < o.sourceEndMs);
+			if (under) {
+				selectRegion("cursor", under.id);
+				return under.id;
+			}
+			// It stops at whichever comes first: the end of the clip's footage, or the next
+			// override.
+			const footageEndMs = Math.round(resolveClipSourceEndSec(clip, asset) * 1000);
+			const nextStartMs = siblings.find((o) => o.sourceStartMs > startMs)?.sourceStartMs;
+			const endMs = Math.min(
+				startMs + Math.round(durationSec * 1000),
+				footageEndMs,
+				nextStartMs ?? Number.POSITIVE_INFINITY,
+			);
+			if (endMs - startMs < MIN_CURSOR_OVERRIDE_MS) return null;
+			const override = createCursorOverride({
+				id: createId("cursor"),
+				assetId: clip.assetId,
+				startMs,
+				endMs,
+				recordedAt,
+			});
+			const next = withCursorOverrides(doc, [...(doc.cursorOverrides ?? []), override]);
+			if (!(await saveDocument(next, { history: true }))) return null;
+			selectRegion("cursor", override.id);
+			return override.id;
+		},
+		[projectId, saveDocument, selectRegion],
+	);
+
+	// A pill dragged or resized on the lane. `startMs`/`endMs` are where the stretch shown under
+	// `clipId` should now sit on the RAW ruler; the override moves by the same amounts in
+	// recording time (a raw clip plays its footage at 1:1) and stays inside that clip's footage
+	// and clear of its neighbours.
+	const updateCursorOverrideSpan = useCallback(
+		async (id: string, clipId: string, startMs: number, endMs: number, move: boolean) => {
+			const before = useProjectStore.getState().document;
+			const target = before?.cursorOverrides?.find((o) => o.id === id);
+			if (!before || !target) return;
+			const recordedAt = await pointerAround(before, target.assetId, id);
+			const doc = useProjectStore.getState().document;
+			const override = doc?.cursorOverrides?.find((o) => o.id === id);
+			const clip = doc?.timeline.clips.find((c) => c.id === clipId);
+			if (!doc || !override || !clip) return;
+			const shown = cursorOverrideRulerSpans(override, [clip])[0];
+			if (!shown) return;
+			const asset = doc.assets.find((a) => a.id === clip.assetId);
+			const from = { startMs: override.sourceStartMs, endMs: override.sourceEndMs };
+			const span = clampCursorOverrideSpan(
+				doc.cursorOverrides ?? [],
+				id,
+				override.assetId,
+				{
+					startMs: from.startMs + (finiteMs(startMs) - Math.round(shown.startSec * 1000)),
+					endMs: from.endMs + (finiteMs(endMs) - Math.round(shown.endSec * 1000)),
+				},
+				from,
+				{
+					minMs: Math.round(clip.sourceStartSec * 1000),
+					maxMs: Math.round(resolveClipSourceEndSec(clip, asset) * 1000),
+				},
+			);
+			if (span.endMs - span.startMs < MIN_CURSOR_OVERRIDE_MS) return;
+			await saveDocument(
+				mapCursorOverride(doc, id, (o) =>
+					withCursorOverrideSpan(o, span.startMs, span.endMs, recordedAt, move),
+				),
+				{ history: true },
+			);
+		},
+		[saveDocument],
+	);
+
+	// One edit of an override, saved: a point added or removed, a click set, the pointer hidden.
+	const changeCursorOverride = useCallback(
+		async (id: string, change: (override: AxcutCursorOverride) => AxcutCursorOverride | null) => {
+			const doc = useProjectStore.getState().document;
+			if (!doc) return;
+			await saveDocument(mapCursorOverride(doc, id, change), { history: true });
+		},
+		[saveDocument],
+	);
+
+	// A point dragged on the preview, or a tick on the pill: the same live/commit split as
+	// `updateAnnotationLive` / `commitAnnotationChange`, for the same reason.
+	const updateCursorOverrideLive = useCallback(
+		(id: string, change: (override: AxcutCursorOverride) => AxcutCursorOverride) => {
+			const doc = useProjectStore.getState().document;
+			if (!doc) return;
+			if (cursorLiveRef.current !== doc) cursorRollbackRef.current = doc;
+			const next = mapCursorOverride(doc, id, change);
+			setDocument(next, { history: false });
+			cursorLiveRef.current = next;
+		},
+		[setDocument],
+	);
+
+	const commitCursorOverride = useCallback(async () => {
+		const doc = useProjectStore.getState().document;
+		if (!doc) return;
+		// See `commitAnnotationChange`: the snapshot counts only while the document on screen is
+		// still the one this hook's live writes produced.
+		const rollback = cursorLiveRef.current === doc ? cursorRollbackRef.current : null;
+		cursorRollbackRef.current = null;
+		cursorLiveRef.current = null;
+		// No live write in front of this commit: nothing changed, nothing to save.
+		if (!rollback) return;
+		if (!(await saveDocument(doc, { history: true, historyBase: rollback }))) {
+			useProjectStore.setState((state) =>
+				state.document === doc ? { document: rollback, revision: state.revision + 1 } : {},
+			);
+		}
+	}, [saveDocument]);
+
+	// ── Click and key sounds ────────────────────────────────────────────────────────────────
+	// The lanes show every click and key press of the project's take. Nothing about them is
+	// editable but whether they sound (inputSounds.ts).
+	const selectInputSounds = useCallback(
+		(kind: InputSoundKind, timesMs: number[]) => {
+			setSelection(null);
+			setMultiSelection([]);
+			setClipSelection(null);
+			setSelectedAudioTrackId(null);
+			setSoundSelection(timesMs.length > 0 ? { kind, timesMs } : null);
+		},
+		[setSelectedAudioTrackId],
+	);
+
+	const setInputSoundsMutedOp = useCallback(
+		async (kind: InputSoundKind, timesMs: number[], muted: boolean) => {
+			const doc = useProjectStore.getState().document;
+			const take = clickTakeOf(doc);
+			if (!doc || !take || timesMs.length === 0) return;
+			await saveDocument(setInputSoundsMuted(doc, take.id, kind, timesMs, muted), {
+				history: true,
+			});
+		},
+		[saveDocument],
 	);
 
 	const speedRegions = hasDoc
@@ -1866,6 +2099,15 @@ export function useTimeline() {
 		cameraFullscreenRegions,
 		shaderEffectRanges,
 		shaderEffects,
+		cursorOverrides,
+		addCursorOverride,
+		updateCursorOverrideSpan,
+		changeCursorOverride,
+		updateCursorOverrideLive,
+		commitCursorOverride,
+		soundSelection,
+		selectInputSounds,
+		setInputSoundsMuted: setInputSoundsMutedOp,
 		layoutSegments,
 		addLayoutChange,
 		setLayoutPreset,

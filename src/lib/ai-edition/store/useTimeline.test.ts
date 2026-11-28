@@ -32,6 +32,15 @@ vi.mock("./projectStore", async (importOriginal) => {
 
 vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
 
+// The take's recorded pointer, as the click sound's one-shot read hands it over. Empty unless a
+// test records one: a take with no pointer file.
+const recordedPointerMock = vi.hoisted(() => vi.fn());
+vi.mock("../clickSound", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../clickSound")>();
+	recordedPointerMock.mockResolvedValue([]);
+	return { ...actual, loadClickTelemetry: recordedPointerMock };
+});
+
 vi.mock("../timeline/duration", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("../timeline/duration")>();
 	return {
@@ -1622,6 +1631,7 @@ describe("useTimeline.clearTimeline", () => {
 		annotation: (tl) => tl.addAnnotation(),
 		speed: (tl) => tl.addSpeed(),
 		layout: (tl) => tl.addLayoutChange("no-webcam", 2),
+		cursor: (tl) => tl.addCursorOverride(),
 		// The editor has no effect lane: agents add effects, so this one is written as they do.
 		shaderEffect: async () => {
 			const doc = useProjectStore.getState().document as AxcutDocument;
@@ -1668,6 +1678,7 @@ describe("useTimeline.clearTimeline", () => {
 			speed: doc ? readSpeedRegions(doc).length : 0,
 			layout: doc ? Math.max(0, layoutRuns(doc).length - 1) : 0,
 			shaderEffect: doc?.shaderEffectRanges?.length ?? 0,
+			cursor: doc?.cursorOverrides?.length ?? 0,
 		};
 	};
 	const noRegions: Record<EditKind, number> = {
@@ -1677,6 +1688,7 @@ describe("useTimeline.clearTimeline", () => {
 		speed: 0,
 		layout: 0,
 		shaderEffect: 0,
+		cursor: 0,
 	};
 
 	// A project holding everything that is NOT an edit: two clips, a webcam, an imported
@@ -1837,6 +1849,7 @@ describe("useTimeline.clearTimeline", () => {
 			speed: 1,
 			layout: 1,
 			shaderEffect: 1,
+			cursor: 1,
 		});
 
 		await act(async () => {
@@ -1877,6 +1890,7 @@ describe("useTimeline.clearTimeline", () => {
 			speed: 1,
 			layout: 1,
 			shaderEffect: 1,
+			cursor: 1,
 		});
 
 		act(() => {
@@ -3583,5 +3597,295 @@ describe("useTimeline.addZoomsBulk reads the document at write time", () => {
 
 		expect(added).toBe(0);
 		expect(bridgeMocks.save).not.toHaveBeenCalled();
+	});
+});
+
+// A cursor override is stored against the take, in its own recording time. These ops are what
+// the timeline's Cursor lane and the preview's handles call.
+describe("useTimeline cursor overrides", () => {
+	// The recorded pointer walks left to right, a tenth of the frame per second.
+	const recorded = [0, 30_000].map((timeMs) => ({ timeMs, cx: timeMs / 100_000, cy: 0.5 }));
+	const overrides = () => useProjectStore.getState().document?.cursorOverrides ?? [];
+
+	beforeEach(() => {
+		useProjectStore.getState().clear();
+		clearHistory();
+		bridgeMocks.save.mockReset();
+		bridgeMocks.save.mockImplementation(async (doc: AxcutDocument) => ({
+			success: true,
+			document: doc,
+		}));
+		recordedPointerMock.mockReset();
+		recordedPointerMock.mockResolvedValue(recorded);
+		useProjectStore.setState({ projectId: "proj_test", document: sampleDoc, currentTimeSec: 2 });
+	});
+	afterEach(() => {
+		useProjectStore.getState().clear();
+		clearHistory();
+	});
+
+	const add = async (result: { current: ReturnType<typeof useTimeline> }, durationSec?: number) => {
+		let id: string | null = null;
+		await act(async () => {
+			id = await result.current.addCursorOverride(durationSec);
+		});
+		return id as string | null;
+	};
+
+	it("adds one at the playhead, joined to the recorded pointer at both ends, and selects it", async () => {
+		const { result } = renderTimeline();
+		const id = await add(result);
+		expect(overrides()).toEqual([
+			{
+				id,
+				assetId: "asset_1",
+				sourceStartMs: 2000,
+				sourceEndMs: 4000,
+				points: [
+					{ timeMs: 2000, cx: 0.02, cy: 0.5, recorded: true },
+					{ timeMs: 4000, cx: 0.04, cy: 0.5, recorded: true },
+				],
+				origin: "user",
+			},
+		]);
+		expect(result.current.selection).toEqual({ kind: "cursor", id });
+		expect(past).toHaveLength(1);
+	});
+
+	it("selects the override already under the playhead instead of adding a second", async () => {
+		const { result } = renderTimeline();
+		const first = await add(result);
+		act(() => result.current.clearSelection());
+		act(() => useProjectStore.setState({ currentTimeSec: 3 }));
+		expect(await add(result)).toBe(first);
+		expect(overrides()).toHaveLength(1);
+		expect(result.current.selection).toEqual({ kind: "cursor", id: first });
+	});
+
+	it("stops a new one at the next override, and at the end of the clip's footage", async () => {
+		const { result } = renderTimeline();
+		act(() => useProjectStore.setState({ currentTimeSec: 5 }));
+		await add(result);
+		act(() => useProjectStore.setState({ currentTimeSec: 4 }));
+		await add(result);
+		// From 4 s it would run to 6 s; the one at 5 s is in the way.
+		expect(overrides().map((o) => [o.sourceStartMs, o.sourceEndMs])).toEqual([
+			[5000, 7000],
+			[4000, 5000],
+		]);
+		act(() => useProjectStore.setState({ currentTimeSec: 9.5 }));
+		await add(result);
+		expect(overrides().at(-1)?.sourceEndMs).toBe(10_000);
+	});
+
+	it("adds nothing where the playhead is over no footage", async () => {
+		const { result } = renderTimeline();
+		act(() => useProjectStore.setState({ currentTimeSec: 25 }));
+		expect(await add(result)).toBeNull();
+		expect(overrides()).toEqual([]);
+		expect(bridgeMocks.save).not.toHaveBeenCalled();
+	});
+
+	it("opens with no point on a take that recorded no pointer", async () => {
+		recordedPointerMock.mockResolvedValue([]);
+		const { result } = renderTimeline();
+		await add(result);
+		expect(overrides()[0].points).toEqual([]);
+	});
+
+	it("moves with its pill: the joins are read again, the user's points keep their place", async () => {
+		const { result } = renderTimeline();
+		const id = (await add(result)) as string;
+		await act(async () => {
+			await result.current.changeCursorOverride(id, (o) => ({
+				...o,
+				points: [o.points[0], { timeMs: 3000, cx: 0.9, cy: 0.9, click: true }, o.points[1]],
+			}));
+		});
+		// The pill dragged two seconds to the right on the ruler.
+		await act(async () => {
+			await result.current.updateCursorOverrideSpan(id, "clip_a", 4000, 6000, true);
+		});
+		expect(overrides()[0]).toMatchObject({
+			sourceStartMs: 4000,
+			sourceEndMs: 6000,
+			points: [
+				{ timeMs: 4000, cx: 0.04, cy: 0.5, recorded: true },
+				{ timeMs: 5000, cx: 0.9, cy: 0.9, click: true },
+				{ timeMs: 6000, cx: 0.06, cy: 0.5, recorded: true },
+			],
+		});
+	});
+
+	it("is held inside the footage of the clip it is dragged on, at its own length", async () => {
+		const { result } = renderTimeline();
+		const id = (await add(result)) as string;
+		await act(async () => {
+			await result.current.updateCursorOverrideSpan(id, "clip_a", 9500, 11_500, true);
+		});
+		expect([overrides()[0].sourceStartMs, overrides()[0].sourceEndMs]).toEqual([8000, 10_000]);
+	});
+
+	it("stops against its neighbour instead of sharing an instant with it", async () => {
+		const { result } = renderTimeline();
+		const first = (await add(result)) as string;
+		act(() => useProjectStore.setState({ currentTimeSec: 6 }));
+		await add(result);
+		// The first one's right edge pulled into the second (6 s to 8 s).
+		await act(async () => {
+			await result.current.updateCursorOverrideSpan(first, "clip_a", 2000, 7000, false);
+		});
+		const moved = overrides().find((o) => o.id === first);
+		expect([moved?.sourceStartMs, moved?.sourceEndMs]).toEqual([2000, 6000]);
+	});
+
+	it("records a point dragged on the preview as one undo step", async () => {
+		const { result } = renderTimeline();
+		const id = (await add(result)) as string;
+		const before = useProjectStore.getState().document;
+		const steps = past.length;
+		// Many live writes, one per frame of the drag: none of them saved or recorded.
+		for (const cx of [0.3, 0.4, 0.5]) {
+			act(() =>
+				result.current.updateCursorOverrideLive(id, (o) => ({
+					...o,
+					points: [{ timeMs: 3000, cx, cy: 0.5 }],
+				})),
+			);
+		}
+		expect(past).toHaveLength(steps);
+		const saves = bridgeMocks.save.mock.calls.length;
+		await act(async () => {
+			await result.current.commitCursorOverride();
+		});
+		expect(bridgeMocks.save).toHaveBeenCalledTimes(saves + 1);
+		expect(past).toHaveLength(steps + 1);
+		expect(overrides()[0].points).toEqual([{ timeMs: 3000, cx: 0.5, cy: 0.5 }]);
+		act(() => {
+			undo();
+		});
+		expect(useProjectStore.getState().document?.cursorOverrides).toEqual(before?.cursorOverrides);
+	});
+
+	it("saves nothing on a commit no drag came before", async () => {
+		const { result } = renderTimeline();
+		await add(result);
+		const saves = bridgeMocks.save.mock.calls.length;
+		await act(async () => {
+			await result.current.commitCursorOverride();
+		});
+		expect(bridgeMocks.save).toHaveBeenCalledTimes(saves);
+	});
+
+	it("gives the recorded pointer back when it is removed, leaving no key behind", async () => {
+		const { result } = renderTimeline();
+		const id = (await add(result)) as string;
+		await act(async () => {
+			await result.current.removeRegion("cursor", id);
+		});
+		expect("cursorOverrides" in (useProjectStore.getState().document ?? {})).toBe(false);
+		expect(result.current.selection).toBeNull();
+	});
+
+	it("is removed with the rest of a multi-selection, in one write", async () => {
+		const { result } = renderTimeline();
+		const id = (await add(result)) as string;
+		await act(async () => {
+			await result.current.addZoom();
+		});
+		const zoomId = useProjectStore.getState().document?.zoomRanges[0].id as string;
+		const saves = bridgeMocks.save.mock.calls.length;
+		await act(async () => {
+			await result.current.removeRegions([
+				{ kind: "cursor", id },
+				{ kind: "zoom", id: zoomId },
+			]);
+		});
+		expect(bridgeMocks.save).toHaveBeenCalledTimes(saves + 1);
+		expect(overrides()).toEqual([]);
+		expect(useProjectStore.getState().document?.zoomRanges).toEqual([]);
+	});
+
+	it("keeps an agent's pointer when the timeline is cleared, and drops the user's", async () => {
+		const { result } = renderTimeline();
+		await add(result);
+		const agent = {
+			id: "cursor_agent",
+			assetId: "asset_1",
+			sourceStartMs: 5000,
+			sourceEndMs: 9000,
+			points: [],
+			origin: "agent" as const,
+		};
+		act(() => {
+			const doc = useProjectStore.getState().document as AxcutDocument;
+			useProjectStore.setState({
+				document: { ...doc, cursorOverrides: [...(doc.cursorOverrides ?? []), agent] },
+			});
+		});
+		await act(async () => {
+			await result.current.clearTimeline();
+		});
+		expect(overrides()).toEqual([agent]);
+	});
+});
+
+// The Clicks and Keys lanes: nothing about a mark can be edited but whether it sounds.
+describe("useTimeline input sounds", () => {
+	beforeEach(() => {
+		useProjectStore.getState().clear();
+		clearHistory();
+		bridgeMocks.save.mockReset();
+		bridgeMocks.save.mockImplementation(async (doc: AxcutDocument) => ({
+			success: true,
+			document: doc,
+		}));
+		useProjectStore.setState({ projectId: "proj_test", document: sampleDoc, currentTimeSec: 2 });
+	});
+	afterEach(() => {
+		useProjectStore.getState().clear();
+		clearHistory();
+	});
+
+	it("silences the presses picked on the project's take, and gives them back", async () => {
+		const { result } = renderTimeline();
+		await act(async () => {
+			await result.current.setInputSoundsMuted("key", [1200, 1300], true);
+		});
+		expect(useProjectStore.getState().document?.mutedInputSounds).toEqual([
+			{ assetId: "asset_1", kind: "key", timeMs: 1200 },
+			{ assetId: "asset_1", kind: "key", timeMs: 1300 },
+		]);
+		expect(past).toHaveLength(1);
+		await act(async () => {
+			await result.current.setInputSoundsMuted("key", [1200, 1300], false);
+		});
+		expect("mutedInputSounds" in (useProjectStore.getState().document ?? {})).toBe(false);
+	});
+
+	it("holds one selection at a time: marks, or a region, or a clip", async () => {
+		const { result } = renderTimeline();
+		await act(async () => {
+			await result.current.addZoom();
+		});
+		const zoomId = useProjectStore.getState().document?.zoomRanges[0].id as string;
+		act(() => result.current.selectRegion("zoom", zoomId));
+		act(() => result.current.selectInputSounds("click", [900]));
+		expect(result.current.soundSelection).toEqual({ kind: "click", timesMs: [900] });
+		expect(result.current.selection).toBeNull();
+
+		act(() => result.current.selectRegion("zoom", zoomId));
+		expect(result.current.soundSelection).toBeNull();
+
+		act(() => result.current.selectInputSounds("key", [100, 200]));
+		act(() => result.current.selectClip("clip_a"));
+		expect(result.current.soundSelection).toBeNull();
+
+		act(() => result.current.selectInputSounds("key", [100]));
+		act(() => result.current.clearSelection());
+		expect(result.current.soundSelection).toBeNull();
+		// Picking nothing is no selection.
+		act(() => result.current.selectInputSounds("key", []));
+		expect(result.current.soundSelection).toBeNull();
 	});
 });

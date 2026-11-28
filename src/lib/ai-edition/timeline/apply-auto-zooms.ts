@@ -6,6 +6,7 @@ import type { CursorTelemetryPoint } from "@/components/video-editor/types";
 import { clipRotation } from "../clipRotation";
 import { createId } from "../document/ids";
 import type { AxcutAsset, AxcutDocument } from "../schema";
+import { applyCursorOverrides, cursorOverridesForAsset } from "./cursor-overrides";
 import { anchorRegionsWithDerivedMs } from "./timelineMap";
 import { effectiveZoomScale } from "./zoom-scale";
 import { type AutoZoomSuggestion, buildAutoZoomSuggestionsForClips } from "./zoom-suggestions";
@@ -28,10 +29,19 @@ export async function collectAutoZoomSuggestionsForDocument(
 			document.timeline.clips.some((clip) => clip.assetId === asset.id),
 	);
 	// Read in parallel, planned in one pass: two recordings' zooms must keep clear of each other too.
+	// Each is the pointer the document DRAWS, its cursor overrides applied: a zoom is planned on
+	// the click the viewer will see, and a take whose whole pointer an agent drew has clicks too.
 	const telemetryByAssetId = new Map(
 		await Promise.all(
 			assetsWithClips.map(
-				async (asset) => [asset.id, (await getTelemetry(asset.originalPath)) ?? []] as const,
+				async (asset) =>
+					[
+						asset.id,
+						applyCursorOverrides(
+							(await getTelemetry(asset.originalPath)) ?? [],
+							cursorOverridesForAsset(document, asset.id),
+						),
+					] as const,
 			),
 		),
 	);

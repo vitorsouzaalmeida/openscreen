@@ -2,6 +2,7 @@
 //! et facteur de « click bounce » — consommés par frame (temps fractionnaire), donc
 //! le motion blur du curseur vient gratuitement du supersampling temporel.
 
+use crate::scene::{SceneCursorInteraction, SceneCursorPatch, SceneCursorSample};
 use anyhow::{Context, Result};
 
 // Paramètres de suivi auto — parité stricte avec
@@ -140,6 +141,80 @@ fn follow_step(from: (f32, f32), to: (f32, f32), dt_ms: f32) -> (f32, f32) {
     (from.0 + dx * factor, from.1 + dy * factor)
 }
 
+/// The window every production reader loads: the whole recording. A day is far longer than
+/// any take, and `load_patched` only keeps the samples that exist.
+const WHOLE_RECORDING_S: f64 = 24.0 * 3600.0;
+
+/// Where a take's recorded pointer track lives: beside its screen video.
+pub fn cursor_sidecar_path(screen_path: &str) -> String {
+    format!("{screen_path}.cursor.json")
+}
+
+/// One entry of the raw list `load_patched` builds a track from, whether it was recorded or
+/// comes from a patch. Both are reduced to this before anything is derived from them, so the
+/// loop that builds positions, clicks, cursor types and visibility cannot tell them apart.
+struct RawSample<'a> {
+    /// Milliseconds from the start of the recording; `-1` when the entry has no time, which no
+    /// window keeps.
+    time_ms: f64,
+    cx: f32,
+    cy: f32,
+    visible: bool,
+    /// A press. Whether it counts as a click also depends on `visible` (see `load_patched`).
+    click: bool,
+    cursor_type: &'a str,
+}
+
+impl<'a> RawSample<'a> {
+    fn recorded(s: &'a serde_json::Value) -> RawSample<'a> {
+        RawSample {
+            time_ms: s["timeMs"].as_f64().unwrap_or(-1.0),
+            cx: s["cx"].as_f64().unwrap_or(0.0) as f32,
+            cy: s["cy"].as_f64().unwrap_or(0.0) as f32,
+            visible: s
+                .get("visible")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(true),
+            click: s["interactionType"].as_str() == Some("click"),
+            // Le helper macOS rend nil hors texte/pointeur pour que le rendu retombe sur
+            // la flèche. Le sidecar stocke ça en JSON null ou omet la clé.
+            // Ignorer ces échantillons gardait le dernier type sémantique
+            // (`pointer`/`text`) : un thème restait collé après le retour à la
+            // flèche. Null / absence = reset vers `arrow`.
+            cursor_type: match s.get("cursorType") {
+                Some(v) => v
+                    .as_str()
+                    .filter(|label| !label.is_empty())
+                    .unwrap_or("arrow"),
+                None => "arrow",
+            },
+        }
+    }
+
+    /// A patch sample names no cursor type, which reads as the arrow exactly as a recorded
+    /// sample without the key does: a `pointer` recorded before the span does not stick to it.
+    fn patched(s: &SceneCursorSample) -> RawSample<'a> {
+        RawSample {
+            time_ms: s.time_ms,
+            cx: s.cx,
+            cy: s.cy,
+            visible: s.visible,
+            click: s.interaction_type == SceneCursorInteraction::Click,
+            cursor_type: "arrow",
+        }
+    }
+}
+
+/// The `samples` array of a `.cursor.json` sidecar, as written.
+fn read_sidecar_samples(path: &str) -> Result<Vec<serde_json::Value>> {
+    let txt = std::fs::read_to_string(path).with_context(|| format!("lecture {path}"))?;
+    let mut v: serde_json::Value = serde_json::from_str(&txt)?;
+    match v.get_mut("samples").map(serde_json::Value::take) {
+        Some(serde_json::Value::Array(samples)) => Ok(samples),
+        _ => anyhow::bail!("samples[]"),
+    }
+}
+
 impl CursorTrack {
     /// Seul point de construction : garantit que `follow_samples` est toujours dérivé des
     /// échantillons courants. Une piste re-lissée (`smoothed`) recalcule donc aussi son suivi,
@@ -216,9 +291,58 @@ impl CursorTrack {
 
     /// Charge la fenêtre [offset_ms, offset_ms + dur_s*1000] et la ramène à t=0.
     pub fn load(path: &str, offset_ms: f64, dur_s: f64) -> Result<CursorTrack> {
-        let txt = std::fs::read_to_string(path).with_context(|| format!("lecture {path}"))?;
-        let v: serde_json::Value = serde_json::from_str(&txt)?;
-        let arr = v["samples"].as_array().context("samples[]")?;
+        Self::load_patched(path, &[], offset_ms, dur_s)
+    }
+
+    /// A take's whole pointer track as it is drawn: the recording beside `screen_path`, with
+    /// the scene's cursor patches for that take (`Scene::cursor_patches_for`) swapped in. The
+    /// one way the preview, its prefetch and the export load a clip's track, so that none of
+    /// them can show a pointer the others do not.
+    pub fn load_take(screen_path: &str, patches: &[&SceneCursorPatch]) -> Result<CursorTrack> {
+        Self::load_patched(&cursor_sidecar_path(screen_path), patches, 0.0, WHOLE_RECORDING_S)
+    }
+
+    /// `load`, with cursor patches applied to the recording first. The sidecar is read-only: an
+    /// edit of the pointer lives in the project, and the app sends it as ready-made samples.
+    ///
+    /// Each patch cuts the RECORDED samples of `[start_ms, end_ms]` out, ends included and
+    /// whatever they carried (position, click, visibility, cursor type), and adds its own. This
+    /// happens on the raw sample list, before anything is derived from it, which is what makes
+    /// the recording resume by itself after the span: the next recorded sample still carries
+    /// its own `visible` and `cursorType`, and the loop below turns that into a transition as
+    /// it does for any other sample. Patching the built step functions instead would have to
+    /// reconstruct the state the recording was in at the end of every span.
+    ///
+    /// Same result as `applyCursorOverrides` (`cursor-overrides.ts`), which the TypeScript
+    /// readers of the track go through: recorded samples outside every span, then the patches'
+    /// samples in the order given, sorted by time with ties left in that order. A patch never
+    /// removes another patch's samples, so two that overlap (the app sends none) both show.
+    /// Nothing is generated or interpolated here; a patch without samples leaves a gap that
+    /// `at` crosses in a straight line, like any other gap between two samples.
+    ///
+    /// A sidecar that is missing or unreadable is an error only when there is no patch: with
+    /// one, the track is the patches alone, which is how a take recorded without a pointer
+    /// gets one. Patch times are whole-recording milliseconds like the sidecar's, so the
+    /// `offset_ms` window applies to the patched list as it does to a recorded one.
+    pub fn load_patched(
+        path: &str,
+        patches: &[&SceneCursorPatch],
+        offset_ms: f64,
+        dur_s: f64,
+    ) -> Result<CursorTrack> {
+        let recorded = match read_sidecar_samples(path) {
+            Ok(samples) => samples,
+            Err(error) if patches.is_empty() => return Err(error),
+            Err(_) => Vec::new(),
+        };
+        let mut raw: Vec<RawSample> = recorded.iter().map(RawSample::recorded).collect();
+        // Without a patch the list stays exactly as the file has it, order included.
+        if !patches.is_empty() {
+            raw.retain(|s| !patches.iter().any(|patch| patch.covers(s.time_ms)));
+            raw.extend(patches.iter().flat_map(|patch| patch.samples.iter().map(RawSample::patched)));
+            // Stable: two samples of one instant keep the order they were added in.
+            raw.sort_by(|a, b| a.time_ms.total_cmp(&b.time_ms));
+        }
         let mut samples = Vec::new();
         let mut clicks = Vec::new();
         let mut types: Vec<(f32, String)> = Vec::new();
@@ -226,52 +350,32 @@ impl CursorTrack {
         let mut visibility_sample_time = f64::NEG_INFINITY;
         // A clipped track inherits the last recorded state at its source offset. Using the first
         // later sample would reveal a cursor early when that sample is the transition to visible.
-        for s in arr {
-            let tm = s["timeMs"].as_f64().unwrap_or(-1.0);
+        // Read from the patched list: a window that starts inside a patch starts in its state.
+        for s in &raw {
+            let tm = s.time_ms;
             if tm >= 0.0 && tm <= offset_ms && tm >= visibility_sample_time {
                 visibility_sample_time = tm;
-                visibility_at_offset = s
-                    .get("visible")
-                    .and_then(|value| value.as_bool())
-                    .unwrap_or(true);
+                visibility_at_offset = s.visible;
             }
         }
         let mut visibility = vec![(0.0, visibility_at_offset)];
         let end = offset_ms + dur_s * 1000.0;
-        for s in arr {
-            let tm = s["timeMs"].as_f64().unwrap_or(-1.0);
+        for s in &raw {
+            let tm = s.time_ms;
             if tm < offset_ms || tm > end {
                 continue;
             }
             let t = ((tm - offset_ms) / 1000.0) as f32;
-            let cx = s["cx"].as_f64().unwrap_or(0.0) as f32;
-            let cy = s["cy"].as_f64().unwrap_or(0.0) as f32;
-            samples.push((t, cx, cy));
-            let visible = s
-                .get("visible")
-                .and_then(|value| value.as_bool())
-                .unwrap_or(true);
-            if visibility.last().map(|(_, previous)| *previous) != Some(visible) {
-                visibility.push((t, visible));
+            samples.push((t, s.cx, s.cy));
+            if visibility.last().map(|(_, previous)| *previous) != Some(s.visible) {
+                visibility.push((t, s.visible));
             }
-            if visible && s["interactionType"].as_str() == Some("click") {
+            if s.visible && s.click {
                 clicks.push(t);
             }
-            // Seules les TRANSITIONS sont retenues — voir `types`. Le helper
-            // macOS rend nil hors texte/pointeur pour que le rendu retombe sur
-            // la flèche. Le sidecar stocke ça en JSON null ou omet la clé.
-            // Ignorer ces échantillons gardait le dernier type sémantique
-            // (`pointer`/`text`) : un thème restait collé après le retour à la
-            // flèche. Null / absence = reset vers `arrow`.
-            let ct = match s.get("cursorType") {
-                Some(v) => v
-                    .as_str()
-                    .filter(|label| !label.is_empty())
-                    .unwrap_or("arrow"),
-                None => "arrow",
-            };
-            if types.last().map(|(_, prev)| prev.as_str()) != Some(ct) {
-                types.push((t, ct.to_string()));
+            // Seules les TRANSITIONS sont retenues — voir `types`.
+            if types.last().map(|(_, prev)| prev.as_str()) != Some(s.cursor_type) {
+                types.push((t, s.cursor_type.to_string()));
             }
         }
         samples.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
@@ -1020,6 +1124,313 @@ mod tests {
             Some("arrow"),
             "omitted cursorType after pointer must reset to arrow independently"
         );
+    }
+
+    /// A sidecar written to a temp file for one test, removed when the test ends.
+    struct TempSidecar(std::path::PathBuf);
+
+    impl TempSidecar {
+        /// A path nothing has been written to: a take recorded without a pointer.
+        fn missing(tag: &str) -> TempSidecar {
+            let unique = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            TempSidecar(std::env::temp_dir().join(format!(
+                "openscreen-cursor-patch-{tag}-{}-{unique}.mp4.cursor.json",
+                std::process::id()
+            )))
+        }
+
+        fn write(tag: &str, json: &str) -> TempSidecar {
+            let sidecar = TempSidecar::missing(tag);
+            std::fs::write(&sidecar.0, json).expect("write temp sidecar");
+            sidecar
+        }
+
+        fn path(&self) -> &str {
+            self.0.to_str().expect("utf-8 temp path")
+        }
+
+        /// The screen video this file is the sidecar of.
+        fn screen_path(&self) -> &str {
+            self.path().strip_suffix(".cursor.json").expect("sidecar suffix")
+        }
+    }
+
+    impl Drop for TempSidecar {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    /// A cursor patch as the scene JSON carries it, so these tests read the app's own shape.
+    fn patch(start_ms: u32, end_ms: u32, samples: &str) -> SceneCursorPatch {
+        serde_json::from_str(&format!(
+            r#"{{"screenPath":"/take.mp4","startMs":{start_ms},"endMs":{end_ms},"samples":[{samples}]}}"#
+        ))
+        .expect("patch json")
+    }
+
+    fn assert_at(track: &CursorTrack, t: f32, want: (f32, f32)) {
+        let got = track.at(t).expect("position");
+        assert!(
+            (got.0 - want.0).abs() < 1e-5 && (got.1 - want.1).abs() < 1e-5,
+            "t = {t}: {got:?}, expected {want:?}"
+        );
+    }
+
+    /// Inside the span the pointer is the patch's, ends included; outside it is the recording's,
+    /// and the join between the two is an ordinary interpolation.
+    #[test]
+    fn a_patch_replaces_the_recording_over_its_span_and_nowhere_else() {
+        let sidecar = TempSidecar::write(
+            "span",
+            r#"{"samples":[
+                {"timeMs":0,"cx":0.0,"cy":0.1},
+                {"timeMs":1000,"cx":0.1,"cy":0.1},
+                {"timeMs":1500,"cx":0.15,"cy":0.99},
+                {"timeMs":1800,"cx":0.18,"cy":0.99,"interactionType":"click"},
+                {"timeMs":2500,"cx":0.25,"cy":0.99},
+                {"timeMs":3000,"cx":0.3,"cy":0.1},
+                {"timeMs":3500,"cx":0.35,"cy":0.1,"interactionType":"click"},
+                {"timeMs":4000,"cx":0.4,"cy":0.1}
+            ]}"#,
+        );
+        let drawn = patch(
+            1500,
+            2500,
+            r#"{"timeMs":1500,"cx":0.8,"cy":0.8,"visible":true,"interactionType":"move"},
+               {"timeMs":2200,"cx":0.8,"cy":0.6,"visible":true,"interactionType":"click"},
+               {"timeMs":2280,"cx":0.8,"cy":0.6,"visible":true,"interactionType":"mouseup"},
+               {"timeMs":2500,"cx":0.9,"cy":0.6,"visible":true,"interactionType":"move"}"#,
+        );
+        let recorded = CursorTrack::load(sidecar.path(), 0.0, 10.0).expect("recorded");
+        let track = CursorTrack::load_patched(sidecar.path(), &[&drawn], 0.0, 10.0).expect("patched");
+
+        // Outside the span: the recording, untouched.
+        for t in [0.0, 0.5, 1.0, 3.0, 3.2, 4.0] {
+            assert_at(&track, t, recorded.at(t).unwrap());
+        }
+        // Inside it, both ends included: the patch. The recorded samples at 1500 and 2500 sit
+        // exactly on the ends and are gone with the rest.
+        assert_at(&track, 1.5, (0.8, 0.8));
+        assert_at(&track, 1.85, (0.8, 0.7));
+        assert_at(&track, 2.2, (0.8, 0.6));
+        assert_at(&track, 2.5, (0.9, 0.6));
+        // Into and out of the span: a straight line between a recorded sample and a patch one.
+        assert_at(&track, 1.25, (0.45, 0.45));
+        assert_at(&track, 2.75, (0.6, 0.35));
+        // 3 recorded samples out, 4 patch samples in.
+        assert_eq!(track.sample_count(), recorded.sample_count() + 1);
+
+        // The recorded click of the span is gone, the patch's is there, and the recorded click
+        // after the span is still there. A release is not a click.
+        assert_eq!(recorded.clicks, vec![1.8, 3.5]);
+        assert_eq!(track.clicks, vec![2.2, 3.5]);
+        assert_eq!(track.click_points[0], (0.8, 0.6));
+    }
+
+    /// A hidden patch hides the pointer over its span only: the recording's own visibility is
+    /// back with the first recorded sample after it.
+    #[test]
+    fn a_hidden_patch_hides_the_pointer_over_its_span_only() {
+        let sidecar = TempSidecar::write(
+            "hidden",
+            r#"{"samples":[
+                {"timeMs":0,"cx":0.1,"cy":0.1,"visible":true},
+                {"timeMs":1500,"cx":0.2,"cy":0.2,"visible":true,"interactionType":"click"},
+                {"timeMs":2033,"cx":0.3,"cy":0.3,"visible":true},
+                {"timeMs":3000,"cx":0.4,"cy":0.4,"visible":true}
+            ]}"#,
+        );
+        let hidden = patch(
+            1000,
+            2000,
+            r#"{"timeMs":1000,"cx":0.5,"cy":0.5,"visible":false,"interactionType":"move"},
+               {"timeMs":1700,"cx":0.5,"cy":0.5,"visible":false,"interactionType":"click"},
+               {"timeMs":2000,"cx":0.5,"cy":0.5,"visible":false,"interactionType":"move"}"#,
+        );
+        let track = CursorTrack::load_patched(sidecar.path(), &[&hidden], 0.0, 10.0).expect("patched");
+
+        assert!(track.visible_at(0.0));
+        assert!(track.visible_at(0.999));
+        assert!(!track.visible_at(1.0));
+        assert!(!track.visible_at(1.5));
+        assert!(!track.visible_at(2.0));
+        assert!(!track.visible_at(2.03), "hidden until the recording says otherwise");
+        assert!(track.visible_at(2.033), "the next recorded sample brings its own state back");
+        assert!(track.visible_at(3.0));
+        // A hidden press animates nothing, in a patch as in a recording, and the recorded
+        // click it replaced is gone.
+        assert!(track.clicks.is_empty(), "{:?}", track.clicks);
+
+        // A window that starts inside the span starts hidden: the state at its offset is read
+        // from the patched list, not from the recording, which was visible there.
+        let clipped = CursorTrack::load_patched(sidecar.path(), &[&hidden], 1500.0, 1.0).expect("clipped");
+        assert!(!clipped.visible_at(0.0));
+        assert!(!clipped.visible_at(0.5));
+        assert!(clipped.visible_at(0.533));
+        assert_at(&clipped, 0.2, (0.5, 0.5));
+        let recorded = CursorTrack::load(sidecar.path(), 1500.0, 1.0).expect("recorded");
+        assert!(recorded.visible_at(0.0));
+    }
+
+    /// A patched stretch draws the arrow: a `pointer` recorded before it does not stick to it,
+    /// and the recording's type is back with its next sample.
+    #[test]
+    fn a_patched_span_reads_as_arrow_until_the_recording_resumes() {
+        let sidecar = TempSidecar::write(
+            "type",
+            r#"{"samples":[
+                {"timeMs":0,"cx":0.1,"cy":0.1,"cursorType":"pointer"},
+                {"timeMs":500,"cx":0.1,"cy":0.1,"cursorType":"pointer"},
+                {"timeMs":1500,"cx":0.2,"cy":0.2,"cursorType":"text"},
+                {"timeMs":2500,"cx":0.3,"cy":0.3,"cursorType":"pointer"},
+                {"timeMs":3000,"cx":0.4,"cy":0.4,"cursorType":"pointer"}
+            ]}"#,
+        );
+        let drawn = patch(
+            1000,
+            2000,
+            r#"{"timeMs":1000,"cx":0.5,"cy":0.5,"visible":true,"interactionType":"move"},
+               {"timeMs":2000,"cx":0.6,"cy":0.6,"visible":true,"interactionType":"move"}"#,
+        );
+        let track = CursorTrack::load_patched(sidecar.path(), &[&drawn], 0.0, 10.0).expect("patched");
+
+        assert_eq!(track.type_at(0.0), Some("pointer"));
+        assert_eq!(track.type_at(0.99), Some("pointer"));
+        assert_eq!(track.type_at(1.0), Some("arrow"));
+        assert_eq!(track.type_at(1.5), Some("arrow"), "the recorded `text` of the span is gone");
+        assert_eq!(track.type_at(2.0), Some("arrow"));
+        assert_eq!(track.type_at(2.49), Some("arrow"), "a step function: it holds to the next sample");
+        assert_eq!(track.type_at(2.5), Some("pointer"));
+        assert_eq!(track.type_at(3.0), Some("pointer"));
+    }
+
+    /// A patch with no sample only cuts its span out: the track crosses it in a straight line,
+    /// from the last recorded sample before to the first one after.
+    #[test]
+    fn an_empty_patch_interpolates_across_its_span() {
+        let sidecar = TempSidecar::write(
+            "empty",
+            r#"{"samples":[
+                {"timeMs":0,"cx":0.0,"cy":0.0},
+                {"timeMs":1000,"cx":0.2,"cy":0.2},
+                {"timeMs":1400,"cx":0.9,"cy":0.9,"interactionType":"click"},
+                {"timeMs":1600,"cx":0.9,"cy":0.1,"visible":false},
+                {"timeMs":2000,"cx":0.4,"cy":0.6}
+            ]}"#,
+        );
+        let cut = patch(1200, 1800, "");
+        let track = CursorTrack::load_patched(sidecar.path(), &[&cut], 0.0, 10.0).expect("patched");
+
+        assert_eq!(track.sample_count(), 3);
+        assert_at(&track, 1.0, (0.2, 0.2));
+        assert_at(&track, 1.25, (0.25, 0.3));
+        assert_at(&track, 1.5, (0.3, 0.4));
+        assert_at(&track, 2.0, (0.4, 0.6));
+        assert!(track.clicks.is_empty());
+        assert!(track.visible_at(1.6), "the hidden sample went with the span");
+    }
+
+    /// Patches are applied as given: out of order, touching or overlapping, each cuts the
+    /// recording over its own span and every sample of every patch is drawn, in time order.
+    #[test]
+    fn patches_are_tolerated_in_any_order() {
+        let sidecar = TempSidecar::write(
+            "order",
+            r#"{"samples":[
+                {"timeMs":0,"cx":0.0,"cy":0.0},
+                {"timeMs":1500,"cx":0.99,"cy":0.99},
+                {"timeMs":2500,"cx":0.99,"cy":0.99},
+                {"timeMs":3500,"cx":0.99,"cy":0.99},
+                {"timeMs":5000,"cx":0.5,"cy":0.5}
+            ]}"#,
+        );
+        let sample = |time_ms: u32, at: f32| {
+            format!(r#"{{"timeMs":{time_ms},"cx":{at},"cy":{at},"visible":true,"interactionType":"move"}}"#)
+        };
+        // The later span first; the two share the instant 2000; a third overlaps both.
+        let later = patch(2000, 3000, &format!("{},{}", sample(2000, 0.2), sample(3000, 0.3)));
+        let earlier = patch(1000, 2000, &format!("{},{}", sample(1000, 0.1), sample(2000, 0.2)));
+        let across = patch(1800, 3600, &sample(3600, 0.36));
+        let track = CursorTrack::load_patched(sidecar.path(), &[&later, &earlier, &across], 0.0, 10.0)
+            .expect("patched");
+
+        // 2 recorded samples left, 5 patch samples in.
+        assert_eq!(track.sample_count(), 7);
+        let times: Vec<f32> = track.samples.iter().map(|s| s.0).collect();
+        assert_eq!(times, [0.0, 1.0, 2.0, 2.0, 3.0, 3.6, 5.0]);
+        assert_at(&track, 1.0, (0.1, 0.1));
+        assert_at(&track, 1.5, (0.15, 0.15));
+        assert_at(&track, 2.0, (0.2, 0.2));
+        assert_at(&track, 2.5, (0.25, 0.25));
+        assert_at(&track, 3.0, (0.3, 0.3));
+        assert_at(&track, 3.5, (0.35, 0.35));
+    }
+
+    /// A take recorded without a pointer gets one from its patches: the track is their samples
+    /// and nothing else. An unreadable sidecar is the same case.
+    #[test]
+    fn a_missing_sidecar_with_a_patch_yields_the_patch_alone() {
+        let drawn = patch(
+            1000,
+            2000,
+            r#"{"timeMs":1000,"cx":0.2,"cy":0.2,"visible":true,"interactionType":"move"},
+               {"timeMs":1500,"cx":0.4,"cy":0.2,"visible":true,"interactionType":"click"},
+               {"timeMs":2000,"cx":0.6,"cy":0.2,"visible":true,"interactionType":"move"}"#,
+        );
+        let missing = TempSidecar::missing("absent");
+        let broken = TempSidecar::write("broken", "{ not json");
+        let shapeless = TempSidecar::write("shapeless", r#"{"version":2}"#);
+        for sidecar in [&missing, &broken, &shapeless] {
+            let track = CursorTrack::load_patched(sidecar.path(), &[&drawn], 0.0, 10.0)
+                .expect("the patch alone is a track");
+            assert_eq!(track.sample_count(), 3);
+            assert_at(&track, 1.25, (0.3, 0.2));
+            assert_at(&track, 2.0, (0.6, 0.2));
+            // Held at its ends, like any track.
+            assert_at(&track, 0.0, (0.2, 0.2));
+            assert_at(&track, 9.0, (0.6, 0.2));
+            assert_eq!(track.clicks, vec![1.5]);
+            assert_eq!(track.type_at(1.0), Some("arrow"));
+            assert!(track.visible_at(1.5));
+        }
+        // The same through the door the preview and the export use, which finds the sidecar
+        // beside the screen video.
+        let track = CursorTrack::load_take(missing.screen_path(), &[&drawn]).expect("take");
+        assert_eq!(track.sample_count(), 3);
+        assert_at(&track, 1.5, (0.4, 0.2));
+    }
+
+    /// Without a patch nothing changed: no sidecar, no track.
+    #[test]
+    fn a_missing_sidecar_without_a_patch_is_still_no_track() {
+        let missing = TempSidecar::missing("none");
+        assert!(CursorTrack::load(missing.path(), 0.0, 10.0).is_err());
+        assert!(CursorTrack::load_patched(missing.path(), &[], 0.0, 10.0).is_err());
+        assert!(CursorTrack::load_take(missing.screen_path(), &[]).is_err());
+        let broken = TempSidecar::write("none-broken", "{ not json");
+        assert!(CursorTrack::load_take(broken.screen_path(), &[]).is_err());
+    }
+
+    /// `load_take` reads the sidecar beside the screen video, over the whole recording, and
+    /// without a patch it is the recording as `load` gives it.
+    #[test]
+    fn load_take_reads_the_sidecar_beside_the_screen_video() {
+        let sidecar = TempSidecar::write(
+            "take",
+            r#"{"samples":[
+                {"timeMs":0,"cx":0.1,"cy":0.1},
+                {"timeMs":90000,"cx":0.9,"cy":0.5,"interactionType":"click"}
+            ]}"#,
+        );
+        assert_eq!(cursor_sidecar_path(sidecar.screen_path()), sidecar.path());
+        let track = CursorTrack::load_take(sidecar.screen_path(), &[]).expect("take");
+        assert_eq!(track.sample_count(), 2);
+        assert_at(&track, 45.0, (0.5, 0.3));
+        assert_eq!(track.clicks, vec![90.0]);
     }
 
     /// Deux clics à 60 ms, sur deux points distincts : la pointe se pose sur chacun à son instant, et

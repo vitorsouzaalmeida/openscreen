@@ -23,6 +23,7 @@ import {
 	keySampleFile,
 } from "@/lib/keystrokes/keySoundSamples";
 import { clickCuesFitTake, clickTakeOf, crossedClickHits, placedClickHits } from "./clickSound";
+import { mutedInputSoundTimes } from "./inputSounds";
 import type { AxcutAsset, AxcutDocument } from "./schema";
 import { audioGainScalar, getEditorSettings } from "./store/editorSettings";
 
@@ -44,6 +45,9 @@ export interface KeyCue {
 	sample: KeySoundSample;
 	/** A key coming back up, not going down. */
 	release: boolean;
+	/** The recording millisecond of the press this cue belongs to; a release carries its press's.
+	 *  It is what names the key press, and what a mute (inputSounds.ts) is stored under. */
+	pressMs: number;
 }
 
 export interface KeySoundScene {
@@ -82,8 +86,22 @@ export function keySampleFor(sample: Pick<KeyRecordingSample, "type" | "kind" | 
  *  only volume decision left, and it is a pure function of the sidecar. */
 export function buildKeyCues(recording: KeyRecordingData | null | undefined): KeyCue[] {
 	const cues: KeyCue[] = [];
-	for (const [index, sample] of (recording?.samples ?? []).entries()) {
-		if (!Number.isFinite(sample.timeMs) || sample.timeMs < 0) continue;
+	// A voice is one key for the length of a take, so the press a release answers is the last
+	// one of its voice still down. A release with no press before it (the key was already held
+	// when the take started) stands for itself.
+	const heldSince = new Map<number, number>();
+	const samples = (recording?.samples ?? [])
+		// The index is the sample's place in the file: the level variation below is drawn from it.
+		.map((sample, index) => ({ sample, index }))
+		.filter(({ sample }) => Number.isFinite(sample.timeMs) && sample.timeMs >= 0)
+		.sort((a, b) => a.sample.timeMs - b.sample.timeMs);
+	for (const { sample, index } of samples) {
+		let pressMs = sample.timeMs;
+		if (sample.type === "down") heldSince.set(sample.voice, sample.timeMs);
+		else {
+			pressMs = heldSince.get(sample.voice) ?? sample.timeMs;
+			heldSince.delete(sample.voice);
+		}
 		// The voice's high bits trim the level, its low bits picked the sample: two keys that
 		// share a sample still do not sound identical.
 		const voiceTrim = 1 - VOICE_TRIM * ((sample.voice >> 4) / 15);
@@ -96,9 +114,17 @@ export function buildKeyCues(recording: KeyRecordingData | null | undefined): Ke
 			gain,
 			sample: keySampleFor(sample),
 			release: sample.type === "up",
+			pressMs,
 		});
 	}
-	return cues.sort((a, b) => a.timeSec - b.timeSec);
+	return cues;
+}
+
+/** The key cues that sound: the take's, without the presses the user silenced. A silenced
+ *  press takes its release with it. */
+function audibleKeyCues(document: AxcutDocument, take: AxcutAsset, cues: KeyCue[]): KeyCue[] {
+	const muted = mutedInputSoundTimes(document, take.id, "key");
+	return muted.size === 0 ? cues : cues.filter((cue) => !muted.has(cue.pressMs));
 }
 
 export function levelKeyCues(cues: KeyCue[], gainDb: number): KeyCue[] {
@@ -124,7 +150,12 @@ export async function loadKeyCues(takePath: string): Promise<KeyCue[]> {
 	}
 	cueCache.set(takePath, cues);
 	if (previewTake === takePath && previewEdit) {
-		stashPreviewCues(previewEdit.document, previewEdit.take, levelKeyCues(cues, previewGainDb));
+		const { document, take } = previewEdit;
+		stashPreviewCues(
+			document,
+			take,
+			levelKeyCues(audibleKeyCues(document, take, cues), previewGainDb),
+		);
 	}
 	return cues;
 }
@@ -179,7 +210,10 @@ export function keySoundForDocument(
 	}
 	// The main process builds scenes too and has no renderer bridge; it renders pictures only.
 	if (!cueCache.has(takePath) && typeof window !== "undefined") void loadKeyCues(takePath);
-	const cues = levelKeyCues(cueCache.get(takePath) || [], keys.keySoundGainDb);
+	const cues = levelKeyCues(
+		audibleKeyCues(document, take, cueCache.get(takePath) || []),
+		keys.keySoundGainDb,
+	);
 	stashPreviewCues(document, take, cues);
 	if (!samplePaths || cues.length === 0) return null;
 	return {
@@ -200,7 +234,11 @@ export async function prepareKeySound(document: AxcutDocument): Promise<void> {
 	if (!take?.originalPath) return;
 	previewGainDb = settings.keySoundGainDb;
 	const cues = await loadKeyCues(take.originalPath);
-	stashPreviewCues(document, take, levelKeyCues(cues, settings.keySoundGainDb));
+	stashPreviewCues(
+		document,
+		take,
+		levelKeyCues(audibleKeyCues(document, take, cues), settings.keySoundGainDb),
+	);
 	await ensureKeySamplePaths();
 }
 

@@ -24,6 +24,31 @@ flowchart LR
 
 Glass cursors read the picture under them. When the cursor is the Prism Glow crystal or Glass Lens (`CursorPlan::glass`), each backend copies the frame as composed so far, footage and privacy blurs included, just before drawing the cursor, and the shader refracts that copy. Glass Lens does this with the 3D option off as well: its sprite names a glass model (`glass` in `cursorSprites`), and mode 19 (`cursor_glass_cb`) draws that model face on instead of the PNG, which only serves the theme picker.
 
+## Cursor overrides
+
+A cursor override is a stretch of a take's pointer drawn again, by hand in the editor or by an agent. The recorded track, `<video>.cursor.json`, is **read-only**: nothing writes it after the recording. An override is stored in the project (`cursorOverrides`, `cursorOverrideSchema` in `src/lib/ai-edition/schema/index.ts`) and replaces the recording over its span wherever the track is read. Removing the override is what brings the recorded pointer back, so the original is never lost and the revert survives a restart.
+
+**The model.** An override names an asset, a span in that asset's recording milliseconds (the sidecar's clock), and a list of points: where the pointer arrives, when, and whether it clicks there. It is anchored to the asset and not to a clip, unlike a zoom: it is a fact about the footage, as the pointer track itself is, so every clip cut from the take shows it and a trim or a reorder needs no reprojection. Two overrides of one asset never share an instant; an edit stops against its neighbour (`clampCursorOverrideSpan`).
+
+**One author of the motion.** `cursorOverrideSamples` (`src/lib/ai-edition/timeline/cursor-overrides.ts`) is the only place that turns an override into pointer samples: at rest on a point, then an eased glide of at most 600 ms that arrives on the next point at that point's time, a press held 80 ms on a point that clicks. The samples are in the sidecar's own shape, so every reader of the recorded track reads them unchanged. An override with no point draws nothing: the recording is still cut out over the span, and every reader interpolates straight across it.
+
+**Joining the recording.** A new override opens and closes on the pointer the project already draws there (`createCursorOverride`), so it meets the recording without a jump. Those two points are marked `recorded`: they follow the span's edges and are read again when an edge moves. A point the user moves becomes their own.
+
+**Who applies it.**
+
+| Reader | How |
+| --- | --- |
+| Native compositor, preview and export | The scene carries each override as ready-made samples (`cursorPatches`, `cursorPatchesForScene`). `CursorTrack::load_take` in `crates/compositor/src/cursor.rs` drops the recorded samples over each span and puts the patch's in, on the raw sample list, before positions, clicks, visibility and cursor types are derived. It generates nothing. The live preview's track cache keys on a fingerprint of the take's patches (`cursor_key` in `live.rs`), so a pointer edit rereads the track and any other edit does not. |
+| Click sound, the Clicks lane | `takeClickCues` in `clickSound.ts` builds the cues from the recorded track with the overrides applied. |
+| Zoom planner (the wand, `addAutoZooms`, a fresh take) | `collectAutoZoomSuggestionsForDocument` applies the overrides to each take before planning. |
+| Agent tools (`getCursorTrack`, a zoom's `cursorAnchor`) | `drawnCursorLoad` in `electron/ai-edition/document-tools.ts`. |
+
+A take with no cursor file (recorded with the system cursor, or captured by a script) is an empty recording to all of them, and its track is then the overrides alone. That is how `setPointerTrack` gives a script-driven take its pointer: one override over the whole video ([mcp-server.md](mcp-server.md#the-media-tools)).
+
+**In the editor.** Overrides are pills on the timeline's Cursor lane (`P` adds one at the playhead, where the take has a pointer to draw again). Selecting one shows its path on the preview with a handle per point (`CursorPathOverlay.tsx`): a press on the picture places a point at the playhead, a drag moves one, a double-click removes it. When the pointer arrives is the point's tick on the pill. While an override is selected and the preview is paused, the picture is shown without zooms or the cursor-following fill (`flatPictureDocument`), because both move the footage under the handles; playing shows the real film. A scrub on the ruler keeps the override selected, since placing a point is "put the playhead here, then press on the picture". The inspector hides the pointer over the span, sets a click per point, and restores the recorded cursor by removing the override.
+
+The cursor's shape over an override is the arrow: an override carries no cursor type, and the recording's own resumes with its next sample.
+
 ## Settings
 
 The cursor settings pane is `CursorPane` in `src/components/ai-edition/RightPanes.tsx`; the current v4 inspector exposes it through the cursor facet in `src/components/ai-edition/v4/FloatingInspector.tsx:57-63,1073`. It controls showing the cursor, clipping it to the canvas, theme, size, smoothing, motion blur, and click bounce. `RightPanes.tsx:1592-1692` binds those controls to editor settings and forwards the rendering parameters to the native compositor. Preview and export both render through that compositor, so a change shows in both.

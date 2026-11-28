@@ -24,6 +24,7 @@
 		"addVoiceover": "Record Voiceover",
 		"addKeyframe": "Add Keyframe",
 		"addCameraFullscreen": "Change layout here",
+		"addCursorPath": "Add Cursor Path",
 		"deleteSelected": "Delete Selected",
 		"playPause": "Play / Pause",
 		"copySelected": "Copy Selected",

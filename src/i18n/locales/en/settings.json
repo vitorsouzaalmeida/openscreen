@@ -454,5 +454,23 @@
 		"dark": "Dark",
 		"light": "Light",
 		"custom": "Custom"
+	},
+	"cursorPath": {
+		"title": "Cursor path",
+		"empty": "Click the preview to place the cursor at the playhead.",
+		"click": "Click",
+		"clickAt": "Click at {{time}}",
+		"removePoint": "Remove point",
+		"removePointAt": "Remove the point at {{time}}",
+		"restore": "Restore recorded cursor"
+	},
+	"inputSound": {
+		"click": "Click",
+		"clicks": "{{count}} clicks",
+		"key": "Key press",
+		"keys": "{{count}} key presses",
+		"sound": "Sound",
+		"on": "On",
+		"off": "Off"
 	}
 }

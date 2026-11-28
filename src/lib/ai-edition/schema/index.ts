@@ -778,6 +778,50 @@ export const layoutRegionSchema = endGteStart(
 	"startMs",
 );
 
+// A stretch of a take's pointer drawn again, by hand in the editor or by an agent
+// (technical-documentation/architecture/cursor.md). The recorded track, `<video>.cursor.json`,
+// is never rewritten: an override replaces it over its span when the track is read, so removing
+// the override is what brings the recording back.
+//
+// Anchored to the ASSET in its own recording milliseconds, the sidecar's clock, and not to a
+// clip like a zoom: it is a fact about the footage, as the pointer track itself is. Every clip
+// that shows the span shows the override, and a trim or a reorder needs no reprojection.
+export const cursorOverridePointSchema = z.object({
+	/** When the pointer arrives here, in the recording's milliseconds. */
+	timeMs: z.number().nonnegative(),
+	cx: z.number().min(0).max(1),
+	cy: z.number().min(0).max(1),
+	/** A left click on arrival. */
+	click: z.boolean().optional(),
+	/** The position was read from the recording at this instant, to join the override to it.
+	 *  It is read again when the span's edge moves; a point the user placed never is. */
+	recorded: z.boolean().optional(),
+});
+
+export const cursorOverrideSchema = endGteStart(
+	z.object({
+		id: z.string().min(1),
+		assetId: z.string().min(1),
+		sourceStartMs: z.number().nonnegative(),
+		sourceEndMs: z.number().nonnegative(),
+		points: z.array(cursorOverridePointSchema).default([]),
+		/** The pointer is not drawn over the span. */
+		hidden: z.boolean().optional(),
+		origin: z.enum(["system", "agent", "user"]).default("user"),
+	}),
+	"sourceEndMs",
+	"sourceStartMs",
+);
+
+// One click or key press whose SOUND is left out, in the preview and the export. The click
+// itself stays: its bounce, its zoom and the pointer are untouched. Named by the asset and the
+// recording millisecond of the press, which the read-only sidecars keep stable.
+export const mutedInputSoundSchema = z.object({
+	assetId: z.string().min(1),
+	kind: z.enum(["click", "key"]),
+	timeMs: z.number().nonnegative(),
+});
+
 const documentSchemaShape = z.object({
 	schemaVersion: z.literal(axcutSchemaVersion),
 	project: z.object({
@@ -813,6 +857,10 @@ const documentSchemaShape = z.object({
 	audioTracks: z.array(audioTrackSchema).default([]),
 	// Absent/empty means one global layout; fragments are materialised on first change.
 	layoutRegions: z.array(layoutRegionSchema).optional(),
+	// Optional like the shader effects: a document without them carries no trace, every reader
+	// treats an absent list as empty, and an older build drops both keys when it saves.
+	cursorOverrides: z.array(cursorOverrideSchema).optional(),
+	mutedInputSounds: z.array(mutedInputSoundSchema).optional(),
 	legacyEditor: legacyEditorSchema.nullable().default(null),
 });
 
@@ -1474,6 +1522,9 @@ export type AxcutShaderEffectParam = z.infer<typeof shaderEffectParamSchema>;
 export type AxcutShaderEffectRange = z.infer<typeof shaderEffectRangeSchema>;
 export type AxcutShaderEffectValue = z.infer<typeof shaderEffectValueSchema>;
 export type AxcutShaderEffectKeyframe = z.infer<typeof shaderEffectKeyframeSchema>;
+export type AxcutCursorOverride = z.infer<typeof cursorOverrideSchema>;
+export type AxcutCursorOverridePoint = z.infer<typeof cursorOverridePointSchema>;
+export type AxcutMutedInputSound = z.infer<typeof mutedInputSoundSchema>;
 export type AxcutLegacyEditor = z.infer<typeof legacyEditorSchema>;
 export type AxcutDocument = z.infer<typeof documentSchema>;
 export type AxcutDocumentInput = z.input<typeof documentSchema>;

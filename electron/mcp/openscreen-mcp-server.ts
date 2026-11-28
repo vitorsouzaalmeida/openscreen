@@ -27,10 +27,10 @@
 // runner serves every session. The texts a client reads are composed per side
 // (`mcpInstructions`, the `*_MESSAGES` tables), so each says what is true where the call
 // ran. A media tool that edits a project (setPointerTrack) hands its change to the runner
-// too, so it meets the same refusals and checkpoints, sidecar included.
+// too, so it meets the same refusals and checkpoints. Every such change is in the document:
+// nothing here writes a file beside a video.
 
 import { randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -286,7 +286,7 @@ export function mcpInstructions(options: {
 function checkpointTools(media: boolean) {
 	const restore = [
 		"Put the project back exactly as it was when createCheckpoint returned this checkpointId, discarding every edit made since, including the user's. Pass the same projectId as to createCheckpoint.",
-		...(media ? ["It also puts back the pointer track setPointerTrack replaced."] : []),
+		...(media ? ["It also takes back the pointer setPointerTrack drew."] : []),
 		// Over stdio too: while the app runs, the restore goes through its editor.
 		"On the project open in the editor it lands as one undo step, so the user can undo the restore itself.",
 	].join(" ");
@@ -312,20 +312,12 @@ export function textResult(text: string, isError = false): CallToolResult {
 	return { content: [{ type: "text", text }], ...(isError ? { isError: true } : {}) };
 }
 
-/** A cursor sidecar an edit rewrites beside its video; `null` deletes it. */
-export interface SidecarWrite {
-	path: string;
-	content: string | null;
-}
-
 /**
  * An edit a tool computes itself rather than through the document executor (setPointerTrack):
- * it gets the project as the runner read it and returns the new document, plus the sidecars
- * to write once that document is saved. It must write nothing itself.
+ * it gets the project as the runner read it and returns the new document. It must write
+ * nothing itself.
  */
-export type RunnerEdit = (
-	document: AxcutDocument,
-) => Promise<AgentToolExecution & { sidecars?: SidecarWrite[] }>;
+export type RunnerEdit = (document: AxcutDocument) => Promise<AgentToolExecution>;
 
 export interface CallOptions {
 	/** Computes the call's change in place of the executor. */
@@ -338,15 +330,6 @@ export type McpToolRunner = (
 	args: unknown,
 	options?: CallOptions,
 ) => Promise<CallToolResult>;
-
-async function readSidecar(file: string): Promise<string | null> {
-	try {
-		return await fs.readFile(file, "utf8");
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-		throw error;
-	}
-}
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -372,19 +355,13 @@ function splitProjectId(rawArgs: unknown): { projectId: string | undefined; args
  */
 export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 	let queue: Promise<unknown> = Promise.resolve();
-	/**
-	 * Each checkpoint's document, and what each sidecar an edit rewrote since held before
-	 * the first such write: `null` when there was no file. A sidecar no edit touched since
-	 * is already as it was, so it needs no entry.
-	 */
-	const checkpoints = new Map<
-		string,
-		{ document: AxcutDocument; sidecars: Map<string, string | null> }
-	>();
+	/** Each checkpoint's document. It is the whole state: a pointer an agent drew is a cursor
+	 *  override in it, never a file rewritten beside the video. */
+	const checkpoints = new Map<string, { document: AxcutDocument }>();
 
 	function createCheckpoint(document: AxcutDocument): AgentToolExecution {
 		const checkpointId = `cp_${randomUUID()}`;
-		checkpoints.set(checkpointId, { document, sidecars: new Map() });
+		checkpoints.set(checkpointId, { document });
 		// A Map iterates in insertion order: the first key is the oldest.
 		for (const oldest of checkpoints.keys()) {
 			if (checkpoints.size <= MAX_CHECKPOINTS) break;
@@ -394,10 +371,7 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 	}
 
 	/** Hands the checkpoint back as the call's new document, saved like any edit. */
-	function restoreCheckpoint(
-		document: AxcutDocument,
-		args: unknown,
-	): AgentToolExecution & { sidecars?: SidecarWrite[] } {
+	function restoreCheckpoint(document: AxcutDocument, args: unknown): AgentToolExecution {
 		const id = (args as { checkpointId?: unknown } | null)?.checkpointId;
 		const checkpoint = typeof id === "string" ? checkpoints.get(id) : undefined;
 		if (!checkpoint) {
@@ -416,7 +390,6 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 			ok: true,
 			resultJson: JSON.stringify({ ok: true, restored: id }),
 			document: keepTranscriptsMadeSince(checkpoint.document, document),
-			sidecars: [...checkpoint.sidecars].map(([path, content]) => ({ path, content })),
 		};
 	}
 
@@ -444,34 +417,6 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 			if (checkpoint.document.project.id === projectId) return true;
 		}
 		return false;
-	}
-
-	/**
-	 * Writes an edit's sidecars, first keeping what each held for the project's checkpoints.
-	 * Runs once the document is saved, so a failure here is a partial edit, said as one.
-	 */
-	async function writeSidecars(
-		projectId: string,
-		writes: readonly SidecarWrite[] = [],
-	): Promise<CallToolResult | null> {
-		try {
-			for (const { path, content } of writes) {
-				const before = await readSidecar(path);
-				for (const checkpoint of checkpoints.values()) {
-					if (checkpoint.document.project.id === projectId && !checkpoint.sidecars.has(path)) {
-						checkpoint.sidecars.set(path, before);
-					}
-				}
-				if (content === null) await fs.rm(path, { force: true });
-				else await fs.writeFile(path, content, "utf8");
-			}
-			return null;
-		} catch (error) {
-			return textResult(
-				`The project was saved, but the pointer track beside its video was NOT written: ${errorMessage(error)}. Call this tool again to write it, or restoreCheckpoint to take the project back.`,
-				true,
-			);
-		}
 	}
 
 	async function listProjects(): Promise<CallToolResult> {
@@ -503,8 +448,6 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 		if (execution.document) {
 			const applied = await deps.host.apply(execution.document, snapshot.revision);
 			if (applied !== "applied") return textResult(APPLY_FAILURE_MESSAGES[applied], true);
-			const partial = await writeSidecars(execution.document.project.id, execution.sidecars);
-			if (partial) return partial;
 		}
 		return textResult(execution.resultJson, !execution.ok);
 	}
@@ -535,9 +478,6 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 			if (!(await deps.projects.saveProjectIfUnchanged(execution.document, read.version))) {
 				return textResult(PROJECT_CHANGED_MESSAGE, true);
 			}
-			// After the save, so an edit refused above has written nothing at all.
-			const partial = await writeSidecars(projectId, execution.sidecars);
-			if (partial) return partial;
 		}
 		return textResult(execution.resultJson, !execution.ok);
 	}
@@ -547,7 +487,7 @@ export function createToolRunner(deps: McpToolDeps): McpToolRunner {
 		name: string,
 		args: unknown,
 		{ edit }: CallOptions,
-	): Promise<AgentToolExecution & { sidecars?: SidecarWrite[] }> {
+	): Promise<AgentToolExecution> {
 		if (name === "createCheckpoint") return createCheckpoint(document);
 		if (name === "restoreCheckpoint") return restoreCheckpoint(document, args);
 		if (name === READ_CHECKPOINT_TOOL) return readCheckpoint(document, args);

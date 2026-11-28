@@ -23,6 +23,7 @@ import type {
 export type PlaybackSegment = AxcutClip;
 
 import { pruneUnusedShaderEffects } from "../shaderEffects";
+import { mapCursorOverride, withCursorOverrides } from "../timeline/cursor-overrides";
 import { type Interval, subtractInterval } from "../timeline/intervals";
 import { keptRawSpans } from "../timeline/programme-time";
 import {
@@ -55,7 +56,8 @@ export type RegionKind =
 	| "layout"
 	| "cameraFullscreen"
 	| "audio"
-	| "shaderEffect";
+	| "shaderEffect"
+	| "cursor";
 
 /** Length a clip is given before its media has been probed. Lives here, in the pure
  *  document layer, because that layer decides which clips are still waiting for a real
@@ -1353,6 +1355,9 @@ export function removeRegion(document: AxcutDocument, kind: RegionKind, id: stri
 				...document,
 				shaderEffectRanges: dropPillById(document.shaderEffectRanges ?? [], id),
 			});
+		case "cursor":
+			// Removing the override is what gives the recorded pointer back over its span.
+			return mapCursorOverride(document, id, () => null);
 		default: {
 			// ponytail: exhaustive — TS errors here if a new RegionKind is added.
 			const exhaustive: never = kind;
@@ -1362,6 +1367,8 @@ export function removeRegion(document: AxcutDocument, kind: RegionKind, id: stri
 	}
 }
 
+const userCursorOverrides = (document: AxcutDocument) =>
+	(document.cursorOverrides ?? []).filter((override) => override.origin === "user");
 const legacyRegionCount = (document: AxcutDocument, key: string): number => {
 	const stored = (document.legacyEditor as Record<string, unknown> | null)?.[key];
 	return Array.isArray(stored) ? stored.length : 0;
@@ -1404,6 +1411,16 @@ const EDIT_REGIONS: Record<
 	shaderEffect: {
 		count: (d) => (d.shaderEffectRanges ?? []).length,
 		clear: (d) => ({ ...d, shaderEffectRanges: [], shaderEffects: [] }),
+	},
+	// Only the overrides drawn in the editor. One an agent wrote is the pointer of a take its
+	// script drove (`setPointerTrack`): the only pointer that take has, so content, like a clip.
+	cursor: {
+		count: (d) => userCursorOverrides(d).length,
+		clear: (d) =>
+			withCursorOverrides(
+				d,
+				(d.cursorOverrides ?? []).filter((override) => override.origin !== "user"),
+			),
 	},
 };
 

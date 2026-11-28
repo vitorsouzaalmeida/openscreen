@@ -506,11 +506,18 @@ unsafe fn walk_timeline(
         }
 
         if cursor_enabled {
-            // Keyed by file AND turn: the same file turned is another track.
-            let key = cursor_key(&clip.screen, turned);
+            // Keyed by file AND turn: the same file turned is another track. The take's cursor
+            // patches are in the key as in the preview's (`cursor_key`); the scene does not
+            // change during a walk, so here they only name the track, they never invalidate it.
+            let patches = scene
+                .as_ref()
+                .map(|scene| scene.cursor_patches_for(&clip.screen))
+                .unwrap_or_default();
+            let key = cursor_key(&clip.screen, turned, &patches);
             if !cursor_tracks.contains_key(&key) {
-                let path = format!("{}.cursor.json", clip.screen);
-                if let Ok(raw) = CursorTrack::load(&path, 0.0, 24.0 * 3600.0) {
+                // The preview's loader, patches included: the export draws the pointer the
+                // editor showed, and a take with patches but no sidecar gets its track here too.
+                if let Ok(raw) = CursorTrack::load_take(&clip.screen, &patches) {
                     let raw = if turned { raw.turned() } else { raw };
                     cursor_tracks.insert(key.clone(), raw.smoothed(cursor_smoothing));
                 }

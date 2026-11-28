@@ -103,8 +103,26 @@ clock, beside the click sound's tick in `VirtualPreview.tsx`.
 
 The editor settings are `keySound` (on by default: a take only has key timing when the user asked
 for it) and `keySoundGainDb`. The row sits under the click sound's in the cursor pane and is
-offered only for a take that has key timing. The clip cards on the timeline show the presses as
-ticks (`ClipKeyTicks.tsx`).
+offered only for a take that has key timing.
+
+## On the timeline
+
+The take's clicks and key presses each have a lane under the audio lane (`InputLane.tsx`), drawn
+only for a take that has them: a dot per click, a thin bar per key press. Presses closer together
+than a mark is wide share one mark, so typing reads as its rhythm and zooming in separates the
+keys. The clicks are the ones the project draws, a [cursor override](cursor.md#cursor-overrides)'s
+included.
+
+Nothing about a mark can be edited but whether it sounds. A press on a mark selects it; dragged
+along the lane, or with Shift, it selects a stretch. The inspector's Sound switch, or Delete,
+takes the sound out, and the mark stays, drawn hollow, so the same switch gives it back. A
+silenced click keeps its bounce, its zoom and its pointer.
+
+The silenced presses are stored in the project (`mutedInputSounds`, `inputSounds.ts`), each named
+by its asset, its kind and the recording millisecond of its press. A release, and the second tap
+of a double click, go with their press (`clickMs` on a click cue, `pressMs` on a key cue).
+`clickSound.ts` and `keySound.ts` leave them out of the cues, so the preview and the export's hit
+list agree; the compositor's mix is unchanged.
 
 ## Replacing the sounds
 
@@ -137,5 +155,6 @@ everything else works as before.
 
 - Key capture on Windows and macOS.
 - Showing pressed keys on screen.
-- Agent tools to read or write the key track. The agent can turn the sound on and off and set its
-  level through `setEditorSettings`.
+- Agent tools to read or write the key track, or to silence one press. The agent can turn the
+  sound on and off and set its level through `setEditorSettings`.
+- Moving, adding or removing a key press. Only its sound can be taken out.

@@ -70,7 +70,7 @@
 	--warn-soft: rgba(251, 191, 36, 0.14);
 
 	/* timeline — flat fills that share one lightness and chroma (oklch L .74–.84, C .13)
-	   and differ only in hue, so six of them read as one set. Dark ink on all of them. */
+	   and differ only in hue, so they read as one set. Dark ink on all of them. */
 	--lane-ink: #0b1220;
 	--annotation: oklch(0.84 0.13 95);
 	--annotation-wash: rgba(251, 191, 36, 0.16);
@@ -83,6 +83,8 @@
 	--lane-camera: oklch(0.74 0.13 320);
 	--lane-effect: oklch(0.78 0.11 195);
 	--lane-audio: oklch(0.76 0.13 350);
+	/* cursor overrides: sky, between the effect's cyan and the zoom's periwinkle */
+	--lane-cursor: oklch(0.78 0.12 235);
 
 	--success: #10b981;
 	--success-soft: rgba(16, 185, 129, 0.14);

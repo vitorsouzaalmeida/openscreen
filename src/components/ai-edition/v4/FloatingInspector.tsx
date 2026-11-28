@@ -15,9 +15,11 @@ import {
 	EyeOff,
 	FileText,
 	ImageIcon,
+	Keyboard,
 	Layout as LayoutIcon,
 	type LucideIcon,
 	MousePointer2,
+	MousePointerClick,
 	Pencil,
 	Scissors,
 	SlidersHorizontal,
@@ -56,7 +58,9 @@ import {
 	type AnnotationTextAnimation,
 	TEXT_ANIMATION_VALUES,
 } from "@/lib/ai-edition/annotations/textAnimation";
+import { clickTakeOf } from "@/lib/ai-edition/clickSound";
 import { resolveAspectRatioValue } from "@/lib/ai-edition/document/outputFormat";
+import { mutedInputSoundTimes } from "@/lib/ai-edition/inputSounds";
 import type {
 	AxcutAnnotationRegion,
 	AxcutClip,
@@ -69,6 +73,10 @@ import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { rafCoalesce } from "@/lib/ai-edition/store/rafCoalesce";
 import { useEditorSettings } from "@/lib/ai-edition/store/useEditorSettings";
 import type { ShaderEffectPatch, useTimeline } from "@/lib/ai-edition/store/useTimeline";
+import {
+	patchCursorOverridePoint,
+	withoutCursorOverridePoint,
+} from "@/lib/ai-edition/timeline/cursor-overrides";
 import { formatSeconds } from "@/lib/ai-edition/timeline/format";
 import { coalescedTrimGroups } from "@/lib/ai-edition/timeline/trim-mapping";
 import { zoomLevelFor } from "@/lib/ai-edition/timeline/zoom-scale";
@@ -173,9 +181,11 @@ export function FloatingInspector({
 	// An imported audio track is selected (issue #350) — like a region selection it
 	// takes over the inspector body with its own pane (see AudioTrackPane).
 	const audioTrackSelected = Boolean(tl.selectedAudioTrackId);
-	const effectiveOpen = open || selection !== null || audioTrackSelected;
-	const pressedFacet =
-		!selection && !audioTrackSelected && open ? facets.findIndex((f) => f.id === facet) : -1;
+	// Clicks or key presses picked on their lane take the body over the same way.
+	const soundsSelected = Boolean(tl.soundSelection);
+	const picked = selection !== null || audioTrackSelected || soundsSelected;
+	const effectiveOpen = open || picked;
+	const pressedFacet = !picked && open ? facets.findIndex((f) => f.id === facet) : -1;
 	return (
 		<div className={styles.inspectorWrap}>
 			{effectiveOpen ? (
@@ -184,6 +194,8 @@ export function FloatingInspector({
 						<SelectionPane tl={tl} onClose={() => tl.clearSelection()} />
 					) : audioTrackSelected ? (
 						<AudioTrackPane tl={tl} onClose={() => tl.clearSelection()} />
+					) : soundsSelected ? (
+						<InputSoundPane tl={tl} onClose={() => tl.clearSelection()} />
 					) : (
 						<FacetBody facet={facet} onCollapse={onToggleOpen} transcriptProps={transcriptProps} />
 					)}
@@ -209,11 +221,11 @@ export function FloatingInspector({
 						<button
 							type="button"
 							aria-label={ts(labelKey)}
-							aria-pressed={!selection && !audioTrackSelected && open && facet === id}
+							aria-pressed={!picked && open && facet === id}
 							onClick={() => {
 								// Switching facets while an element is selected should show
 								// the facet, not leave the selection pane on top of it.
-								if (selection || audioTrackSelected) tl.clearSelection();
+								if (picked) tl.clearSelection();
 								if (facet === id && open) {
 									onToggleOpen();
 								} else {
@@ -1323,6 +1335,106 @@ function SelectionPane({ tl, onClose }: { tl: TimelineApi; onClose: () => void }
 		);
 	}
 
+	if (selection.kind === "cursor") {
+		const override = tl.cursorOverrides.find((o) => o.id === selection.id);
+		if (!override) return null;
+		// The joins to the recording are not listed: they sit on the span's edges and follow
+		// them, and the one thing to do with one, moving it, is done on the picture.
+		const placed = override.points
+			.map((point, index) => ({ point, index }))
+			.filter(({ point }) => !point.recorded);
+		return (
+			<div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+				{paneHeader(
+					<MousePointer2 size={16} />,
+					ts("cursorPath.title"),
+					onClose,
+					tc("actions.close"),
+				)}
+				<div style={bodyStyle}>
+					{paneStack(
+						ts("zoom.cursor.title"),
+						<ChoiceRow<"show" | "hide">
+							label={ts("zoom.cursor.title")}
+							options={[
+								{ value: "show", label: ts("zoom.cursor.show") },
+								{ value: "hide", label: ts("zoom.cursor.hide") },
+							]}
+							value={override.hidden ? "hide" : "show"}
+							onChange={(v) =>
+								void tl.changeCursorOverride(override.id, ({ hidden: _was, ...rest }) =>
+									v === "hide" ? { ...rest, hidden: true } : rest,
+								)
+							}
+						/>,
+					)}
+					{placed.length === 0 ? (
+						// The one thing the pane cannot show on its own: where a point comes from.
+						<p className={shell.hint}>{ts("cursorPath.empty")}</p>
+					) : (
+						<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+							{placed.map(({ point, index }) => (
+								<div
+									key={`${point.timeMs}:${index}`}
+									style={{ display: "flex", alignItems: "center", gap: 10 }}
+								>
+									<span
+										style={{
+											flex: 1,
+											fontSize: 13,
+											fontWeight: 500,
+											color: "var(--fg-2)",
+											fontVariantNumeric: "tabular-nums",
+										}}
+									>
+										{formatSeconds(point.timeMs / 1000)}
+									</span>
+									<span style={{ fontSize: 12, color: "var(--muted)" }}>
+										{ts("cursorPath.click")}
+									</span>
+									<Toggle
+										checked={point.click === true}
+										ariaLabel={ts("cursorPath.clickAt", {
+											time: formatSeconds(point.timeMs / 1000),
+										})}
+										onChange={(click) =>
+											void tl.changeCursorOverride(override.id, (o) =>
+												patchCursorOverridePoint(o, index, { click }),
+											)
+										}
+									/>
+									<Tooltip content={ts("cursorPath.removePoint")}>
+										<button
+											type="button"
+											className={styles.iconBtn}
+											aria-label={ts("cursorPath.removePointAt", {
+												time: formatSeconds(point.timeMs / 1000),
+											})}
+											style={{ width: 30, height: 30 }}
+											onClick={() =>
+												void tl.changeCursorOverride(override.id, (o) =>
+													withoutCursorOverridePoint(o, index),
+												)
+											}
+										>
+											<Trash2 size={15} />
+										</button>
+									</Tooltip>
+								</div>
+							))}
+						</div>
+					)}
+					{/* Removing the override is what gives the recorded pointer back, so it reads as
+					    an undo, like a trim's. */}
+					<button type="button" onClick={deleteAndClose} className={PANE_BUTTON}>
+						<Undo2 size={16} />
+						{ts("cursorPath.restore")}
+					</button>
+				</div>
+			</div>
+		);
+	}
+
 	if (selection.kind === "layout") {
 		const index = tl.layoutSegments.findIndex((r) => r.ids.includes(selection.id));
 		const run = tl.layoutSegments[index];
@@ -1389,6 +1501,54 @@ function SelectionPane({ tl, onClose }: { tl: TimelineApi; onClose: () => void }
 					<Undo2 size={16} />
 					{te("inspector.restoreDeleteTrim")}
 				</button>
+			</div>
+		</div>
+	);
+}
+
+/**
+ * Clicks or key presses picked on their lane. Nothing about them can be changed but whether
+ * they sound: the click's bounce, its zoom and the pointer are the recording's, untouched.
+ */
+function InputSoundPane({ tl, onClose }: { tl: TimelineApi; onClose: () => void }) {
+	const ts = useScopedT("settings");
+	const tc = useScopedT("common");
+	const doc = useProjectStore((s) => s.document);
+	const picked = tl.soundSelection;
+	if (!picked) return null;
+	const count = picked.timesMs.length;
+	const muted = mutedInputSoundTimes(doc, clickTakeOf(doc)?.id, picked.kind);
+	// Off only when every press picked is silent: a mixed selection still sounds.
+	const allOff = picked.timesMs.every((timeMs) => muted.has(timeMs));
+	const title =
+		picked.kind === "click"
+			? count === 1
+				? ts("inputSound.click")
+				: ts("inputSound.clicks", { count: String(count) })
+			: count === 1
+				? ts("inputSound.key")
+				: ts("inputSound.keys", { count: String(count) });
+	return (
+		<div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+			{paneHeader(
+				picked.kind === "click" ? <MousePointerClick size={16} /> : <Keyboard size={16} />,
+				title,
+				onClose,
+				tc("actions.close"),
+			)}
+			<div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+				{paneStack(
+					ts("inputSound.sound"),
+					<ChoiceRow<"on" | "off">
+						label={ts("inputSound.sound")}
+						options={[
+							{ value: "on", label: ts("inputSound.on") },
+							{ value: "off", label: ts("inputSound.off") },
+						]}
+						value={allOff ? "off" : "on"}
+						onChange={(v) => void tl.setInputSoundsMuted(picked.kind, picked.timesMs, v === "off")}
+					/>,
+				)}
 			</div>
 		</div>
 	);

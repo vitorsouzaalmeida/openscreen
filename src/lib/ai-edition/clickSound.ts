@@ -6,13 +6,19 @@
 // same list, placed by the raw→programme projection the app lays imported audio tracks out with.
 // An imported track is moved by a speed region and never stretched, so a bed rendered against one
 // edit falls behind every click after it; these hits are computed from the edit instead.
+//
+// The clicks are the ones the document DRAWS: the recorded track with its cursor overrides
+// applied (timeline/cursor-overrides.ts), so a click an override adds sounds and one it removes
+// does not. A click whose sound the user took out (inputSounds.ts) is left off the list.
 
 import type { CursorTelemetryPoint } from "@/components/video-editor/types";
 import { nativeBridgeClient } from "@/native/client";
 import { projectRawTimelineSecToPlayback, readSpeedRegions } from "./document/timeline";
+import { mutedInputSoundTimes } from "./inputSounds";
 import type { AxcutAsset, AxcutDocument } from "./schema";
 import { audioGainScalar, getEditorSettings } from "./store/editorSettings";
 import { resolveClipSourceEndSec } from "./timeline/clipDuration";
+import { applyCursorOverrides, cursorOverridesForAsset } from "./timeline/cursor-overrides";
 import { removedRawSpans } from "./timeline/programme-time";
 
 export const CLICK_SOUND_DOWN_URL = "sounds/click-down.wav";
@@ -38,6 +44,10 @@ export interface ClickCue {
 	timeSec: number;
 	gain: number;
 	release: boolean;
+	/** The recording millisecond of the press this cue belongs to. Its release, and the second
+	 *  tap of a double click, carry the same one: it is what names the click, and what a mute
+	 *  (inputSounds.ts) is stored under. */
+	clickMs: number;
 }
 
 /** One hit of the scene's `clickSound` block: programme seconds, the compositor's own clock. */
@@ -67,11 +77,11 @@ export function buildClickCues(points: CursorTelemetryPoint[]): ClickCue[] {
 		.sort((a, b) => a - b);
 
 	const cues: ClickCue[] = [];
-	const push = (ms: number, gain: number, release: boolean) => {
+	const push = (ms: number, gain: number, release: boolean, clickMs: number) => {
 		// The sidecar is disk data. A NaN would serialize as `null` into the scene and cost the
 		// whole export its parse, so a time that is not a number is not a click.
 		if (!Number.isFinite(ms) || ms < 0) return;
-		cues.push({ timeSec: ms / 1000, gain, release });
+		cues.push({ timeSec: ms / 1000, gain, release, clickMs });
 	};
 
 	for (const point of sorted) {
@@ -87,13 +97,15 @@ export function buildClickCues(points: CursorTelemetryPoint[]): ClickCue[] {
 		const isSide =
 			point.interactionType === "right-click" || point.interactionType === "middle-click";
 		const gain = isSide ? 0.85 : 1;
-		push(point.timeMs, gain, false);
-		if (point.interactionType === "double-click") push(point.timeMs + DOUBLE_TAP_MS, gain, false);
+		push(point.timeMs, gain, false, point.timeMs);
+		if (point.interactionType === "double-click") {
+			push(point.timeMs + DOUBLE_TAP_MS, gain, false, point.timeMs);
+		}
 		// ponytail: a press held past MAX_RELEASE_GAP_MS gets its release early instead of never
 		const release = releases.find(
 			(ms) => ms > point.timeMs && ms <= point.timeMs + MAX_RELEASE_GAP_MS,
 		);
-		push(release ?? point.timeMs + FALLBACK_RELEASE_MS, gain * 0.7, true);
+		push(release ?? point.timeMs + FALLBACK_RELEASE_MS, gain * 0.7, true, point.timeMs);
 	}
 	return cues.sort((a, b) => a.timeSec - b.timeSec);
 }
@@ -107,33 +119,76 @@ export function clickHitUrls(): { down: string; up: string } {
 	return { down: one(CLICK_SOUND_DOWN_URL), up: one(CLICK_SOUND_UP_URL) };
 }
 
-// Both caches are one-shot: a finished take's sidecar never changes, and the staged samples are
-// the same bytes in every project.
-const cueCache = new Map<string, ClickCue[]>();
+// Both caches are one-shot: a finished take's sidecar never changes (nothing writes it after the
+// recording: a cursor edit is an override in the document), and the staged samples are the same
+// bytes in every project.
+const telemetryCache = new Map<string, CursorTelemetryPoint[]>();
+const NO_TELEMETRY: CursorTelemetryPoint[] = [];
 let hitPaths: { down: string; up: string } | null = null;
 let hitPathsPending: Promise<{ down: string; up: string } | null> | null = null;
 
 /**
- * The take's cues, read from disk once per run. A take whose sidecar cannot be read is cached as
- * holding no clicks: that is the answer the UI gives anyway, and re-asking on every scene build
- * would be a read storm against a file that is simply not there.
+ * The take's recorded pointer, read from disk once per run. A take whose sidecar cannot be read
+ * is cached as holding nothing: that is the answer the UI gives anyway, and re-asking on every
+ * scene build would be a read storm against a file that is simply not there.
  */
-export async function loadClickCues(takePath: string): Promise<ClickCue[]> {
-	const cached = cueCache.get(takePath);
+export async function loadClickTelemetry(takePath: string): Promise<CursorTelemetryPoint[]> {
+	const cached = telemetryCache.get(takePath);
 	if (cached) return cached;
-	let cues: ClickCue[] = [];
+	let telemetry: CursorTelemetryPoint[] = [];
 	try {
-		cues = buildClickCues(await nativeBridgeClient.cursor.getTelemetry(takePath));
+		telemetry = (await nativeBridgeClient.cursor.getTelemetry(takePath)) ?? [];
 	} catch (error) {
 		console.error("Failed to read the click telemetry of", takePath, error);
 	}
-	cueCache.set(takePath, cues);
+	telemetryCache.set(takePath, telemetry);
 	// A preview that asked for this take gets fed now rather than on the next edit, through the
 	// edit that asked for it — the same filter every other stash goes through.
 	if (previewTake === takePath && previewEdit) {
-		stashPreviewCues(previewEdit.document, previewEdit.take, levelClickCues(cues, previewGainDb));
+		stashPreviewCues(
+			previewEdit.document,
+			previewEdit.take,
+			levelClickCues(audibleClickCues(previewEdit.document, previewEdit.take), previewGainDb),
+		);
 	}
+	return telemetry;
+}
+
+// The last derivation. The editor holds one document at a time and a scene is built on every
+// edit, live drags included: without this, each of them would sort the whole track again.
+let drawnCues: {
+	telemetry: CursorTelemetryPoint[];
+	overrides: AxcutDocument["cursorOverrides"];
+	assetId: string;
+	cues: ClickCue[];
+} | null = null;
+
+/**
+ * Every click the document draws on this take, silenced or not: the recorded ones, with the
+ * cursor overrides applied. Synchronous, from what `loadClickTelemetry` has read; a take not
+ * read yet answers with its overrides' clicks alone.
+ */
+export function takeClickCues(document: AxcutDocument, take: AxcutAsset): ClickCue[] {
+	const telemetry = telemetryCache.get(take.originalPath) ?? NO_TELEMETRY;
+	if (
+		drawnCues?.telemetry === telemetry &&
+		drawnCues.overrides === document.cursorOverrides &&
+		drawnCues.assetId === take.id
+	) {
+		return drawnCues.cues;
+	}
+	const cues = buildClickCues(
+		applyCursorOverrides(telemetry, cursorOverridesForAsset(document, take.id)),
+	);
+	drawnCues = { telemetry, overrides: document.cursorOverrides, assetId: take.id, cues };
 	return cues;
+}
+
+/** The clicks that sound: `takeClickCues` without the ones the user silenced. */
+function audibleClickCues(document: AxcutDocument, take: AxcutAsset): ClickCue[] {
+	const cues = takeClickCues(document, take);
+	const muted = mutedInputSoundTimes(document, take.id, "click");
+	return muted.size === 0 ? cues : cues.filter((cue) => !muted.has(cue.clickMs));
 }
 
 /**
@@ -216,11 +271,13 @@ export function clickSoundForDocument(
 		return null;
 	}
 	// A take never read before is read now, in the background: the scene build cannot await.
-	// `loadClickCues` feeds the preview when it lands; an export awaits `prepareClickSound`.
+	// `loadClickTelemetry` feeds the preview when it lands; an export awaits `prepareClickSound`.
 	// The main process builds scenes too (getFrames renders from the document) and has no renderer
 	// bridge to read the sidecar through. It renders pictures, never this sound, so it skips the read.
-	if (!cueCache.has(takePath) && typeof window !== "undefined") void loadClickCues(takePath);
-	const cues = levelClickCues(cueCache.get(takePath) || [], cursor.clickSoundGainDb);
+	if (!telemetryCache.has(takePath) && typeof window !== "undefined") {
+		void loadClickTelemetry(takePath);
+	}
+	const cues = levelClickCues(audibleClickCues(document, take), cursor.clickSoundGainDb);
 	stashPreviewCues(document, take, cues);
 	if (!hitPaths || cues.length === 0) return null;
 	return {
@@ -324,8 +381,12 @@ export async function prepareClickSound(document: AxcutDocument): Promise<void> 
 	const take = clickTakeOf(document);
 	if (!take?.originalPath) return;
 	previewGainDb = cursor.clickSoundGainDb;
-	const cues = await loadClickCues(take.originalPath);
-	stashPreviewCues(document, take, levelClickCues(cues, cursor.clickSoundGainDb));
+	await loadClickTelemetry(take.originalPath);
+	stashPreviewCues(
+		document,
+		take,
+		levelClickCues(audibleClickCues(document, take), cursor.clickSoundGainDb),
+	);
 	await ensureClickHitPaths();
 }
 

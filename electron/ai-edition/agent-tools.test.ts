@@ -1974,6 +1974,63 @@ describe("cursor telemetry in the snapshot", () => {
 	});
 });
 
+describe("cursor overrides in the snapshot", () => {
+	const override = {
+		id: "cursor_1",
+		assetId: "asset_1",
+		sourceStartMs: 2000,
+		sourceEndMs: 6500,
+		points: [
+			{ timeMs: 3000, cx: 0.2, cy: 0.2 },
+			{ timeMs: 5000, cx: 0.6, cy: 0.5, click: true },
+		],
+		origin: "user" as const,
+	};
+
+	it("carries no trace of them in a project that has none", () => {
+		const snapshot = JSON.parse(
+			executeAgentTool(fixtureDocument(), "getCurrentDocument", "{}").resultJson,
+		);
+		expect("cursorOverrides" in snapshot).toBe(false);
+	});
+
+	it("lists each one in the asset's source seconds, and says how to get the recording back", () => {
+		const snapshot = JSON.parse(
+			executeAgentTool(
+				{ ...fixtureDocument(), cursorOverrides: [override] },
+				"getCurrentDocument",
+				"{}",
+			).resultJson,
+		);
+		expect(snapshot.cursorOverrides).toEqual([
+			{
+				id: "cursor_1",
+				assetId: "asset_1",
+				startSec: 2,
+				endSec: 6.5,
+				points: 2,
+				clicks: 1,
+				origin: "user",
+			},
+		]);
+		expect(snapshot.cursorNote).toMatch(/removeModifier/);
+	});
+
+	it("is removed by removeModifier, like any modifier", () => {
+		const execution = executeAgentTool(
+			{ ...fixtureDocument(), cursorOverrides: [override] },
+			"removeModifier",
+			JSON.stringify({ id: "cursor_1" }),
+		);
+		expect(execution.ok).toBe(true);
+		expect(JSON.parse(execution.resultJson)).toMatchObject({
+			kind: "cursor",
+			removedIds: ["cursor_1"],
+		});
+		expect(execution.document?.cursorOverrides ?? []).toEqual([]);
+	});
+});
+
 describe("getCursorTrack", () => {
 	it("returns real samples, downsampled — not an interpretation of them", () => {
 		const samples = samplesWithDwell(10, 1.4, 0.66, 0.33);

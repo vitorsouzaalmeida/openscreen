@@ -24,9 +24,9 @@
 
 use crate::compositor::{Compositor, LiveParams};
 use crate::regions::{speed_at, ProgrammeClock};
-use crate::scene::Scene;
+use crate::scene::{cursor_patches_fingerprint, Scene, SceneCursorPatch};
 use crate::config::{self, Cfg};
-use crate::cursor::CursorTrack;
+use crate::cursor::{cursor_sidecar_path, CursorTrack};
 use crate::d3d::{Backend, Gpu};
 use crate::frame_geometry::webcam_is_real;
 use crate::pipeline::Decoder;
@@ -86,6 +86,11 @@ struct PrefetchedClip {
     /// enregistrement long) même après que le préchargement des décodeurs a supprimé le gros
     /// de la pause perceptible — un second petit accroc au même endroit, pour la même raison
     /// (une E/S synchrone pile à la frontière) qu'on venait de corriger pour les décodeurs.
+    ///
+    /// Filled by the prefetch worker only (`maybe_start_prefetch`), which is handed the scene's
+    /// cursor patches for the clip and loads the track with them. `open_and_seek_clip` leaves
+    /// it `None`: its other callers have no scene at hand, would load the bare recording, and
+    /// read the track again anyway once the clip is installed.
     cursor_track: Option<CursorTrack>,
 }
 
@@ -176,8 +181,7 @@ unsafe fn open_and_seek_clip(
         anyhow::bail!("clip préchargé vide au temps source {source_time_sec:.3}s (screen=\"{screen_path}\")");
     }
     let idx = (source_time_sec * sdec.fps()).round().max(0.0) as u32;
-    let cursor_track = CursorTrack::load(&format!("{screen_path}.cursor.json"), 0.0, 24.0 * 3600.0).ok();
-    Ok(PrefetchedClip { sdec, wdec, webcam_decoder_is_real, webcam_offset_sec, idx, cursor_track })
+    Ok(PrefetchedClip { sdec, wdec, webcam_decoder_is_real, webcam_offset_sec, idx, cursor_track: None })
 }
 
 /// Nombre de paires de décodeurs INACTIVES gardées ouvertes en plus de la paire active.
@@ -882,9 +886,22 @@ fn resolve_scene_clip_index(
 
 /// The cache key of a clip's cursor track. A turned clip uses the same telemetry file
 /// mirrored (`CursorTrack::turned`), so the two must never share a cache entry.
-pub(crate) fn cursor_key(screen_path: &str, turned: bool) -> String {
-    let path = format!("{screen_path}.cursor.json");
-    if turned { format!("{path}#turned") } else { path }
+///
+/// `patches` are the scene's cursor patches for that screen video (`Scene::cursor_patches_for`),
+/// and their fingerprint is part of the key: the track is the recording with them swapped in, so
+/// an edit of the pointer has to reread it even though no file and no clip changed. Only that
+/// take's patches count. The app pushes a scene on every edit, and a key that moved with the
+/// rest of the scene would reread and re-smooth the whole track each time. With no patch the
+/// key is the sidecar's path, as it was before patches existed.
+pub(crate) fn cursor_key(screen_path: &str, turned: bool, patches: &[&SceneCursorPatch]) -> String {
+    let mut key = cursor_sidecar_path(screen_path);
+    if turned {
+        key.push_str("#turned");
+    }
+    if let Some(fingerprint) = cursor_patches_fingerprint(patches) {
+        key.push_str(&format!("#patches={fingerprint:016x}"));
+    }
+    key
 }
 
 /// A clip's cursor track as the compositor reads it: mirrored for a turned clip, whose frame is
@@ -893,23 +910,35 @@ fn oriented_cursor(track: CursorTrack, turned: bool) -> CursorTrack {
     if turned { track.turned() } else { track }
 }
 
-/// Rereads the active clip's cursor telemetry when its key changed (another file, or the same
-/// file turned the other way) and hands it to the compositor already smoothed, so a paused
-/// preview never shows one unsmoothed frame. Returns whether it reread.
+/// The scene's cursor patches for one take; none before the first scene arrives.
+fn cursor_patches_for<'a>(scene: Option<&'a Scene>, screen_path: &str) -> Vec<&'a SceneCursorPatch> {
+    scene.map(|scene| scene.cursor_patches_for(screen_path)).unwrap_or_default()
+}
+
+/// Rereads the active clip's cursor telemetry when its key changed (another file, the same
+/// file turned the other way, or other cursor patches for it in `scene`) and hands it to the
+/// compositor already smoothed, so a paused preview never shows one unsmoothed frame. Returns
+/// whether it reread.
+///
+/// `scene` is the whole scene as the app last pushed it. This runs wherever one is applied, so
+/// redrawing a stretch of the pointer in the editor shows in the frame composed next, and so
+/// does the first scene to arrive: the track `render_thread` loads before it has no patch.
 fn reload_cursor_if_changed(
     comp: &Compositor,
     raw_cursor: &mut Option<CursorTrack>,
     loaded_cursor_path: &mut String,
+    scene: Option<&Scene>,
     screen_path: &str,
     turned: bool,
     smoothing: f32,
 ) -> bool {
-    let key = cursor_key(screen_path, turned);
+    let patches = cursor_patches_for(scene, screen_path);
+    let key = cursor_key(screen_path, turned, &patches);
     if key == *loaded_cursor_path {
         return false;
     }
-    let cursor_path = format!("{screen_path}.cursor.json");
-    *raw_cursor = CursorTrack::load(&cursor_path, 0.0, 24.0 * 3600.0)
+    let cursor_path = cursor_sidecar_path(screen_path);
+    *raw_cursor = CursorTrack::load_take(screen_path, &patches)
         .ok()
         .map(|t| oriented_cursor(t, turned));
     // Journalisé ICI seulement : sinon la ligne annonce « loaded=ok » à
@@ -917,9 +946,10 @@ fn reload_cursor_if_changed(
     // laisse croire à un travail qui n'a plus lieu.
     match raw_cursor {
         Some(track) => eprintln!(
-            "[live] cursor: path={} turned={} loaded=ok samples={}",
+            "[live] cursor: path={} turned={} patches={} loaded=ok samples={}",
             cursor_path,
             turned,
+            patches.len(),
             track.sample_count(),
         ),
         None => eprintln!("[live] cursor: path={} loaded=FAIL — clear_cursor()", cursor_path),
@@ -1462,6 +1492,11 @@ unsafe fn maybe_start_prefetch(
         return;
     }
     let next_clip = scene.clips[next_index].clone();
+    // The worker has no scene: it is handed the one thing it needs from it, the next clip's
+    // cursor patches, so the track it prepares is the one a synchronous load would make. They
+    // cannot go stale in its hands, because a new scene drops the prefetch (`render_thread`).
+    let cursor_patches: Vec<SceneCursorPatch> =
+        scene.cursor_patches_for(&next_clip.screen_path).into_iter().cloned().collect();
     // Copie légère (COM refcount, pas de nouveau device) — même motif que `Player::open`.
     let gpu_clone = Gpu {
         device: gpu.device.clone(),
@@ -1479,7 +1514,14 @@ unsafe fn maybe_start_prefetch(
                 next_clip.source_start_sec,
                 &gpu_clone,
             )
-        };
+        }
+        .map(|mut clip| {
+            // A failed load stays `None`, which the switch reads as "this clip has no pointer":
+            // a take with neither a sidecar nor a patch. One with patches only gets its track.
+            let patches: Vec<&SceneCursorPatch> = cursor_patches.iter().collect();
+            clip.cursor_track = CursorTrack::load_take(&next_clip.screen_path, &patches).ok();
+            clip
+        });
         // L'appelant a pu abandonner ce préchargement entre-temps (changement de clip
         // explicite, scène remplacée) — un receiver droppé fait juste échouer `send`
         // silencieusement ; les décodeurs déjà ouverts sont libérés normalement (`Drop`).
@@ -1580,18 +1622,21 @@ unsafe fn advance_to_next_scene_clip(
             player.set_programme_clock(Some(scene), *active_clip_index);
             // Réutilise le curseur préchargé s'il est disponible (voir plus haut) — sinon
             // (préchargement pas encore prêt / raté) on retombe sur la lecture synchrone
-            // habituelle, comme avant cette optimisation. The prefetched track is the raw
-            // file: it is turned here, where the clip it belongs to is known.
-            let cursor_path = format!("{}.cursor.json", active_screen_path);
+            // habituelle, comme avant cette optimisation. The prefetched track is the
+            // recording with this scene's cursor patches already in (`maybe_start_prefetch`
+            // read them from the same scene), upright: it is turned here, where the clip it
+            // belongs to is known.
+            let patches = scene.cursor_patches_for(active_screen_path);
             *raw_cursor = match prefetched_cursor {
                 Some(track) => track,
-                None => CursorTrack::load(&cursor_path, 0.0, 24.0 * 3600.0).ok(),
+                None => CursorTrack::load_take(active_screen_path, &patches).ok(),
             }
             .map(|t| oriented_cursor(t, turned));
             // Le fichier est noté avec la piste. Sinon une requête de clip qui revient sur le
             // fichier d'avant le croit encore chargé, ne relit rien, et dessine sur ce clip la
-            // télémétrie de celui qu'on vient de quitter.
-            *loaded_cursor_path = cursor_key(active_screen_path, turned);
+            // télémétrie de celui qu'on vient de quitter. The patches are noted with it for the
+            // same reason: the next scene must find the key of what is loaded.
+            *loaded_cursor_path = cursor_key(active_screen_path, turned, &patches);
             match raw_cursor {
                 Some(track) => comp.set_cursor(track.smoothed(0.0)),
                 None => comp.clear_cursor(),
@@ -1653,9 +1698,12 @@ unsafe fn render_thread(
     // Gardée à part (raw_cursor) pour pouvoir régénérer une variante lissée sans relire le
     // fichier à chaque changement du slider "smoothing" (voir la boucle plus bas).
     let mut raw_cursor = CursorTrack::load(cursor_json, 0.0, 24.0 * 3600.0).ok();
-    /// Chemin de la télémétrie curseur actuellement chargée dans `raw_cursor` — évite de
-    /// relire le même fichier à chaque changement de segment (voir plus bas). Compared with
-    /// `cursor_key`: no scene has arrived yet, so this first track is upright.
+    // Chemin de la télémétrie curseur actuellement chargée dans `raw_cursor` — évite de
+    // relire le même fichier à chaque changement de segment (voir plus bas). Compared with
+    // `cursor_key`: no scene has arrived yet, so this first track is upright and carries no
+    // cursor patch. That is the key of an unpatched take, so the first scene that has patches
+    // for the active clip finds another key and rereads the track with them
+    // (`reload_cursor_if_changed`); one that has none finds the same key and rereads nothing.
     let mut loaded_cursor_path = cursor_json.to_string();
     if let Some(track) = &raw_cursor {
         comp.set_cursor(track.smoothed(0.0));
@@ -1812,10 +1860,13 @@ unsafe fn render_thread(
                     // construction identique. Mesuré : 66 bascules sur un scrub de deux clips,
                     // donc 66 relectures du même fichier.
                     // The key also carries the clip's turn: the same file turned is another track.
+                    // And the take's cursor patches in the scene just read: a segment change
+                    // still rereads nothing, since only an edit of the pointer moves them.
                     if reload_cursor_if_changed(
                         &comp,
                         &mut raw_cursor,
                         &mut loaded_cursor_path,
+                        full_scene.as_ref(),
                         &active_screen_path,
                         turned,
                         ip.cursor_smoothing,
@@ -1891,13 +1942,15 @@ unsafe fn render_thread(
                 scene_for_clip(&base_scene, active_clip_index)
             });
             // Turning the active clip changes no file, only the scene: its track is reread
-            // here, mirrored the new way.
+            // here, mirrored the new way. So is a track whose cursor patches changed, and
+            // only then: every other edit pushes a scene too, and leaves the key as it was.
             let turned = scene.as_ref().is_some_and(Scene::screen_turned);
             comp.set_scene(scene);
             if reload_cursor_if_changed(
                 &comp,
                 &mut raw_cursor,
                 &mut loaded_cursor_path,
+                full_scene.as_ref(),
                 &active_screen_path,
                 turned,
                 ip.cursor_smoothing,
@@ -2454,13 +2507,74 @@ pub fn run_standalone(_screen: &str, _webcam: &str, _cursor_json: &str) -> anyho
 
 #[cfg(test)]
 mod tests {
-    use super::{cursor_key, open_settle_window, should_settle, SETTLE_STEP, SETTLE_WINDOW};
+    use super::{cursor_key, cursor_patches_for, open_settle_window, should_settle, SETTLE_STEP, SETTLE_WINDOW};
     use std::time::Instant;
 
     #[test]
     fn cursor_key_tells_a_turned_clip_from_an_upright_one() {
-        assert_eq!(cursor_key("a.mp4", false), "a.mp4.cursor.json");
-        assert_ne!(cursor_key("a.mp4", false), cursor_key("a.mp4", true));
+        assert_eq!(cursor_key("a.mp4", false, &[]), "a.mp4.cursor.json");
+        assert_ne!(cursor_key("a.mp4", false, &[]), cursor_key("a.mp4", true, &[]));
+    }
+
+    /// A scene with two takes, `/a.mp4` and `/b.mp4`, and the given `cursorPatches` and padding.
+    fn scene_with_cursor_patches(patches: &str, padding: f32) -> Scene {
+        Scene::from_json(&format!(
+            r##"{{
+            "clips": [
+                {{"screenPath":"/a.mp4","webcamPath":"","sourceStartSec":0,"sourceEndSec":4,"webcamOffsetSec":0}},
+                {{"screenPath":"/b.mp4","webcamPath":"","sourceStartSec":0,"sourceEndSec":4,"webcamOffsetSec":0}}
+            ],
+            "layout": {{"preset":"no-webcam","webcamSize":1,"webcamShape":"rectangle","webcamMirror":false,"webcamPosition":null,"webcamReactiveZoom":false}},
+            "effects": {{"padding":{padding},"blur":false,"shadow":0,"roundnessFrac":0,"motionBlur":0}},
+            "background": {{"kind":"color","color":"#000000"}},
+            "zoomRegions": [],
+            "cursor": {{"show":true,"size":1,"smoothing":0,"motionBlur":0,"clickBounce":1,"clipToBounds":false,"theme":"default"}},
+            "cursorPatches": [{patches}],
+            "output": {{"width":1920,"height":1080,"fps":null}}
+        }}"##
+        ))
+        .expect("parse")
+    }
+
+    /// The key of a take's track moves with that take's cursor patches and with nothing else
+    /// in the scene: an edit of the pointer rereads the track, any other edit does not.
+    #[test]
+    fn cursor_key_follows_the_takes_own_cursor_patches() {
+        let patch = |screen: &str, cx: f32| {
+            format!(
+                r#"{{"screenPath":"{screen}","startMs":1000,"endMs":2000,"samples":[{{"timeMs":1000,"cx":{cx},"cy":0.5,"visible":true,"interactionType":"move"}}]}}"#
+            )
+        };
+        let key = |scene: &Scene, screen: &str, turned: bool| {
+            cursor_key(screen, turned, &cursor_patches_for(Some(scene), screen))
+        };
+        let scene = scene_with_cursor_patches(&patch("/a.mp4", 0.25), 0.0);
+        let unpatched = cursor_key("/a.mp4", false, &[]);
+
+        // A patched take is not the bare recording, turned or not.
+        let patched = key(&scene, "/a.mp4", false);
+        assert_ne!(patched, unpatched);
+        assert_ne!(patched, key(&scene, "/a.mp4", true));
+        assert!(patched.starts_with("/a.mp4.cursor.json"), "{patched}");
+        // No scene yet, or a take the scene has no patch for: the bare recording's key, the
+        // one `render_thread` starts from.
+        assert_eq!(cursor_key("/a.mp4", false, &cursor_patches_for(None, "/a.mp4")), unpatched);
+        assert_eq!(key(&scene, "/b.mp4", false), "/b.mp4.cursor.json");
+
+        // The same patches in a scene pushed again, or one that differs elsewhere: same key.
+        assert_eq!(patched, key(&scene_with_cursor_patches(&patch("/a.mp4", 0.25), 0.0), "/a.mp4", false));
+        assert_eq!(patched, key(&scene_with_cursor_patches(&patch("/a.mp4", 0.25), 0.4), "/a.mp4", false));
+        // Other patches for this take: another key.
+        assert_ne!(patched, key(&scene_with_cursor_patches(&patch("/a.mp4", 0.75), 0.0), "/a.mp4", false));
+        let two = format!("{},{}", patch("/a.mp4", 0.25), patch("/a.mp4", 0.75));
+        assert_ne!(patched, key(&scene_with_cursor_patches(&two, 0.0), "/a.mp4", false));
+        // Patches of another take, added or changed: this take's key does not move.
+        for other in [0.1, 0.9] {
+            let both = format!("{},{}", patch("/b.mp4", other), patch("/a.mp4", 0.25));
+            let scene = scene_with_cursor_patches(&both, 0.0);
+            assert_eq!(patched, key(&scene, "/a.mp4", false));
+            assert_ne!(key(&scene, "/b.mp4", false), "/b.mp4.cursor.json");
+        }
     }
 
     /// Le bug d'origine : en pause, un seul recompose par changement, donc le masque de

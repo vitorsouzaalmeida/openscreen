@@ -20,7 +20,7 @@ import {
 	type MediaToolDeps,
 	mediaPreamble,
 	NO_WEBCAM_PICTURE,
-	pointerSamples,
+	pointerPoints,
 } from "./media-tools";
 import {
 	createOpenScreenMcpServer,
@@ -287,7 +287,7 @@ describe("what `openscreen mcp` tells its client", () => {
 		};
 		expect(projectId.description).toContain("only while the app runs");
 		const restore = byName.get("restoreCheckpoint")?.description ?? "";
-		expect(restore).toContain("pointer track");
+		expect(restore).toContain("the pointer setPointerTrack drew");
 		// Through the app's editor while it runs (app-channel.ts).
 		expect(restore).toContain("one undo step");
 	});
@@ -572,38 +572,48 @@ describe("createProject", () => {
 	});
 });
 
-describe("pointerSamples", () => {
-	const startedAt = 10_000;
-	const samples = pointerSamples(
-		[
-			{ at: startedAt + 3_000, x: 0.8, y: 0.6, click: true },
-			{ at: startedAt + 1_000, x: 0.2, y: 0.2 },
-		],
-		startedAt,
-		5_000,
-	);
-	const at = (timeMs: number) => samples.find((s) => s.timeMs === timeMs);
-
-	it("rests, then glides onto each action when it happened", () => {
-		expect(at(1_000)).toMatchObject({ cx: 0.2, cy: 0.2, interactionType: "move" });
-		expect(at(3_000)).toMatchObject({ cx: 0.8, cy: 0.6, interactionType: "click" });
-		expect(at(3_080)).toMatchObject({ interactionType: "mouseup" });
-		const midGlide = samples.find((s) => s.timeMs > 2_600 && s.timeMs < 2_900);
-		expect(midGlide?.cx).toBeGreaterThan(0.2);
-		expect(midGlide?.cx).toBeLessThan(0.8);
-		// Still at the first point well before the glide to the second starts.
-		expect(samples.find((s) => s.timeMs > 1_100 && s.timeMs < 2_300)?.cx).toBe(0.2);
+describe("pointerPoints", () => {
+	it("puts each action on the video's clock, in time order, a click kept as one", () => {
+		const startedAt = 10_000;
+		expect(
+			pointerPoints(
+				[
+					{ at: startedAt + 3_000, x: 0.8, y: 0.6, click: true },
+					{ at: startedAt + 1_000, x: 0.2, y: 0.2 },
+				],
+				startedAt,
+				5_000,
+			),
+		).toEqual([
+			{ timeMs: 1_000, cx: 0.2, cy: 0.2 },
+			{ timeMs: 3_000, cx: 0.8, cy: 0.6, click: true },
+		]);
 	});
 
-	it("is in time order, and keeps sampling to the end of the take", () => {
-		const times = samples.map((s) => s.timeMs);
-		expect(times).toEqual([...times].sort((a, b) => a - b));
-		expect(times.at(-1)).toBeGreaterThan(4_900);
-		expect(times.at(-1)).toBeLessThanOrEqual(5_000);
+	it("holds an action logged before the video started, or after it ended, inside it", () => {
+		const points = pointerPoints(
+			[
+				{ at: 500, x: 0.1, y: 0.1 },
+				{ at: 99_000, x: 0.9, y: 0.9 },
+			],
+			1_000,
+			5_000,
+		);
+		expect(points.map((point) => point.timeMs)).toEqual([0, 5_000]);
 	});
 });
 
 describe("setPointerTrack", () => {
+	/** The recorded pointer file beside the take, byte for byte; `null` when there is none. */
+	const sidecarFile = (video: string) =>
+		fs.readFile(`${video}.cursor.json`, "utf8").catch(() => null);
+	const clickAt = (take: { recordingStartedAt: number }, x: number) => [
+		{ at: take.recordingStartedAt + 5_000, x, y: 0.5, click: true },
+	];
+	/** The pointer the project draws over its video: its cursor overrides. */
+	const overridesOf = async (projectId: string) =>
+		(await documents.getProject(projectId)).cursorOverrides ?? [];
+
 	it("gives a script-driven take a pointer, and zooms on its clicks", async () => {
 		// Driven through the DOM: the real pointer never moved, so nothing to zoom on.
 		await fs.rm(`${videoPath}.cursor.json`);
@@ -616,20 +626,53 @@ describe("setPointerTrack", () => {
 		];
 		const set = await call("setPointerTrack", { projectId: take.projectId, events });
 		expect(set.isError).toBeFalsy();
-		const { autoZoomsAdded } = JSON.parse(textOf(set));
+		const { autoZoomsAdded, overrideId } = JSON.parse(textOf(set));
 		expect(autoZoomsAdded).toBeGreaterThan(0);
 
-		const written = await readSidecar(take.videoPath);
-		expect(written.find((s) => s.interactionType === "click")).toMatchObject({
-			timeMs: 5_000,
-			cx: 0.6,
-		});
+		// The pointer is an override over the whole video, in the project.
 		const document = await documents.getProject(take.projectId);
+		expect(document.cursorOverrides).toEqual([
+			{
+				id: overrideId,
+				assetId: document.project.primaryAssetId,
+				sourceStartMs: 0,
+				sourceEndMs: 12_000,
+				points: [
+					{ timeMs: 2_000, cx: 0.3, cy: 0.4 },
+					{ timeMs: 5_000, cx: 0.6, cy: 0.5, click: true },
+				],
+				origin: "agent",
+			},
+		]);
 		expect(document.zoomRanges).toHaveLength(autoZoomsAdded);
+		// Nothing was written beside the video: the take still has no pointer file.
+		expect(await sidecarFile(take.videoPath)).toBeNull();
 
-		// Again: the zooms already there are kept clear of, not stacked.
+		// Again: the zooms already there are kept clear of, not stacked, and the new pointer
+		// takes the first one's place.
 		const again = await call("setPointerTrack", { projectId: take.projectId, events });
 		expect(JSON.parse(textOf(again)).autoZoomsAdded).toBe(0);
+		expect(await overridesOf(take.projectId)).toHaveLength(1);
+	});
+
+	it("never rewrites the pointer recorded with the take, and removing the override gives it back", async () => {
+		const take = await recordTake();
+		const recorded = await sidecarFile(take.videoPath);
+		expect(recorded).not.toBeNull();
+
+		const set = await call("setPointerTrack", {
+			projectId: take.projectId,
+			events: clickAt(take, 0.2),
+		});
+		expect(set.isError).toBeFalsy();
+		expect(await sidecarFile(take.videoPath)).toBe(recorded);
+
+		const { overrideId } = JSON.parse(textOf(set));
+		const removed = await call("removeModifier", { projectId: take.projectId, id: overrideId });
+		expect(removed.isError).toBeFalsy();
+		expect(JSON.parse(textOf(removed))).toMatchObject({ kind: "cursor", removedIds: [overrideId] });
+		expect(await overridesOf(take.projectId)).toEqual([]);
+		expect(await sidecarFile(take.videoPath)).toBe(recorded);
 	});
 
 	it("applies two tracks sent together one after the other, neither one lost", async () => {
@@ -644,21 +687,13 @@ describe("setPointerTrack", () => {
 			call("setPointerTrack", track(0.6)),
 		]);
 		expect(results.map((r) => r.isError ?? false)).toEqual([false, false]);
-		// The later call wins the sidecar, and its zoom keeps clear of the earlier one's.
-		const click = (await readSidecar(take.videoPath)).find((s) => s.interactionType === "click");
-		expect(click?.cx).toBe(0.6);
+		// The later call's pointer is the one drawn, and its zoom keeps clear of the earlier one's.
+		const overrides = await overridesOf(take.projectId);
+		expect(overrides.map((override) => override.points[0].cx)).toEqual([0.6]);
 	});
-
-	/** The sidecar beside the take, byte for byte; `null` when there is none. */
-	const sidecarFile = (video: string) =>
-		fs.readFile(`${video}.cursor.json`, "utf8").catch(() => null);
-	const clickAt = (take: { recordingStartedAt: number }, x: number) => [
-		{ at: take.recordingStartedAt + 5_000, x, y: 0.5, click: true },
-	];
 
 	it("refuses a project open in the app's editor before writing anything", async () => {
 		const take = await recordTake();
-		const before = await sidecarFile(take.videoPath);
 		documents.markOpenInEditor(take.projectId);
 		const refused = await call("setPointerTrack", {
 			projectId: take.projectId,
@@ -666,13 +701,12 @@ describe("setPointerTrack", () => {
 		});
 		expect(refused.isError).toBe(true);
 		expect(textOf(refused)).toContain("open in the OpenScreen editor");
-		expect(await sidecarFile(take.videoPath)).toBe(before);
+		expect(await overridesOf(take.projectId)).toEqual([]);
 		expect((await documents.getProject(take.projectId)).zoomRanges).toHaveLength(take.autoZooms);
 	});
 
 	it("refuses a project with no checkpoint before writing anything", async () => {
 		const take = await recordTake();
-		const before = await sidecarFile(take.videoPath);
 		// Twenty newer checkpoints push out the one stopRecording made.
 		const other = await documents.createProject("Other");
 		for (let i = 0; i < 20; i++) {
@@ -684,56 +718,43 @@ describe("setPointerTrack", () => {
 		});
 		expect(refused.isError).toBe(true);
 		expect(textOf(refused)).toContain("createCheckpoint");
-		expect(await sidecarFile(take.videoPath)).toBe(before);
+		expect(await overridesOf(take.projectId)).toEqual([]);
 	});
 
-	it("is undone by restoreCheckpoint, the take's own pointer track included", async () => {
+	it("is undone by restoreCheckpoint, the pointer it drew included", async () => {
 		const take = await recordTake();
-		const before = await sidecarFile(take.videoPath);
 		const set = await call("setPointerTrack", {
 			projectId: take.projectId,
 			events: clickAt(take, 0.2),
 		});
 		expect(set.isError).toBeFalsy();
-		expect(await sidecarFile(take.videoPath)).not.toBe(before);
+		expect(await overridesOf(take.projectId)).toHaveLength(1);
 
 		const restored = await call("restoreCheckpoint", {
 			projectId: take.projectId,
 			checkpointId: take.checkpointId,
 		});
 		expect(restored.isError).toBeFalsy();
-		expect(await sidecarFile(take.videoPath)).toBe(before);
+		expect(await overridesOf(take.projectId)).toEqual([]);
 		expect((await documents.getProject(take.projectId)).zoomRanges).toHaveLength(take.autoZooms);
 	});
 
-	it("takes away a track the take never had, and each checkpoint gets back its own", async () => {
+	it("gives each checkpoint back its own pointer", async () => {
 		await fs.rm(`${videoPath}.cursor.json`);
 		const take = await recordTake();
 		await call("setPointerTrack", { projectId: take.projectId, events: clickAt(take, 0.2) });
-		const first = await sidecarFile(take.videoPath);
 		const second = JSON.parse(
 			textOf(await call("createCheckpoint", { projectId: take.projectId })),
 		).checkpointId;
 		await call("setPointerTrack", { projectId: take.projectId, events: clickAt(take, 0.8) });
+		expect((await overridesOf(take.projectId))[0].points[0].cx).toBe(0.8);
 
 		await call("restoreCheckpoint", { projectId: take.projectId, checkpointId: take.checkpointId });
-		expect(await sidecarFile(take.videoPath)).toBeNull();
+		expect(await overridesOf(take.projectId)).toEqual([]);
 		await call("restoreCheckpoint", { projectId: take.projectId, checkpointId: second });
-		expect(await sidecarFile(take.videoPath)).toBe(first);
-	});
-
-	it("says the edit is partial when the project saved but the track could not be written", async () => {
-		await fs.rm(`${videoPath}.cursor.json`);
-		const take = await recordTake();
-		// A directory where the sidecar goes: the save succeeds, the sidecar write cannot.
-		await fs.mkdir(`${take.videoPath}.cursor.json`);
-		const set = await call("setPointerTrack", {
-			projectId: take.projectId,
-			events: clickAt(take, 0.2),
-		});
-		expect(set.isError).toBe(true);
-		expect(textOf(set)).toContain("The project was saved, but the pointer track");
-		expect(textOf(set)).not.toContain("Tool failed");
+		expect((await overridesOf(take.projectId))[0].points[0].cx).toBe(0.2);
+		// Through all of it the take never got a pointer file.
+		expect(await sidecarFile(take.videoPath)).toBeNull();
 	});
 
 	it("refuses a project with no video", async () => {
@@ -758,7 +779,7 @@ describe("setPointerTrack", () => {
 		expect(refused.isError).toBe(true);
 		expect(textOf(refused)).toContain("not recorded by this server");
 		expect(textOf(refused)).toContain("recordingStartedAt");
-		expect(await sidecarFile(videoPath)).toBeNull();
+		expect(await overridesOf(projectId)).toEqual([]);
 	});
 
 	it("gives a video from createProject a pointer on the client's clock, undone by its checkpoint", async () => {
@@ -779,8 +800,8 @@ describe("setPointerTrack", () => {
 		expect(set.isError).toBeFalsy();
 		const { autoZoomsAdded } = JSON.parse(textOf(set));
 		expect(autoZoomsAdded).toBeGreaterThan(0);
-		const click = (await readSidecar(videoPath)).find((s) => s.interactionType === "click");
-		expect(click).toMatchObject({ timeMs: 5_000, cx: 0.6 });
+		const [override] = await overridesOf(created.projectId);
+		expect(override.points.find((point) => point.click)).toMatchObject({ timeMs: 5_000, cx: 0.6 });
 		expect((await documents.getProject(created.projectId)).zoomRanges).toHaveLength(autoZoomsAdded);
 
 		const restored = await call("restoreCheckpoint", {
@@ -788,7 +809,7 @@ describe("setPointerTrack", () => {
 			checkpointId: created.checkpointId,
 		});
 		expect(restored.isError).toBeFalsy();
-		expect(await sidecarFile(videoPath)).toBeNull();
+		expect(await overridesOf(created.projectId)).toEqual([]);
 		expect((await documents.getProject(created.projectId)).zoomRanges).toHaveLength(0);
 	});
 
@@ -800,8 +821,8 @@ describe("setPointerTrack", () => {
 			events: clickAt(take, 0.5),
 			recordingStartedAt: take.recordingStartedAt + 1_000,
 		});
-		const click = (await readSidecar(take.videoPath)).find((s) => s.interactionType === "click");
-		expect(click?.timeMs).toBe(4_000);
+		const [override] = await overridesOf(take.projectId);
+		expect(override.points[0].timeMs).toBe(4_000);
 	});
 });
 

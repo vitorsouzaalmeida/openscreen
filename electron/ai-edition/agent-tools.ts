@@ -173,6 +173,8 @@ function modifierIds(document: AxcutDocument, kind: ModifierKind): string[] {
 			return [...new Set(document.audioTracks.map(trackGroupId))];
 		case "shaderEffect":
 			return (document.shaderEffectRanges ?? []).map((region) => region.id);
+		case "cursor":
+			return (document.cursorOverrides ?? []).map((override) => override.id);
 	}
 }
 
@@ -634,6 +636,7 @@ function modifierIdsOf(document: AxcutDocument): string[] {
 		...speedRegions.map((r) => r.id),
 		...cameraFullscreenRegions.map((r) => r.id),
 		...(document.shaderEffectRanges ?? []).map((r) => r.id),
+		...(document.cursorOverrides ?? []).map((r) => r.id),
 	];
 }
 
@@ -1394,11 +1397,30 @@ export function documentSnapshotForModel(
 		autoFocusAll,
 		hasAnyCamera: hasAnyClipWithCamera(document.assets, document.timeline.clips),
 		cursorNote:
-			"assets[].hasCursorTelemetry says whether recorded pointer telemetry exists for that " +
-			"asset. true — call getCursorTrack to read the recorded pointer track. " +
+			"assets[].hasCursorTelemetry says whether the project has a pointer for that asset: " +
+			"one recorded with it, or one drawn over it (cursorOverrides). true — call " +
+			"getCursorTrack to read the pointer track as the project draws it. " +
 			"false — this asset was checked and has none (imported footage, or a recording made " +
 			"without the cursor recorder). null — it was NOT checked from here; say that, and do " +
-			"not report it as the project having no cursor data.",
+			"not report it as the project having no cursor data. " +
+			"cursorOverrides, when present, are stretches of an asset's pointer drawn again, by the " +
+			"user in the editor (origin user) or by setPointerTrack (origin agent): startSec–endSec " +
+			"are SOURCE-time seconds of that asset. The recorded pointer is never rewritten, so " +
+			"removeModifier with an override's id gives it back over that stretch.",
+		...((document.cursorOverrides ?? []).length > 0
+			? {
+					cursorOverrides: (document.cursorOverrides ?? []).map((override) => ({
+						id: override.id,
+						assetId: override.assetId,
+						startSec: override.sourceStartMs / 1000,
+						endSec: override.sourceEndMs / 1000,
+						points: override.points.length,
+						clicks: override.points.filter((point) => point.click).length,
+						...(override.hidden ? { hidden: true } : {}),
+						origin: override.origin,
+					})),
+				}
+			: {}),
 		assets: document.assets.map((a) => ({
 			id: a.id,
 			label: a.label,
@@ -3939,13 +3961,14 @@ export function executeAgentTool(
 			else if (cameraFullscreenRegions.some((c) => c.id === id)) kind = "cameraFullscreen";
 			else if (document.audioTracks.some((t) => trackGroupId(t) === id)) kind = "audio";
 			else if ((document.shaderEffectRanges ?? []).some((r) => r.id === id)) kind = "shaderEffect";
+			else if ((document.cursorOverrides ?? []).some((o) => o.id === id)) kind = "cursor";
 			else if (layoutRuns(document).some((r) => r.ids.includes(id))) kind = "layout";
 			if (kind === "layout" && layoutRuns(document)[0]?.ids.includes(id)) {
 				return failure("The first layout cannot be removed. Change its preset instead.");
 			}
 			if (!kind) {
 				return failure(
-					`No zoom / speed / annotation / full-camera / audio / effect modifier with id ${id}. ` +
+					`No zoom / speed / annotation / full-camera / audio / effect / cursor modifier with id ${id}. ` +
 						`For a trim use removeTrim; for a clip use removeClip.`,
 				);
 			}

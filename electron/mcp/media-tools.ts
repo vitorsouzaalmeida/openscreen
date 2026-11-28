@@ -29,15 +29,22 @@ import {
 	subtitleCuesForExport,
 } from "../../src/lib/ai-edition/captions/subtitleFile";
 import { getCaptionTranslations } from "../../src/lib/ai-edition/captions/translations";
+import { createId } from "../../src/lib/ai-edition/document/ids";
 import {
 	projectRawTimelineSecToPlayback,
 	readSpeedRegions,
 } from "../../src/lib/ai-edition/document/timeline";
-import { type AxcutDocument, documentSchema } from "../../src/lib/ai-edition/schema";
+import {
+	type AxcutCursorOverride,
+	type AxcutCursorOverridePoint,
+	type AxcutDocument,
+	documentSchema,
+} from "../../src/lib/ai-edition/schema";
 import {
 	appendAutoZoomSuggestions,
 	collectAutoZoomSuggestionsForDocument,
 } from "../../src/lib/ai-edition/timeline/apply-auto-zooms";
+import { withCursorOverrides } from "../../src/lib/ai-edition/timeline/cursor-overrides";
 import { removedRawSpans, subtractRemoved } from "../../src/lib/ai-edition/timeline/programme-time";
 import {
 	type CliDoneResult,
@@ -52,11 +59,7 @@ import {
 	MP4_FRAME_RATES,
 	VALID_GIF_FRAME_RATES,
 } from "../../src/lib/exporter/types";
-import type {
-	CompositorClipInput,
-	CursorRecordingData,
-	CursorRecordingSample,
-} from "../../src/native/contracts";
+import type { CompositorClipInput } from "../../src/native/contracts";
 import { buildNativeClipList, buildSceneDescription } from "../../src/native/sceneDescription";
 import type { DocumentService } from "../ai-edition/document-service";
 import { runDocumentTool } from "../ai-edition/document-tools";
@@ -308,61 +311,25 @@ export interface PointerEvent {
 	click?: boolean;
 }
 
-// The rate OpenScreen's own pointer sampler records at.
-const POINTER_STEP_MS = 33;
-// A hand reaches for the next control in about this long, then the click lands.
-const POINTER_TRAVEL_MS = 600;
-const CLICK_HOLD_MS = 80;
-
 /**
- * A pointer track as a real mouse would have left it: at rest, then a short eased
- * glide that arrives on each event when it happened, then at rest until the end.
- * Times are milliseconds into the take; sampled until `durationMs`, because the
- * zoom planner discards a click that comes with the last sample (the click on Stop).
+ * A script's actions as the points of a cursor override: where the pointer arrives, and when,
+ * on the video's own clock. `cursorOverrideSamples` draws the pointer through them as a real
+ * mouse would have left it: at rest, then a short eased glide that arrives on each action when
+ * it happened. Times are held inside the video.
  */
-export function pointerSamples(
+export function pointerPoints(
 	events: readonly PointerEvent[],
 	startedAt: number,
 	durationMs: number,
-): CursorRecordingSample[] {
-	const sorted = [...events].sort((a, b) => a.at - b.at);
-	if (sorted.length === 0) return [];
-	const sample = (
-		timeMs: number,
-		cx: number,
-		cy: number,
-		interactionType: CursorRecordingSample["interactionType"] = "move",
-	): CursorRecordingSample => ({
-		timeMs: Math.round(timeMs),
-		cx,
-		cy,
-		visible: true,
-		assetId: null,
-		cursorType: null,
-		interactionType,
-	});
-	const samples: CursorRecordingSample[] = [];
-	let from = { t: 0, x: sorted[0].x, y: sorted[0].y };
-	for (const event of sorted) {
-		const t = Math.min(Math.max(event.at - startedAt, from.t), durationMs);
-		const glideStart = Math.max(from.t, t - POINTER_TRAVEL_MS);
-		for (let s = from.t; s < glideStart; s += POINTER_STEP_MS)
-			samples.push(sample(s, from.x, from.y));
-		for (let s = glideStart; s < t; s += POINTER_STEP_MS) {
-			const k = (s - glideStart) / (t - glideStart);
-			const eased = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
-			samples.push(
-				sample(s, from.x + (event.x - from.x) * eased, from.y + (event.y - from.y) * eased),
-			);
-		}
-		samples.push(sample(t, event.x, event.y, event.click ? "click" : "move"));
-		if (event.click) samples.push(sample(t + CLICK_HOLD_MS, event.x, event.y, "mouseup"));
-		from = { t: event.click ? t + CLICK_HOLD_MS : t, x: event.x, y: event.y };
-	}
-	for (let s = from.t + POINTER_STEP_MS; s <= durationMs; s += POINTER_STEP_MS) {
-		samples.push(sample(s, from.x, from.y));
-	}
-	return samples;
+): AxcutCursorOverridePoint[] {
+	return [...events]
+		.sort((a, b) => a.at - b.at)
+		.map((event) => ({
+			timeMs: Math.round(Math.min(Math.max(event.at - startedAt, 0), durationMs)),
+			cx: event.x,
+			cy: event.y,
+			...(event.click ? { click: true as const } : {}),
+		}));
 }
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
@@ -435,9 +402,15 @@ export const FORWARDED_POINTER_TRACK_SCHEMA = z.object({
 });
 
 /**
- * setPointerTrack's change: the new sidecar, and the zooms planned on its clicks. Computed
- * by the runner's process (the app's, when it runs), and written by that runner. The video's
- * start is the client's `recordingStartedAt` when it gave one, else its take's in `takes`.
+ * setPointerTrack's change: a cursor override over the whole video, and the zooms planned on
+ * its clicks. Computed by the runner's process (the app's, when it runs), and saved by that
+ * runner. The video's start is the client's `recordingStartedAt` when it gave one, else its
+ * take's in `takes`.
+ *
+ * The pointer recorded with the video, `<video>.cursor.json`, is never rewritten: the override
+ * lives in the project and replaces it wherever the track is read (cursor-overrides.ts). So
+ * the user sees it as a pill on the editor's Cursor lane, can edit its points there, and
+ * removing it (there, or with removeModifier) gives the recorded pointer back.
  */
 export async function pointerTrackEdit(
 	document: AxcutDocument,
@@ -457,26 +430,36 @@ export async function pointerTrackEdit(
 				"This project's video was not recorded by this server, so its start time is unknown. Pass recordingStartedAt: when the video's first frame was captured, on the clock of the events' `at`.",
 		};
 	}
-	const samples = pointerSamples(events, startedAt, asset.durationSec * 1000);
-	const sidecar: CursorRecordingData = { version: 2, provider: "native", samples, assets: [] };
-	// Planned from the new track before it is on disk, as readCursor would read it back.
+	const durationMs = Math.round(asset.durationSec * 1000);
+	const override: AxcutCursorOverride = {
+		id: createId("cursor"),
+		assetId: asset.id,
+		sourceStartMs: 0,
+		sourceEndMs: durationMs,
+		points: pointerPoints(events, startedAt, durationMs),
+		origin: "agent",
+	};
+	// It covers the whole video, so it takes the place of every override the video had: two
+	// cannot share an instant, and a second call is a new pointer, not one more on top.
+	const drawn = withCursorOverrides(document, [
+		...(document.cursorOverrides ?? []).filter((other) => other.assetId !== asset.id),
+		override,
+	]);
+	// Planned on the pointer the project now draws. The planner applies the override itself,
+	// over a recording that no longer shows through anywhere, so there is no file to read.
 	const suggestions = await collectAutoZoomSuggestionsForDocument(
-		document,
-		async () =>
-			samples.map(({ timeMs, cx, cy, visible, interactionType }) => ({
-				timeMs,
-				cx,
-				cy,
-				visible,
-				interactionType,
-			})),
+		drawn,
+		async () => [],
 		(candidate) => candidate.id === asset.id,
 	);
 	return {
 		ok: true,
-		resultJson: JSON.stringify({ samples: samples.length, autoZoomsAdded: suggestions.length }),
-		document: appendAutoZoomSuggestions(document, suggestions),
-		sidecars: [{ path: `${asset.originalPath}.cursor.json`, content: JSON.stringify(sidecar) }],
+		resultJson: JSON.stringify({
+			overrideId: override.id,
+			points: override.points.length,
+			autoZoomsAdded: suggestions.length,
+		}),
+		document: appendAutoZoomSuggestions(drawn, suggestions),
 	};
 }
 
@@ -1024,7 +1007,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 			"setPointerTrack",
 			{
 				description: [
-					"For a video driven by a script (Playwright, CDP, a browser extension) rather than the real mouse: the screen pointer never moved, so the video has no cursor and no zoom. Give the pointer's path here and OpenScreen draws it, gliding between your actions, and zooms on its clicks as for a real mouse. It replaces the pointer recorded with the video, saved beside it as <video>.cursor.json, then plans zooms on the new clicks as stopRecording does, clear of the zooms already there; autoZoomsAdded says how many. A take from stopRecording knows when it started; a video given to createProject needs recordingStartedAt. It is an edit like any other: on a project that is not open in the editor it needs a checkpoint (stopRecording and createProject make one), and restoreCheckpoint undoes it, the pointer track included.",
+					"For a video driven by a script (Playwright, CDP, a browser extension) rather than the real mouse: the screen pointer never moved, so the video has no cursor and no zoom. Give the pointer's path here and OpenScreen draws it, gliding between your actions, and zooms on its clicks as for a real mouse. It is drawn over the whole video IN PLACE of the pointer recorded with it, as a cursor override kept in the project: the recorded pointer file is never rewritten, a second call replaces the first, and removeModifier with the overrideId this returns gives the recorded pointer back. It then plans zooms on the new clicks as stopRecording does, clear of the zooms already there; autoZoomsAdded says how many. A take from stopRecording knows when it started; a video given to createProject needs recordingStartedAt. It is an edit like any other: on a project that is not open in the editor it needs a checkpoint (stopRecording and createProject make one), restoreCheckpoint undoes it, and in the editor the user sees it on the Cursor lane and can undo it with Ctrl/Cmd+Z.",
 					"events, one per action: `at` is Date.now() when your script did it (log it as it runs; the take's recordingStartedAt is on the same clock). `x` and `y` are fractions (0 to 1) of the recorded window. For a point (clientX, clientY) of a page shown in that window, from inside the page: border = (outerWidth - innerWidth) / 2; x = (border + clientX) / outerWidth; y = (outerHeight - innerHeight - border + clientY) / outerHeight.",
 				].join("\n"),
 				inputSchema: z.object({
@@ -1041,9 +1024,9 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 			},
 			// Through the document tools' runner, like any edit: the same queue, the same refusals
 			// (edits turned off, a project open in the app's editor, one with no checkpoint) before
-			// anything is written, and the sidecar kept by the checkpoints so restoreCheckpoint puts
-			// it back. The args carry what the edit needs, so a running app can compute it
-			// (app-channel.ts).
+			// anything is written. The pointer it draws is in the document, so restoreCheckpoint
+			// takes it back like any other edit. The args carry what the edit needs, so a running
+			// app can compute it (app-channel.ts).
 			(args) => {
 				const takes = Object.fromEntries(startedAtByVideo);
 				const { projectId, events, recordingStartedAt } = args;
@@ -1476,7 +1459,7 @@ export function createMediaTools(deps: MediaToolDeps): MediaTools {
 				description: [
 					`See what your edits changed: up to ${MAX_PAIRS} moments of a project as one image, 1280 pixels wide, one moment per row. Left, the project as it was at a checkpoint; right, as it is now. Both sides are rendered from the project as its export would show them, without exporting it.`,
 					"For each moment the answer also says whether the two frames differ and, when they do, over what share of the picture and inside which region of the frame: pass that region to getFrames to read the change at full resolution. A moment reported unchanged shows no difference this comparison can see: it compares the sheet's tiles and lets through a shift of a few levels, so a faint or very small change can pass unseen. Compare a region when that matters.",
-					"checkpointId is one that createCheckpoint, createProject or stopRecording returned for this project. The times are ruler seconds, the same on both sides: past a cut or a speed change made since the checkpoint, the two sides of a moment no longer show the same footage. The pointer is drawn from the track beside the video as it is now, on both sides: what setPointerTrack changed shows through the zooms it added, not through the pointer.",
+					"checkpointId is one that createCheckpoint, createProject or stopRecording returned for this project. The times are ruler seconds, the same on both sides: past a cut or a speed change made since the checkpoint, the two sides of a moment no longer show the same footage. A pointer drawn since the checkpoint (setPointerTrack, or a cursor path made in the editor) is part of the project, so it shows on the right and not on the left.",
 				].join("\n"),
 				inputSchema: z.object({
 					projectId: z.string().describe("The project to look at."),
