@@ -65,6 +65,7 @@ import {
 	type UnsavedChoice,
 } from "./Modals";
 import { Preview } from "./Preview";
+import { useHasRecordedCursor } from "./recordedCursorTypes";
 import { importPendingRecording, maybeSaveFreshRecordingAutoZooms } from "./recordingImport";
 import { AddAudioLayerDialog } from "./v4/AddAudioLayerDialog";
 import v4 from "./v4/EditorShellV4.module.css";
@@ -282,6 +283,15 @@ export function NewEditorShell() {
 		[document, transcriptions],
 	);
 	const tl = useTimeline();
+	// A cursor override draws the take's pointer again, so it is only offered where there is
+	// one to draw: a take recorded with the system cursor has it in the picture, and another
+	// over it would be a second pointer. A project that already holds overrides (an agent's
+	// script drove the take) has one by definition.
+	const canEditCursor = useHasRecordedCursor() === true;
+	const selectedCursorOverride =
+		tl.selection?.kind === "cursor"
+			? (tl.cursorOverrides.find((override) => override.id === tl.selection?.id) ?? null)
+			: null;
 	// An undo only puts the restored document back in the store and marks it dirty,
 	// so without this the reverted state never reached disk: close the window and the
 	// edit the user just undid came back. `history: false` is load-bearing — a
@@ -1284,6 +1294,10 @@ export function NewEditorShell() {
 			return;
 		}
 
+		// A cursor override is the pointer of one stretch of one take: its joins and its points
+		// mean nothing anywhere else, so there is nothing a paste could do with it.
+		if (sel.kind === "cursor") return;
+
 		// A trim is stored in SOURCE time against a clip anchor, so there is no
 		// row to clone — but there is nothing to clone either: what the user means
 		// by copying a cut is its LENGTH. Paste then makes a fresh trim of that
@@ -1390,6 +1404,13 @@ export function NewEditorShell() {
 			}
 
 			const deleteSelection = () => {
+				// Clicks or key presses picked on their lane: Delete takes their SOUND out, which
+				// is all there is to remove. They stay on the lane, and the inspector's switch
+				// (or an undo) gives the sound back.
+				if (tl.soundSelection) {
+					void tl.setInputSoundsMuted(tl.soundSelection.kind, tl.soundSelection.timesMs, true);
+					return;
+				}
 				// F2.7 — a shift-click multi-selection deletes as one batch (one
 				// undo snapshot); a single selection keeps the original path.
 				if (tl.multiSelection.length > 1) {
@@ -1512,6 +1533,12 @@ export function NewEditorShell() {
 				window.dispatchEvent(new Event("openscreen:change-layout"));
 				return;
 			}
+			if (matchesShortcut(e, shortcuts.addCursorPath, isMac)) {
+				e.preventDefault();
+				// Only where there is a pointer to draw again (see `canEditCursor`).
+				if (canEditCursor) void tl.addCursorOverride(newRegionDurationSec());
+				return;
+			}
 
 			// Fixed (non-configurable) shortcuts advertised in the shortcuts dialog.
 			if (e.key === "Tab") {
@@ -1556,6 +1583,7 @@ export function NewEditorShell() {
 		togglePlay,
 		handleSeek,
 		openVoiceoverFlow,
+		canEditCursor,
 	]);
 
 	const showTimeline = mode !== "rec";
@@ -1722,6 +1750,10 @@ export function NewEditorShell() {
 									selectedZoomRegionId={tl.selection?.kind === "zoom" ? tl.selection.id : null}
 									onZoomFocusChange={tl.updateZoomFocusLive}
 									onZoomFocusCommit={() => void tl.commitZoomFocus()}
+									cursorOverride={selectedCursorOverride}
+									onCursorOverrideChange={tl.updateCursorOverrideLive}
+									onCursorOverrideCommit={() => void tl.commitCursorOverride()}
+									onCursorOverrideEdit={(id, change) => void tl.changeCursorOverride(id, change)}
 									annotationRegions={tl.annotationRegions}
 									selectedAnnotationId={
 										tl.selection?.kind === "annotation" ? tl.selection.id : null
@@ -1802,6 +1834,7 @@ export function NewEditorShell() {
 						onTogglePlay={togglePlay}
 						onAddVoiceover={openVoiceoverFlow}
 						onEditClip={setEditClipTarget}
+						canEditCursor={canEditCursor}
 					/>
 				</div>
 			) : null}

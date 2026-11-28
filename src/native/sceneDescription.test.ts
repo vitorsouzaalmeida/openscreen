@@ -3281,6 +3281,63 @@ describe("buildSceneDescription.shaderEffects", () => {
 
 // --- rotationByClip ----------------------------------------------------------
 
+describe("buildSceneDescription.cursorPatches", () => {
+	const asset = makeAsset({ id: "a1", originalPath: "/takes/a.mp4", durationSec: 20 });
+	const clip = makeClip({
+		id: "c1",
+		assetId: "a1",
+		sourceStartSec: 0,
+		sourceEndSec: 20,
+		timelineStartSec: 0,
+		timelineEndSec: 20,
+	});
+
+	it("is left out of a project with no cursor override", () => {
+		const scene = buildSceneDescription(makeDoc({ assets: [asset], clips: [clip] }));
+		expect("cursorPatches" in scene).toBe(false);
+	});
+
+	it("names each override by its take's file, with the samples it draws", () => {
+		const scene = buildSceneDescription({
+			...makeDoc({ assets: [asset], clips: [clip] }),
+			cursorOverrides: [
+				{
+					id: "cursor_1",
+					assetId: "a1",
+					sourceStartMs: 4000,
+					sourceEndMs: 6000,
+					points: [{ timeMs: 5000, cx: 0.3, cy: 0.7, click: true }],
+					origin: "user",
+				},
+				// An override left behind by an asset the document no longer has names no file.
+				{
+					id: "cursor_2",
+					assetId: "gone",
+					sourceStartMs: 0,
+					sourceEndMs: 1000,
+					points: [],
+					origin: "user",
+				},
+			],
+		});
+		expect(scene.cursorPatches).toHaveLength(1);
+		const [patch] = scene.cursorPatches ?? [];
+		expect(patch).toMatchObject({ screenPath: "/takes/a.mp4", startMs: 4000, endMs: 6000 });
+		// In the sidecar's own shape, so the compositor reads them as it reads the recording.
+		expect(patch.samples[0]).toEqual({
+			timeMs: 4000,
+			cx: 0.3,
+			cy: 0.7,
+			visible: true,
+			interactionType: "move",
+		});
+		expect(patch.samples.find((s) => s.interactionType === "click")?.timeMs).toBe(5000);
+		expect(patch.samples.at(-1)?.timeMs).toBe(6000);
+		// The scene is JSON on its way to the compositor: nothing in a patch may fail to serialize.
+		expect(JSON.parse(JSON.stringify(scene.cursorPatches))).toEqual(scene.cursorPatches);
+	});
+});
+
 describe("buildSceneDescription.rotationByClip", () => {
 	it("emits rotationByClip parallel to cropByClip", () => {
 		const asset = makeAsset({ id: "a", originalPath: "/a.mp4" });

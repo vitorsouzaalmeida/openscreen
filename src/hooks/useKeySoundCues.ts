@@ -1,7 +1,8 @@
-// The "key presses" row in the cursor pane, beside "mouse clicks" and built like it: a setting,
-// not a timeline track (see src/lib/ai-edition/keySound.ts).
+// The "key presses" row in the cursor pane, beside "mouse clicks" and built like it: a setting
+// for the whole take (see src/lib/ai-edition/keySound.ts). The presses themselves are on the
+// timeline's Keys lane, which reads them through `useTakeInputEvents`.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { clickTakeOf } from "@/lib/ai-edition/clickSound";
 import { ensureKeySamplePaths, type KeyCue, loadKeyCues } from "@/lib/ai-edition/keySound";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
@@ -28,17 +29,8 @@ export function useKeySoundCues() {
 		if (hasKeys) void ensureKeySamplePaths().catch(() => null);
 	}, [hasKeys]);
 
-	const pressTimesSec = useMemo(
-		() => (cues ?? []).filter((cue) => !cue.release).map((cue) => cue.timeSec),
-		[cues],
-	);
-
 	return {
 		hasKeys,
-		/** The asset the key timing belongs to: the primary take. */
-		takeAssetId: clickTakeOf(document)?.id ?? null,
-		/** The recorded presses, in the take's own seconds: what the timeline draws as ticks. */
-		pressTimesSec,
 		prepare: async () => {
 			const take = clickTakeOf(document)?.originalPath;
 			if (!take) return;

@@ -187,7 +187,7 @@ export function documentWithAsset(doc: AxcutDocument, asset: AxcutAsset): AxcutD
 	};
 }
 
-/** `doc` without the asset, its clips, trims and audio tracks. */
+/** `doc` without the asset, its clips, trims, audio tracks, cursor overrides and muted sounds. */
 export function documentWithoutAsset(doc: AxcutDocument, assetId: string): AxcutDocument {
 	const assets = doc.assets.filter((a) => a.id !== assetId);
 	// Primary is the thing the timeline is built around, so it must fall to the
@@ -201,9 +201,15 @@ export function documentWithoutAsset(doc: AxcutDocument, assetId: string): Axcut
 	const withoutAssetClips = doc.timeline.clips
 		.filter((clip) => clip.assetId === assetId)
 		.reduce((current, clip) => removeClip(current, clip.id), doc);
+	// The pointer edits and silenced sounds of the asset's footage go with it. Left out when the
+	// document has none, so a project without them saves with no trace of either key.
+	const cursorOverrides = withoutAssetClips.cursorOverrides?.filter((o) => o.assetId !== assetId);
+	const mutedInputSounds = withoutAssetClips.mutedInputSounds?.filter((m) => m.assetId !== assetId);
 	return {
 		...withoutAssetClips,
 		assets,
+		...(cursorOverrides ? { cursorOverrides } : {}),
+		...(mutedInputSounds ? { mutedInputSounds } : {}),
 		// Drop imported audio tracks that referenced the removed asset — they
 		// would otherwise dangle, pointing at an asset the document no longer has.
 		audioTracks: withoutAssetClips.audioTracks.filter((t) => t.assetId !== assetId),

@@ -16,7 +16,8 @@
 			"speed": "speed",
 			"annotation": "annotation",
 			"audio": "audio",
-			"voiceover": "voiceover"
+			"voiceover": "voiceover",
+			"cursor": "cursor path"
 		}
 	},
 	"labels": {
@@ -118,7 +119,8 @@
 			"speed": "Speed",
 			"trim": "Trim",
 			"cameraFullscreen": "Full camera",
-			"shaderEffect": "Effect"
+			"shaderEffect": "Effect",
+			"cursor": "Cursor"
 		},
 		"annotation": "Annotation layer {{index}}",
 		"dragHint": "Drag left or right to move in time. Drag up or down to change layer; higher layers appear on top."
@@ -137,5 +139,24 @@
 		"vertical-stack": "Top / bottom",
 		"camera-only": "Camera only",
 		"no-webcam": "Screen only"
+	},
+	"cursor": {
+		"hidden": "Hidden",
+		"onePoint": "1 point",
+		"points": "{{count}} points",
+		"pointAt": "Point at {{time}}. Drag to change when the cursor arrives.",
+		"clickPointAt": "Click at {{time}}. Drag to change when the cursor arrives.",
+		"overlayPoint": "Point at {{time}}. Drag to move it, double-click to remove it.",
+		"overlayClick": "Click at {{time}}. Drag to move it, double-click to remove it."
+	},
+	"inputs": {
+		"clicks": "Mouse clicks",
+		"keys": "Key presses",
+		"clickAt": "Click at {{time}}",
+		"clicksAt": "{{count}} clicks at {{time}}",
+		"keyAt": "Key press at {{time}}",
+		"keysAt": "{{count}} key presses at {{time}}",
+		"soundOff": "sound off",
+		"soundMixed": "some sounds off"
 	}
 }

@@ -20,6 +20,8 @@ export const LANE_GAP_PX = 5;
 /** A lane whose pills never stack (zoom, trim, speed, effect): tall enough for a pill that
  *  shows its kind above its value. */
 export const REGION_LANE_HEIGHT_PX = 40;
+/** The Clicks and Keys lanes: a row of marks, with nothing to read inside them. */
+export const INPUT_LANE_HEIGHT_PX = 18;
 /** The camera-layout lane with its own margins (Layouts.module.css `.lane`). */
 export const LAYOUT_LANE_BLOCK_PX = 40;
 /** The one row that names the keys for the kinds the project has none of yet. */

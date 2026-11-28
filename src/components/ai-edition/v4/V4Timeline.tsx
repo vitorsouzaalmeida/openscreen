@@ -7,6 +7,7 @@ import {
 	Maximize2,
 	MessageSquare,
 	Mic,
+	MousePointer2,
 	Music,
 	PanelsTopLeft,
 	Pencil,
@@ -38,7 +39,7 @@ import { ZOOM_DEPTH_SCALES } from "@/components/video-editor/types";
 import { useScopedT } from "@/contexts/I18nContext";
 import { useShortcuts } from "@/contexts/ShortcutsContext";
 import { useAudioPeaks } from "@/hooks/useAudioPeaks";
-import { useKeySoundCues } from "@/hooks/useKeySoundCues";
+import { useTakeInputEvents } from "@/hooks/useTakeInputEvents";
 import {
 	AUDIO_LANE_PAD_PX,
 	AUDIO_ROW_GAP_PX,
@@ -50,14 +51,20 @@ import {
 } from "@/lib/ai-edition/document/audioTracks";
 import { createId } from "@/lib/ai-edition/document/ids";
 import { isGeneratedAssetId } from "@/lib/ai-edition/document/insertion";
+import type { InputSoundKind } from "@/lib/ai-edition/inputSounds";
 import { setUiProbeScrubbing } from "@/lib/ai-edition/perf/uiFrameProbe";
-import type { AxcutAudioTrack, AxcutClip } from "@/lib/ai-edition/schema";
+import type { AxcutAudioTrack, AxcutClip, AxcutCursorOverride } from "@/lib/ai-edition/schema";
 import { audioGainScalar } from "@/lib/ai-edition/store/editorSettings";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { useEditorSettings } from "@/lib/ai-edition/store/useEditorSettings";
 import type { useTimeline } from "@/lib/ai-edition/store/useTimeline";
 import { collectAutoZoomSuggestionsForLatestDocument } from "@/lib/ai-edition/timeline/apply-auto-zooms";
+import {
+	cursorOverrideRulerSpans,
+	patchCursorOverridePoint,
+} from "@/lib/ai-edition/timeline/cursor-overrides";
 import { formatSec } from "@/lib/ai-edition/timeline/format";
+import { placeLaneEvents } from "@/lib/ai-edition/timeline/input-lane";
 import {
 	newRegionDurationSec,
 	setTimelineScale,
@@ -78,6 +85,7 @@ import {
 	CLIP_ROW_GAP_PX,
 	CLIP_ROW_HEIGHT_PX,
 	HINT_ROW_HEIGHT_PX,
+	INPUT_LANE_HEIGHT_PX,
 	REGION_LANE_HEIGHT_PX,
 	timelineContentHeightPx,
 } from "@/lib/ai-edition/timeline/timelineHeight";
@@ -97,8 +105,8 @@ import { formatBinding } from "@/lib/shortcuts";
 import { nativeBridgeClient } from "@/native/client";
 import { TransportBar } from "../TransportBar";
 import type { VideoSource } from "../VirtualPreview";
-import { ClipKeyTicks } from "./ClipKeyTicks";
 import styles from "./EditorShellV4.module.css";
+import { InputLane } from "./InputLane";
 import { LayoutLane, layoutLaneVisible } from "./LayoutLane";
 import { LayoutPicker } from "./LayoutPicker";
 
@@ -622,7 +630,7 @@ const AudioLanePill = memo(function AudioLanePill({
 
 interface LanePill {
 	id: string;
-	kind: "annotation" | "speed" | "trim" | "zoom" | "cameraFullscreen" | "shaderEffect";
+	kind: "annotation" | "speed" | "trim" | "zoom" | "cameraFullscreen" | "shaderEffect" | "cursor";
 	start: number;
 	end: number;
 	label: string;
@@ -630,6 +638,9 @@ interface LanePill {
 	sourceIds: string[];
 	layer?: number;
 	stackOrder?: number;
+	/** A cursor override is stored against its take, so its pill is the stretch of it one clip
+	 *  shows: the clip, and the recording millisecond the pill's left edge stands for. */
+	cursor?: { clipId: string; sourceStartMs: number; override: AxcutCursorOverride };
 }
 
 function LayoutChangeMenu({ tl, onClose }: { tl: TimelineApi; onClose: () => void }) {
@@ -668,6 +679,7 @@ export function V4Timeline({
 	onEditClip,
 	onAddVoiceover,
 	onContentHeightChange,
+	canEditCursor = false,
 }: {
 	tl: TimelineApi;
 	setCurrentTime: (sec: number) => void;
@@ -689,6 +701,8 @@ export function V4Timeline({
 	/** The height the panel needs for what the timeline draws right now, a drag preview
 	 *  included (`timelineContentHeightPx`). Edit mode only. */
 	onContentHeightChange?: (heightPx: number) => void;
+	/** Whether the project has a pointer to draw again: the cursor key is only taught then. */
+	canEditCursor?: boolean;
 }) {
 	const t = useScopedT("timeline");
 	const ts = useScopedT("settings");
@@ -731,8 +745,8 @@ export function V4Timeline({
 		shiftPx: number;
 	} | null>(null);
 	const { settings, set: setSettings } = useEditorSettings();
-	// The take's key presses, drawn as ticks on its clip cards.
-	const keySound = useKeySoundCues();
+	// The take's clicks and key presses, drawn as marks on their own lanes.
+	const inputEvents = useTakeInputEvents();
 
 	const [autoEnhanceOpen, setAutoEnhanceOpen] = useState(false);
 	const [audioMenuOpen, setAudioMenuOpen] = useState(false);
@@ -863,6 +877,95 @@ export function V4Timeline({
 		sourceIds: g.ids,
 	}));
 
+	// Cursor overrides: stored against the take in recording time, so one pill per clip that
+	// shows the stretch (`cursorOverrideRulerSpans`). The first carries the override's own id;
+	// a second showing of the same take needs an id of its own to be dragged by.
+	const cursorPills: LanePill[] = tl.cursorOverrides.flatMap((override) =>
+		cursorOverrideRulerSpans(override, clips).map((span, index) => {
+			const clip = clips.find((c) => c.id === span.clipId);
+			return {
+				id: index === 0 ? override.id : `${override.id}@@${span.clipId}`,
+				kind: "cursor" as const,
+				start: span.startSec,
+				end: span.endSec,
+				label: override.hidden
+					? t("cursor.hidden")
+					: override.points.length === 1
+						? t("cursor.onePoint")
+						: t("cursor.points", { count: String(override.points.length) }),
+				sourceIds: [override.id],
+				cursor: {
+					clipId: span.clipId,
+					sourceStartMs: Math.round(
+						((clip?.sourceStartSec ?? 0) + span.startSec - (clip?.timelineStartSec ?? 0)) * 1000,
+					),
+					override,
+				},
+			};
+		}),
+	);
+
+	// The take's clicks and key presses on the ruler, once per clip that shows them.
+	const clickEvents = useMemo(
+		() => placeLaneEvents(inputEvents.clicks, inputEvents.takeAssetId, clips),
+		[inputEvents.clicks, inputEvents.takeAssetId, clips],
+	);
+	const keyEvents = useMemo(
+		() => placeLaneEvents(inputEvents.keys, inputEvents.takeAssetId, clips),
+		[inputEvents.keys, inputEvents.takeAssetId, clips],
+	);
+	const soundSelection = tl.soundSelection;
+	const selectedClicks = useMemo(
+		() => new Set(soundSelection?.kind === "click" ? soundSelection.timesMs : []),
+		[soundSelection],
+	);
+	const selectedKeys = useMemo(
+		() => new Set(soundSelection?.kind === "key" ? soundSelection.timesMs : []),
+		[soundSelection],
+	);
+	const selectInputSounds = tl.selectInputSounds;
+	const selectClicks = useCallback(
+		(timesMs: number[]) => selectInputSounds("click", timesMs),
+		[selectInputSounds],
+	);
+	const selectKeys = useCallback(
+		(timesMs: number[]) => selectInputSounds("key", timesMs),
+		[selectInputSounds],
+	);
+	// What a mark says on hover: what it is, where, and whether it still sounds.
+	const inputLaneLabels = useMemo(() => {
+		const withSound = (text: string, sound: "on" | "off" | "mixed") =>
+			sound === "on"
+				? text
+				: `${text} · ${sound === "off" ? t("inputs.soundOff") : t("inputs.soundMixed")}`;
+		const labels: Record<
+			InputSoundKind,
+			{ lane: string; mark: (count: number, at: string, sound: "on" | "off" | "mixed") => string }
+		> = {
+			click: {
+				lane: t("inputs.clicks"),
+				mark: (count, at, sound) =>
+					withSound(
+						count === 1
+							? t("inputs.clickAt", { time: at })
+							: t("inputs.clicksAt", { count: String(count), time: at }),
+						sound,
+					),
+			},
+			key: {
+				lane: t("inputs.keys"),
+				mark: (count, at, sound) =>
+					withSound(
+						count === 1
+							? t("inputs.keyAt", { time: at })
+							: t("inputs.keysAt", { count: String(count), time: at }),
+						sound,
+					),
+			},
+		};
+		return labels;
+	}, [t]);
+
 	// Ruler ticks are chosen from what is actually ON SCREEN, not from the clip
 	// length: the canvas is widened by 1/navSpan, so the same recording shows one
 	// label per 30s zoomed out and one per tenth of a second zoomed in. The step
@@ -977,7 +1080,7 @@ export function V4Timeline({
 	// away from a selected element is expected to.
 	/** Arm a scrub drag, dropping queued positions invalidated by a voiceover pause. */
 	const startScrub = useCallback(
-		(e: ReactPointerEvent) => {
+		(e: ReactPointerEvent, keepCursorSelection = false) => {
 			if (canSeek?.() === false) return;
 			if (e.button !== 0) return;
 			// Media has no playhead rendered, so there is nothing to scrub. Guarded
@@ -987,7 +1090,10 @@ export function V4Timeline({
 			if (!showLanes) return;
 			const target = e.target as HTMLElement;
 			if (target.closest("[data-clip-id]") || target.closest(`.${styles.lanePill}`)) return;
-			tl.clearSelection();
+			// A cursor override's points are placed by putting the playhead somewhere and then
+			// pressing on the picture, so a scrub on the ruler has to leave it selected. A press
+			// on the empty tracks still lets go of it, like any other selection.
+			if (!(keepCursorSelection && tl.selection?.kind === "cursor")) tl.clearSelection();
 			seekToClientX(e.clientX, true);
 			// Sonde de fluidité (diagnostic) : marque la fenêtre de drag pour que les
 			// intervalles rAF mesurés pendant le scrub soient comptés à part.
@@ -1017,6 +1123,8 @@ export function V4Timeline({
 		},
 		[seekToClientX, tl, setCurrentTime, showLanes, canSeek, seekEpochRef],
 	);
+
+	const startRulerScrub = useCallback((e: ReactPointerEvent) => startScrub(e, true), [startScrub]);
 
 	const [activePillDrag, setActivePillDrag] = useState<{
 		id: string;
@@ -1050,7 +1158,13 @@ export function V4Timeline({
 				shaderEffect: tl.shaderEffectRanges,
 				// Nothing to edit on a trim but its span, and a span edit moves the whole pill.
 				trim: [],
+				// One override, however many clips show it: its own id, not the pill's.
+				cursor: [],
 			};
+			if (pill.kind === "cursor") {
+				tl.selectRegion("cursor", pill.sourceIds[0], { additive });
+				return pill.sourceIds[0];
+			}
 			const atMs = (atSec ?? Number.NaN) * 1000;
 			const [pointed] = regions[pill.kind]
 				.filter((r) => pill.sourceIds.includes(r.id) && r.startMs <= atMs)
@@ -1132,7 +1246,16 @@ export function V4Timeline({
 					await tl.updateCameraFullscreenSpan(grabbed, s * 1000, en * 1000);
 				else if (pill.kind === "shaderEffect")
 					await tl.updateShaderEffectSpan(grabbed, s * 1000, en * 1000);
-				else {
+				else if (pill.kind === "cursor") {
+					if (pill.cursor)
+						await tl.updateCursorOverrideSpan(
+							grabbed,
+							pill.cursor.clipId,
+							s * 1000,
+							en * 1000,
+							dragMode === "move",
+						);
+				} else {
 					// Trims are stored in source-time per asset but manipulated on the
 					// timeline like every other pill. Ventilate the new span across the
 					// clips it covers (one source range per clip) — the same primitive
@@ -1210,6 +1333,39 @@ export function V4Timeline({
 			window.addEventListener("pointerup", up);
 		},
 		[tl, selectPill, total, clips, pxPerSec, annPills, savedAnnotationRows],
+	);
+
+	// A point of the selected cursor override, as a tick on its pill: dragged, it changes WHEN
+	// the pointer arrives there (where it arrives is set on the preview). A press that does not
+	// move puts the playhead on the point instead, so the preview shows the pointer on it.
+	const startCursorPointDrag = useCallback(
+		(e: ReactPointerEvent, pill: LanePill, index: number) => {
+			const point = pill.cursor?.override.points[index];
+			if (e.button !== 0 || !pill.cursor || !point) return;
+			e.preventDefault();
+			e.stopPropagation();
+			const id = pill.sourceIds[0];
+			tl.selectRegion("cursor", id);
+			const startX = e.clientX;
+			const atSec = pill.start + (point.timeMs - pill.cursor.sourceStartMs) / 1000;
+			let moved = false;
+			const move = (ev: PointerEvent) => {
+				const dx = ev.clientX - startX;
+				if (!(pxPerSec > 0) || (!moved && Math.abs(dx) <= PRESS_JITTER_PX)) return;
+				moved = true;
+				const timeMs = point.timeMs + (dx / pxPerSec) * 1000;
+				tl.updateCursorOverrideLive(id, (o) => patchCursorOverridePoint(o, index, { timeMs }));
+			};
+			const up = () => {
+				window.removeEventListener("pointermove", move);
+				window.removeEventListener("pointerup", up);
+				if (moved) void tl.commitCursorOverride();
+				else if (canSeek?.() !== false) setCurrentTime(atSec);
+			};
+			window.addEventListener("pointermove", move);
+			window.addEventListener("pointerup", up);
+		},
+		[tl, pxPerSec, setCurrentTime, canSeek],
 	);
 
 	// Live preview geometry for an audio track being dragged (issue #350), the
@@ -1591,7 +1747,9 @@ export function V4Timeline({
 						? styles.laneCameraFullscreen
 						: kind === "shaderEffect"
 							? styles.laneShaderEffect
-							: styles.laneZoom;
+							: kind === "cursor"
+								? styles.laneCursor
+								: styles.laneZoom;
 	const pillIcon = (kind: LanePill["kind"]) =>
 		kind === "annotation" ? (
 			<MessageSquare size={12} />
@@ -1603,6 +1761,8 @@ export function V4Timeline({
 			<Maximize2 size={12} />
 		) : kind === "shaderEffect" ? (
 			<Sparkles size={12} />
+		) : kind === "cursor" ? (
+			<MousePointer2 size={12} />
 		) : (
 			<ZoomIn size={12} />
 		);
@@ -1914,6 +2074,30 @@ export function V4Timeline({
 						</span>
 					)
 				) : null}
+				{/* The points the user placed, as ticks: where in time the pointer arrives on each.
+				    The two joins to the recording have none: they sit on the pill's own edges and
+				    follow them. Not while the pill itself is being dragged, when its span is not
+				    the stored one. */}
+				{p.cursor && seg.interactive && !compact && activePillDrag?.id !== p.id
+					? p.cursor.override.points.map((point, index) => {
+							if (point.recorded || !p.cursor) return null;
+							const at = (point.timeMs - p.cursor.sourceStartMs) / (durSec * 1000);
+							if (!(at >= 0 && at <= 1)) return null;
+							const text = t(point.click ? "cursor.clickPointAt" : "cursor.pointAt", {
+								time: formatSec(seg.segStart + at * durSec),
+							});
+							return (
+								<span
+									key={`${point.timeMs}:${index}`}
+									className={styles.cursorPointTick}
+									data-click={point.click || undefined}
+									style={{ left: `${at * 100}%` }}
+									title={text}
+									onPointerDown={(e) => startCursorPointDrag(e, p, index)}
+								/>
+							);
+						})
+					: null}
 				{seg.interactive ? (
 					<span
 						className={styles.lanePillHandle}
@@ -1954,6 +2138,9 @@ export function V4Timeline({
 	const showAnnotationLane = effectiveAnnotations.length > 0;
 	const showEffectLane = tl.shaderEffectRanges.length > 0;
 	const showAudioLane = tl.audioTracks.length > 0;
+	const showCursorLane = cursorPills.length > 0;
+	const showClickLane = clickEvents.length > 0;
+	const showKeyLane = keyEvents.length > 0;
 	const annotationLaneHeight = regionLaneHeight(annotationRows.rowCount);
 	const audioLaneHeight =
 		audioRows.rowCount * AUDIO_ROW_HEIGHT_PX +
@@ -1972,6 +2159,10 @@ export function V4Timeline({
 		},
 		!showAudioLane && { id: "audio", key: formatBinding(shortcuts.addAudio, isMac) },
 		!showAudioLane && { id: "voiceover", key: formatBinding(shortcuts.addVoiceover, isMac) },
+		// Only where there is a pointer to draw again: a take recorded with the system cursor
+		// has it in the picture, and a second one over it would be a second pointer.
+		canEditCursor &&
+			!showCursorLane && { id: "cursor", key: formatBinding(shortcuts.addCursorPath, isMac) },
 	].filter((kind) => kind !== false);
 	const contentHeightPx = timelineContentHeightPx({
 		laneHeights: [
@@ -1981,6 +2172,9 @@ export function V4Timeline({
 			...(showAnnotationLane ? [annotationLaneHeight] : []),
 			...(showEffectLane ? [REGION_LANE_HEIGHT_PX] : []),
 			...(showAudioLane ? [audioLaneHeight] : []),
+			...(showCursorLane ? [REGION_LANE_HEIGHT_PX] : []),
+			...(showClickLane ? [INPUT_LANE_HEIGHT_PX] : []),
+			...(showKeyLane ? [INPUT_LANE_HEIGHT_PX] : []),
 		],
 		layoutLane: layoutLaneVisible(tl.layoutSegments),
 		hintRow: missingKinds.length > 0,
@@ -2451,7 +2645,7 @@ export function V4Timeline({
 				{/* Fixed ruler header: the ruler ticks stay pinned right below the toolbar
 			    so they don't scroll off when the panel is short — only the lanes/clips
 			    below scroll. Shares the tracks' zoom/pan transform so ticks line up. */}
-				<div className={styles.tlRulerRow} onPointerDown={startScrub}>
+				<div className={styles.tlRulerRow} onPointerDown={startRulerScrub}>
 					<div className={styles.tlCanvas} style={canvasStyle}>
 						<div className={styles.tlRuler}>
 							{rulerTicks.ticks.map((tick) => (
@@ -2583,13 +2777,6 @@ export function V4Timeline({
 											sourceEndSec={c.sourceEndSec ?? c.sourceStartSec + dur}
 											gain={settings.recordingMuted ? 0 : audioGainScalar(settings.audioGainDb)}
 										/>
-										{c.assetId === keySound.takeAssetId ? (
-											<ClipKeyTicks
-												pressTimesSec={keySound.pressTimesSec}
-												sourceStartSec={c.sourceStartSec}
-												sourceEndSec={c.sourceEndSec ?? c.sourceStartSec + dur}
-											/>
-										) : null}
 										<div className={styles.tlClipLabel}>
 											<button
 												type="button"
@@ -2670,6 +2857,16 @@ export function V4Timeline({
 										style={{ height: REGION_LANE_HEIGHT_PX }}
 									>
 										{renderPills(speedPills)}
+									</div>
+								) : null}
+								{/* Cursor overrides: stretches of the take's pointer drawn again. */}
+								{showCursorLane ? (
+									<div
+										className={styles.tlLane}
+										data-track-kind="cursor"
+										style={{ height: REGION_LANE_HEIGHT_PX }}
+									>
+										{renderPills(cursorPills)}
 									</div>
 								) : null}
 								{showAnnotationLane ? (
@@ -2764,6 +2961,34 @@ export function V4Timeline({
 										}
 									</div>
 								) : null}
+								{/* The take's clicks and key presses, under the audio they sound in: what the
+								    recording holds, not edits. Only their sound can be taken out. */}
+								{showClickLane ? (
+									<InputLane
+										kind="click"
+										placed={clickEvents}
+										total={total}
+										nav={nav}
+										pxPerSec={pxPerSec}
+										canvasRef={canvasRef}
+										selected={selectedClicks}
+										onSelect={selectClicks}
+										labels={inputLaneLabels.click}
+									/>
+								) : null}
+								{showKeyLane ? (
+									<InputLane
+										kind="key"
+										placed={keyEvents}
+										total={total}
+										nav={nav}
+										pxPerSec={pxPerSec}
+										canvasRef={canvasRef}
+										selected={selectedKeys}
+										onSelect={selectKeys}
+										labels={inputLaneLabels.key}
+									/>
+								) : null}
 								{/* As wide as the visible window, not the zoomed canvas, so it stays centred
 								    in view however far the timeline is zoomed in. */}
 								{missingKinds.length > 0 ? (
@@ -2800,7 +3025,7 @@ export function V4Timeline({
 						overrideTimeSec={scrubbingTimeSec}
 						playing={playing}
 						canvasStyle={canvasStyle}
-						onPointerDown={startScrub}
+						onPointerDown={startRulerScrub}
 						playheadRef={playheadElRef}
 					/>
 				) : null}

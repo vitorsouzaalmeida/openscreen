@@ -9,11 +9,12 @@ import {
 	crossedClickHits,
 	ensureClickHitPaths,
 	levelClickCues,
-	loadClickCues,
+	loadClickTelemetry,
 	placeClickHits,
 	placedClickHits,
 	playClickHits,
 	resetClickPlayhead,
+	takeClickCues,
 	takeCrossedClickHits,
 } from "./clickSound";
 
@@ -27,7 +28,7 @@ const point = (
 	interactionType,
 });
 
-const cue = (timeSec: number) => ({ timeSec, gain: 1, release: false });
+const cue = (timeSec: number) => ({ timeSec, gain: 1, release: false, clickMs: timeSec * 1000 });
 
 const asset = { id: "asset_1", kind: "video", originalPath: "/t.mp4", durationSec: 10 };
 const clip = (over: Record<string, number | string> = {}) => ({
@@ -67,8 +68,8 @@ describe("buildClickCues", () => {
 			point(9000, "move"),
 		]);
 		expect(cues).toEqual([
-			{ timeSec: 7.056, gain: 1, release: false },
-			{ timeSec: 7.123, gain: 0.7, release: true },
+			{ timeSec: 7.056, gain: 1, release: false, clickMs: 7056 },
+			{ timeSec: 7.123, gain: 0.7, release: true, clickMs: 7056 },
 		]);
 	});
 
@@ -88,7 +89,7 @@ describe("buildClickCues", () => {
 
 	it("falls back to a synthetic release when the recorded one is too far away", () => {
 		const cues = buildClickCues([point(1000, "click"), point(3000, "mouseup")]);
-		expect(cues[1]).toEqual({ timeSec: 1.11, gain: 0.7, release: true });
+		expect(cues[1]).toEqual({ timeSec: 1.11, gain: 0.7, release: true, clickMs: 1000 });
 	});
 
 	it("pairs the release even when the samples arrive out of order", () => {
@@ -204,7 +205,7 @@ describe("takeCrossedClickHits with a mounted clip", () => {
 			.spyOn(nativeBridgeClient.cursor, "getTelemetry")
 			.mockResolvedValue([point(2050, "click")]);
 		try {
-			await loadClickCues(asset.originalPath);
+			await loadClickTelemetry(asset.originalPath);
 			clickSoundForDocument(document, { clickSound: true, clickSoundGainDb: 0 });
 			// clip_1 cut 2..2.1 away, so its clock owes nothing across it.
 			resetClickPlayhead();
@@ -229,7 +230,7 @@ describe("takeCrossedClickHits with a mounted clip", () => {
 			.spyOn(nativeBridgeClient.cursor, "getTelemetry")
 			.mockResolvedValue([point(2050, "click")]);
 		try {
-			await loadClickCues(asset.originalPath);
+			await loadClickTelemetry(asset.originalPath);
 			// No cut: both copies keep the click.
 			clickSoundForDocument(doc([clip(), clip({ id: "clip_2", timelineStartSec: 10 })]), {
 				clickSound: true,
@@ -250,7 +251,7 @@ describe("takeCrossedClickHits with a mounted clip", () => {
 
 describe("levelClickCues", () => {
 	it("scales every cue by the level the user set, and leaves 0 dB alone", () => {
-		const cues = [cue(1), { timeSec: 2, gain: 0.85, release: true }];
+		const cues = [cue(1), { ...cue(2), gain: 0.85, release: true }];
 		// The very same list at unity: nothing is rebuilt, so the cache stays the cache.
 		expect(levelClickCues(cues, 0)).toBe(cues);
 		const louder = levelClickCues(cues, 6);
@@ -307,7 +308,7 @@ describe("playClickHits", () => {
 
 	it("plays every hit it is handed while the preview is running", async () => {
 		const started: number[] = [];
-		const cues = [cue(1), { timeSec: 2, gain: 1, release: true }];
+		const cues = [cue(1), { ...cue(2), release: true }];
 		playClickHits(context(started), node() as never, Promise.resolve([{}, {}] as never[]), cues);
 		await settled();
 		expect(started.length).toBe(2);
@@ -323,6 +324,82 @@ describe("playClickHits", () => {
 		decode([{}, {}] as never[]);
 		await settled();
 		expect(started).toEqual([]);
+	});
+});
+
+describe("the clicks the document draws", () => {
+	// Its own take, so the one-shot telemetry cache holds exactly what this suite reads.
+	const drawn = { ...asset, id: "asset_drawn", originalPath: "/drawn.mp4" };
+	const drawnDoc = (over: Record<string, unknown> = {}) =>
+		({
+			project: { primaryAssetId: drawn.id },
+			assets: [drawn],
+			audioTracks: [],
+			timeline: { clips: [clip({ assetId: drawn.id })], trimRanges: [], speedRanges: [] },
+			legacyEditor: { speedRegions: [] },
+			...over,
+		}) as never;
+	const override = {
+		id: "cursor_1",
+		assetId: drawn.id,
+		sourceStartMs: 3000,
+		sourceEndMs: 6000,
+		points: [{ timeMs: 4000, cx: 0.5, cy: 0.5, click: true }],
+		origin: "user",
+	};
+	const recorded = [point(1000, "click"), point(1070, "mouseup"), point(5000, "click")];
+	const read = async () => {
+		const getTelemetry = vi
+			.spyOn(nativeBridgeClient.cursor, "getTelemetry")
+			.mockResolvedValue(recorded);
+		await loadClickTelemetry(drawn.originalPath);
+		getTelemetry.mockRestore();
+	};
+	const presses = (document: never) =>
+		takeClickCues(document, drawn as never)
+			.filter((c) => !c.release)
+			.map((c) => c.clickMs);
+
+	it("are the recorded ones when nothing is overridden", async () => {
+		await read();
+		expect(presses(drawnDoc())).toEqual([1000, 5000]);
+	});
+
+	it("lose a recorded click an override covers, and gain the override's own", async () => {
+		await read();
+		// 5 s is inside the override, which clicks at 4 s instead.
+		expect(presses(drawnDoc({ cursorOverrides: [override] }))).toEqual([1000, 4000]);
+		// Another asset's override changes nothing here.
+		expect(presses(drawnDoc({ cursorOverrides: [{ ...override, assetId: "other" }] }))).toEqual([
+			1000, 5000,
+		]);
+	});
+
+	it("answer with the overrides' clicks alone for a take not read yet", () => {
+		const unread = { ...drawn, id: "asset_unread", originalPath: "/unread.mp4" };
+		const cues = takeClickCues(
+			{ cursorOverrides: [{ ...override, assetId: unread.id }] } as never,
+			unread as never,
+		);
+		expect(cues.filter((c) => !c.release).map((c) => c.clickMs)).toEqual([4000]);
+	});
+
+	it("leave a silenced click out of what sounds, its release with it", async () => {
+		await read();
+		const muted = drawnDoc({
+			mutedInputSounds: [{ assetId: drawn.id, kind: "click", timeMs: 1000 }],
+		});
+		clickSoundForDocument(muted, { clickSound: true, clickSoundGainDb: 0 });
+		resetClickPlayhead();
+		takeCrossedClickHits(0.9, drawn.originalPath);
+		// Neither the press at 1 s nor its release at 1.07 s.
+		expect(takeCrossedClickHits(1.2, drawn.originalPath)).toEqual([]);
+		// The click is still one the document draws: only its sound is gone.
+		expect(presses(muted)).toEqual([1000, 5000]);
+		// The other click still sounds.
+		takeCrossedClickHits(4.9, drawn.originalPath);
+		takeCrossedClickHits(4.95, drawn.originalPath);
+		expect(takeCrossedClickHits(5.05, drawn.originalPath).map((c) => c.clickMs)).toEqual([5000]);
 	});
 });
 

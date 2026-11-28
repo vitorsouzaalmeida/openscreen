@@ -85,9 +85,29 @@ function clipSourceRanges(document: AxcutDocument | null): Array<[string, number
 	});
 }
 
+/**
+ * The recordings whose pointer the document draws itself, at least in part: the ones a cursor
+ * override sits on. A take an agent's script drove has no cursor file at all and gets its whole
+ * pointer that way, so for every question below such a take HAS a cursor: one to style, and one
+ * a zoom can follow.
+ */
+function overriddenRecordings(document: AxcutDocument | null): string[] {
+	if (!document?.cursorOverrides?.length) return [];
+	const overridden = new Set(document.cursorOverrides.map((override) => override.assetId));
+	return document.assets
+		.filter((asset) => overridden.has(asset.id))
+		.map((asset) => asset.originalPath);
+}
+
+function useOverriddenRecordings(): ReadonlySet<string> {
+	// A string, so the set changes when an override reaches another take, not on every edit.
+	const json = useProjectStore((s) => JSON.stringify(overriddenRecordings(s.document)));
+	return useMemo(() => new Set(JSON.parse(json) as string[]), [json]);
+}
+
 /** Whether one of `paths` has cursor data: `null` while some are still unread and none has any. */
-function cursorDataIn(paths: readonly string[]): boolean | null {
-	if (paths.some((path) => hasCursorByPath.get(path))) return true;
+function cursorDataIn(paths: readonly string[], drawn: ReadonlySet<string>): boolean | null {
+	if (paths.some((path) => drawn.has(path) || hasCursorByPath.get(path))) return true;
 	return paths.every((path) => hasCursorByPath.has(path)) ? false : null;
 }
 
@@ -99,15 +119,16 @@ export function useRecordingsHaveCursor(paths: readonly string[]): boolean | nul
 	// Sorted, so the same set of recordings is one read whatever order the clips name them in.
 	const pathsJson = JSON.stringify([...new Set(paths)].sort());
 	const read = useRecordingReads(pathsJson);
-	return everyCursorDataIn(read);
+	return everyCursorDataIn(read, useOverriddenRecordings());
 }
 
 /** Whether every one of `paths` has cursor data: `false` as soon as one answered without it,
  *  `null` while one is unread. An empty list names no recording, and nothing could follow. */
-function everyCursorDataIn(paths: readonly string[]): boolean | null {
+function everyCursorDataIn(paths: readonly string[], drawn: ReadonlySet<string>): boolean | null {
 	if (paths.length === 0) return false;
-	if (paths.some((path) => hasCursorByPath.get(path) === false)) return false;
-	return paths.every((path) => hasCursorByPath.get(path) === true) ? true : null;
+	const has = (path: string) => (drawn.has(path) ? true : hasCursorByPath.get(path));
+	if (paths.some((path) => has(path) === false)) return false;
+	return paths.every((path) => has(path) === true) ? true : null;
 }
 
 /**
@@ -144,7 +165,7 @@ export function useHasRecordedCursor(): boolean | null {
 		JSON.stringify([...new Set(clipSourceRanges(s.document).map(([path]) => path))]),
 	);
 	const paths = useRecordingReads(pathsJson);
-	return cursorDataIn(paths);
+	return cursorDataIn(paths, useOverriddenRecordings());
 }
 
 /**

@@ -5,6 +5,7 @@ import { noteUiProbeClipSwitch } from "@/lib/ai-edition/perf/uiFrameProbe";
 import { getEditorSettings } from "@/lib/ai-edition/store/editorSettings";
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { assetCameraSource } from "@/lib/ai-edition/timeline/camera";
+import { flatPictureDocument } from "@/lib/ai-edition/timeline/cursor-stage";
 import { findActiveSpeedRegion, type SpeedRegion } from "@/lib/ai-edition/timeline/speed";
 import { resolveNativePosition } from "@/lib/ai-edition/timeline/timelineMap";
 import {
@@ -58,8 +59,12 @@ import {
  */
 export function NativeCompositorOverlay({
 	playUneditedTimeline = false,
+	flatPicture = false,
 }: {
 	playUneditedTimeline?: boolean;
+	/** Show the picture without zooms or the cursor-following fill: a cursor override is being
+	 *  edited on it (`flatPictureDocument`). */
+	flatPicture?: boolean;
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const previousActiveClipIdRef = useRef<string | null>(null);
@@ -79,13 +84,15 @@ export function NativeCompositorOverlay({
 	// uses trim-compressed segments; while recording, `playbackDocument` removes trims and speed
 	// regions so the compositor shows the same unedited timeline as the video clock.
 	const playbackDocument = useMemo(() => {
-		if (!document || !playUneditedTimeline) return document;
+		if (!document) return document;
+		const shown = flatPicture ? flatPictureDocument(document) : document;
+		if (!playUneditedTimeline) return shown;
 		return {
-			...document,
-			timeline: { ...document.timeline, trimRanges: [] },
-			legacyEditor: document.legacyEditor ? { ...document.legacyEditor, speedRegions: [] } : null,
+			...shown,
+			timeline: { ...shown.timeline, trimRanges: [] },
+			legacyEditor: shown.legacyEditor ? { ...shown.legacyEditor, speedRegions: [] } : null,
 		};
-	}, [document, playUneditedTimeline]);
+	}, [document, playUneditedTimeline, flatPicture]);
 	const nativeClips = useMemo(
 		() => (playbackDocument ? resolveVisibleClips(playbackDocument) : []),
 		[playbackDocument],

@@ -5,6 +5,7 @@ import type {
 	AxcutAnnotationRegion,
 	AxcutAudioTrack,
 	AxcutClip,
+	AxcutCursorOverride,
 	AxcutTranscript,
 	AxcutTrimRange,
 	AxcutZoomRegion,
@@ -44,6 +45,17 @@ interface PreviewProps {
 	selectedZoomRegionId?: string | null;
 	onZoomFocusChange?: (id: string, focus: ZoomFocus) => void;
 	onZoomFocusCommit?: () => void;
+	/** The selected cursor override and its edits, passed straight to the canvas. */
+	cursorOverride?: AxcutCursorOverride | null;
+	onCursorOverrideChange?: (
+		id: string,
+		change: (override: AxcutCursorOverride) => AxcutCursorOverride,
+	) => void;
+	onCursorOverrideCommit?: () => void;
+	onCursorOverrideEdit?: (
+		id: string,
+		change: (override: AxcutCursorOverride) => AxcutCursorOverride,
+	) => void;
 	annotationRegions?: AxcutAnnotationRegion[];
 	selectedAnnotationId?: string | null;
 	onSelectAnnotation?: (id: string) => void;
@@ -81,6 +93,10 @@ export function Preview({
 	selectedZoomRegionId,
 	onZoomFocusChange,
 	onZoomFocusCommit,
+	cursorOverride,
+	onCursorOverrideChange,
+	onCursorOverrideCommit,
+	onCursorOverrideEdit,
 	annotationRegions,
 	selectedAnnotationId,
 	onSelectAnnotation,
@@ -226,6 +242,10 @@ export function Preview({
 						selectedZoomRegionId={selectedZoomRegionId}
 						onZoomFocusChange={onZoomFocusChange}
 						onZoomFocusCommit={onZoomFocusCommit}
+						cursorOverride={cursorOverride}
+						onCursorOverrideChange={onCursorOverrideChange}
+						onCursorOverrideCommit={onCursorOverrideCommit}
+						onCursorOverrideEdit={onCursorOverrideEdit}
 						annotationRegions={annotationRegions}
 						selectedAnnotationId={selectedAnnotationId}
 						onSelectAnnotation={onSelectAnnotation}

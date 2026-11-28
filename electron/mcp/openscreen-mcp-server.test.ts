@@ -345,7 +345,7 @@ describe("the MCP tool surface", () => {
 		const { tools } = await mcp.listTools();
 		const restore = tools.find((t) => t.name === "restoreCheckpoint");
 		expect(restore?.description).toContain("one undo step");
-		expect(restore?.description).toContain("pointer track");
+		expect(restore?.description).toContain("the pointer setPointerTrack drew");
 	});
 });
 

@@ -1,7 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { KeyRecordingData, KeyRecordingSample } from "@/lib/keystrokes/keyRecording";
 import { KEY_SOUND_SAMPLES } from "@/lib/keystrokes/keySoundSamples";
-import { buildKeyCues, keySampleFor, levelKeyCues } from "./keySound";
+import {
+	buildKeyCues,
+	keySampleFor,
+	keySoundForDocument,
+	levelKeyCues,
+	loadKeyCues,
+	resetKeyPlayhead,
+	takeCrossedKeyHits,
+} from "./keySound";
 
 const recording = (samples: KeyRecordingSample[]): KeyRecordingData => ({
 	version: 1,
@@ -83,6 +91,101 @@ describe("buildKeyCues", () => {
 		expect(
 			buildKeyCues(recording([press(Number.NaN, 1), press(-5, 1), press(10, 1)])),
 		).toHaveLength(1);
+	});
+});
+
+describe("a key press and its release", () => {
+	const release = (timeMs: number, voice: number) =>
+		({ timeMs, type: "up", kind: "key", voice }) as const;
+
+	it("names a release after the press of its key, however the keys overlap", () => {
+		// Two keys rolled: the second goes down before the first comes up.
+		const cues = buildKeyCues(
+			recording([press(100, 3), press(150, 9), release(220, 3), release(260, 9)]),
+		);
+		expect(cues.map((cue) => [cue.timeSec, cue.pressMs])).toEqual([
+			[0.1, 100],
+			[0.15, 150],
+			[0.22, 100],
+			[0.26, 150],
+		]);
+	});
+
+	it("pairs the same key pressed twice with its own release each time", () => {
+		const cues = buildKeyCues(
+			recording([press(100, 3), release(180, 3), press(300, 3), release(390, 3)]),
+		);
+		expect(cues.map((cue) => cue.pressMs)).toEqual([100, 100, 300, 300]);
+	});
+
+	it("lets a release with no press before it stand for itself", () => {
+		// The key was already held when the take started.
+		expect(buildKeyCues(recording([release(40, 7)]))[0].pressMs).toBe(40);
+	});
+});
+
+describe("a silenced key press", () => {
+	const take = { id: "asset_keys", kind: "video", originalPath: "/keys.mp4", durationSec: 10 };
+	const document = (mutedInputSounds?: unknown[]) =>
+		({
+			project: { primaryAssetId: take.id },
+			assets: [take],
+			audioTracks: [],
+			timeline: {
+				clips: [
+					{
+						id: "clip_1",
+						assetId: take.id,
+						timelineStartSec: 0,
+						timelineEndSec: 10,
+						sourceStartSec: 0,
+						sourceEndSec: 10,
+					},
+				],
+				trimRanges: [],
+				speedRanges: [],
+			},
+			legacyEditor: { speedRegions: [] },
+			...(mutedInputSounds ? { mutedInputSounds } : {}),
+		}) as never;
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it("is left out of what sounds, its release with it, and the others still sound", async () => {
+		vi.stubGlobal("window", {
+			electronAPI: {
+				getKeyRecording: async () =>
+					recording([
+						press(1000, 3),
+						{ timeMs: 1080, type: "up", kind: "key", voice: 3 },
+						press(2000, 9),
+						{ timeMs: 2090, type: "up", kind: "key", voice: 9 },
+					]),
+			},
+		});
+		await loadKeyCues(take.originalPath);
+		const crossed = (fromSec: number, toSec: number) => {
+			resetKeyPlayhead();
+			takeCrossedKeyHits(fromSec, take.originalPath);
+			return takeCrossedKeyHits(toSec, take.originalPath).map((cue) => cue.timeSec);
+		};
+
+		keySoundForDocument(document(), { keySound: true, keySoundGainDb: 0 });
+		expect(crossed(0.9, 1.2)).toEqual([1, 1.08]);
+
+		keySoundForDocument(document([{ assetId: take.id, kind: "key", timeMs: 1000 }]), {
+			keySound: true,
+			keySoundGainDb: 0,
+		});
+		expect(crossed(0.9, 1.2)).toEqual([]);
+		expect(crossed(1.9, 2.2)).toEqual([2, 2.09]);
+
+		// A click silenced at the same millisecond is another kind: the key still sounds.
+		keySoundForDocument(document([{ assetId: take.id, kind: "click", timeMs: 1000 }]), {
+			keySound: true,
+			keySoundGainDb: 0,
+		});
+		expect(crossed(0.9, 1.2)).toEqual([1, 1.08]);
 	});
 });
 

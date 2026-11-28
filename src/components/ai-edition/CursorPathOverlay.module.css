@@ -1,0 +1,86 @@
+/* The selected cursor override on the preview (CursorPathOverlay.tsx): its path and a handle
+   per point. Drawn in the Cursor lane's colour over a dark edge, so it reads on any footage. */
+.overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 30;
+	user-select: none;
+	touch-action: none;
+}
+.path {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+/* The viewBox is stretched to the stage, so the strokes are kept at screen width. */
+.pathEdge,
+.pathLine {
+	fill: none;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+.pathEdge {
+	stroke: rgba(0, 0, 0, 0.55);
+	stroke-width: 4px;
+}
+.pathLine {
+	stroke: var(--lane-cursor);
+	stroke-width: 2px;
+}
+/* A handle: a 22px box to grab, around the dot it draws. */
+.point {
+	position: absolute;
+	width: 22px;
+	height: 22px;
+	margin: -11px 0 0 -11px;
+	padding: 0;
+	border: 0;
+	background: none;
+	display: grid;
+	place-items: center;
+	cursor: grab;
+	pointer-events: auto;
+}
+.point:active {
+	cursor: grabbing;
+}
+.point::before {
+	content: "";
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--fg-emphasis);
+	box-shadow: 0 0 0 2px var(--lane-cursor), 0 0 0 3.5px rgba(0, 0, 0, 0.55);
+	transition: transform var(--motion-fast, 120ms);
+}
+.point:hover::before {
+	transform: scale(1.2);
+}
+/* A join to the recording: where the override meets the recorded pointer. Hollow, because the
+   position is the recording's until the user moves it. */
+.point[data-recorded]::before {
+	background: rgba(0, 0, 0, 0.55);
+}
+/* A point that clicks carries a ring, like the ripple a click leaves. */
+.point[data-click]::after {
+	content: "";
+	position: absolute;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	box-shadow: inset 0 0 0 1.5px var(--fg-emphasis);
+	pointer-events: none;
+}
+/* The point the playhead is on. */
+.point[data-current]::before {
+	transform: scale(1.3);
+}
+.point:focus-visible {
+	outline: 2px solid var(--accent-ring);
+	outline-offset: 2px;
+	border-radius: 50%;
+}

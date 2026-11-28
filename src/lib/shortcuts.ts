@@ -4,6 +4,7 @@ export const SHORTCUT_ACTIONS = [
 	"addTrim",
 	"addSpeed",
 	"addCameraFullscreen",
+	"addCursorPath",
 	"addAnnotation",
 	"addAudio",
 	"addVoiceover",
@@ -114,6 +115,8 @@ export const DEFAULT_SHORTCUTS: ShortcutsConfig = {
 	addTrim: { key: "t" },
 	addSpeed: { key: "s" },
 	addCameraFullscreen: { key: "c" },
+	// Draw the pointer again over a stretch of the take, from the playhead.
+	addCursorPath: { key: "p" },
 	addAnnotation: { key: "a" },
 	addAudio: { key: "m" },
 	// Record a voiceover over the timeline from the playhead.
@@ -130,6 +133,7 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
 	addTrim: "Add Trim",
 	addSpeed: "Add Speed",
 	addCameraFullscreen: "Change layout here",
+	addCursorPath: "Add Cursor Path",
 	addAnnotation: "Add Annotation",
 	addAudio: "Add Audio",
 	addVoiceover: "Record Voiceover",

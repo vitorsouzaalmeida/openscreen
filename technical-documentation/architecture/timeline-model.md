@@ -48,6 +48,14 @@ did, but the anchor is the source of truth. A structural op (move/duplicate/trim
 re-derives `startMs`/`endMs` from the anchor; if the cache ever disagrees with the
 anchor, the anchor wins.
 
+Two things on the timeline are NOT clip-anchored, on purpose: a
+[cursor override](cursor.md#cursor-overrides) and a silenced click or key press
+([key-sounds.md](key-sounds.md#on-the-timeline)). Both are facts about the footage, like the
+pointer and key tracks they edit, so they are stored against the ASSET in its own recording
+milliseconds. Every clip that shows the stretch shows them, and a trim or a reorder needs no
+reprojection: `cursorOverrideRulerSpans` and `placeLaneEvents` place them on the ruler from the
+clips at draw time.
+
 This is the data-level expression of the authoring-levels diagram in
 [overview.md](overview.md#authoring-levels): modifiers are presented above the timeline
 in the UX but stored down on the clip in the data.

@@ -26,6 +26,10 @@ import type {
 } from "../../src/lib/ai-edition/shaderEffects";
 import type { StylePreset } from "../../src/lib/ai-edition/stylePresets";
 import { collectAutoZoomSuggestionsForDocument } from "../../src/lib/ai-edition/timeline/apply-auto-zooms";
+import {
+	applyCursorOverrides,
+	cursorOverridesForAsset,
+} from "../../src/lib/ai-edition/timeline/cursor-overrides";
 // ponytail: the legend is DERIVED from the depth→scale table, not retyped. Both
 // tool descriptions used to assert "depth 1–6 maps to 1.0×–3.5×" — a formula
 // (`depth/2 + 0.5`) that was purged from two rendering sites and survived here,
@@ -157,7 +161,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 	getTranscript:
 		"Read the transcript segments (speech and silence, with start/end seconds and text) for an asset. Omit assetId to read the primary asset's transcript.",
 	getCursorTrack:
-		"Read the recorded pointer track for an asset: where the cursor was over time, downsampled to a readable rate. Each point carries atSec (the asset's own source clock), virtualSec (the same instant on the edited timeline — the coordinate addZoom takes, null when no clip carries it), cx/cy as 0–1 fractions of the frame, and `shape`, an index into the pointer bitmaps the recording used (equal values are the same pointer; a change means the pointer changed, e.g. arrow to text caret). Points that are not plain moves carry `kind`; points a trim cuts out of playback carry `trimmed`; points where the pointer was hidden carry `visible:false`. These are real samples, not a summary — reading what the pointer was doing is yours. Omit assetId for the primary asset. It answers `available:false` in two DIFFERENT ways you must not confuse: reason 'no-sidecar' means this asset was checked and genuinely has no telemetry, while reason 'unavailable' means it could not be read from here.",
+		"Read the pointer track of an asset as the project draws it: where the cursor is over time, downsampled to a readable rate. It is the recorded track with the project's cursor overrides applied (getCurrentDocument lists them as cursorOverrides): inside an override's span the points are the override's, not the recording's, and removing the override with removeModifier brings the recorded ones back. Each point carries atSec (the asset's own source clock), virtualSec (the same instant on the edited timeline — the coordinate addZoom takes, null when no clip carries it), cx/cy as 0–1 fractions of the frame, and `shape`, an index into the pointer bitmaps the recording used (equal values are the same pointer; a change means the pointer changed, e.g. arrow to text caret). Points that are not plain moves carry `kind`; points a trim cuts out of playback carry `trimmed`; points where the pointer was hidden carry `visible:false`. These are real samples, not a summary — reading what the pointer was doing is yours. Omit assetId for the primary asset. It answers `available:false` in two DIFFERENT ways you must not confuse: reason 'no-sidecar' means this asset was checked and genuinely has no telemetry, while reason 'unavailable' means it could not be read from here.",
 	getTranscriptWords:
 		'Read the transcript one WORD at a time for an asset: each word\'s id, text, start/end seconds, and — only when it is not plain transcription — `source` ("user" for a word the user corrected, "synth" for one they typed in) and `originalText` (what the transcriber had heard before the correction). This is the ONLY read that gives you the ids setWordText and removeWords take; getTranscript answers in segments, whose ids belong to a different namespace and are not accepted there. A whole transcript is large, so pass startSec/endSec to read just the passage you mean to fix. Omit assetId for the primary asset.',
 	setWordText:
@@ -211,7 +215,7 @@ export const TOOL_DESCRIPTIONS: Record<string, string> = {
 	removeTrim:
 		"Delete a trim range by id — the cut is undone and that span plays/exports again. This is how you 'remove a trim'; never re-add a trim to undo one.",
 	removeModifier:
-		"Delete a modifier (zoom / speed / annotation / layout change / audio / effect) by id; the kind is resolved from the id. Touching rows with the same styling render as one pill and are deleted together, so read removedIds in the result for the complete set that disappeared. This is how you 'remove'/'delete' one — never neutralise it (span 0, speed 1×), which leaves it in the document. Removing a layout change extends its predecessor; the first passage cannot be removed. For a trim use removeTrim; for a clip use removeClip.",
+		"Delete a modifier (zoom / speed / annotation / layout change / audio / effect / cursor override) by id; the kind is resolved from the id. Removing a cursor override gives the recorded pointer back over its span. Touching rows with the same styling render as one pill and are deleted together, so read removedIds in the result for the complete set that disappeared. This is how you 'remove'/'delete' one — never neutralise it (span 0, speed 1×), which leaves it in the document. Removing a layout change extends its predecessor; the first passage cannot be removed. For a trim use removeTrim; for a clip use removeClip.",
 	addLayoutChange:
 		"Change layout at timeSec (RAW timeline seconds) until the next change or the end. Presets: picture-in-picture, dual-frame, vertical-stack, camera-only, no-webcam (screen only). Camera presets require assets[].hasCameraTrack. For a temporary passage, add its layout at the beginning and the previous preset at the end.",
 	setLayoutPreset:
@@ -312,7 +316,7 @@ export async function runDocumentTool(
 	runtime: ToolRuntime,
 ): Promise<AgentToolExecution> {
 	const load = TOOLS_READING_CURSOR.has(name)
-		? await loadCursorTelemetry(document, args, runtime)
+		? drawnCursorLoad(document, await loadCursorTelemetry(document, args, runtime))
 		: undefined;
 	const autoZooms = name === "addAutoZooms" ? await planAutoZooms(document, runtime) : undefined;
 	// The compositor compiles an effect's code for real, off the main thread: asked here, before
@@ -373,11 +377,33 @@ async function planAutoZooms(
 		const assets = document.assets.filter((a) => a.originalPath === videoPath);
 		if (assets.length === 0) return [];
 		const load = await readCursor(cursor, assets[0].id, videoPath);
-		for (const asset of assets) telemetry[asset.id] = load.status;
+		// The verdict is about the pointer the project draws: an asset with no sidecar but
+		// with an override has one. The planner applies the overrides itself, so it is handed
+		// the recorded samples.
+		for (const asset of assets) telemetry[asset.id] = drawnCursorLoad(document, load).status;
 		// The sidecar's samples, read as the renderer's `getTelemetry` reads them.
 		return load.status === "ok" ? (load.samples as CursorTelemetryPoint[]) : [];
 	});
 	return { suggestions, telemetry };
+}
+
+/**
+ * A read of the recorded pointer, as the pointer the project DRAWS: the asset's cursor
+ * overrides applied over it (cursor-overrides.ts). An asset checked and found without a sidecar
+ * has the overrides alone, which is how a take an agent's script drove has a pointer at all.
+ * A read that could not look stays "unavailable": the overrides are then only part of the
+ * answer, and reporting them as the whole track would hide that the rest was never read.
+ */
+function drawnCursorLoad(document: AxcutDocument, load: CursorTelemetryLoad): CursorTelemetryLoad {
+	if (load.status === "unavailable") return load;
+	const overrides = cursorOverridesForAsset(document, load.assetId);
+	if (overrides.length === 0) return load;
+	return {
+		...(load.status === "ok" ? load : {}),
+		status: "ok",
+		assetId: load.assetId,
+		samples: applyCursorOverrides(load.status === "ok" ? load.samples : [], overrides),
+	};
 }
 
 /** Reads the sidecar for whichever asset the call names, defaulting to the
@@ -472,7 +498,11 @@ export async function probeCursorTelemetry(
 	document: AxcutDocument,
 	cursor: CursorTelemetryReader | undefined,
 ): Promise<Record<string, boolean> | undefined> {
-	if (!cursor?.probe) return undefined;
+	// An asset a cursor override sits on has a pointer whatever its sidecar says, and that is
+	// known without a probe.
+	const drawn: Record<string, boolean> = {};
+	for (const override of document.cursorOverrides ?? []) drawn[override.assetId] = true;
+	if (!cursor?.probe) return Object.keys(drawn).length > 0 ? drawn : undefined;
 	const entries = await Promise.all(
 		document.assets.map(async (asset) => {
 			try {
@@ -492,5 +522,5 @@ export async function probeCursorTelemetry(
 	for (const entry of entries) {
 		if (entry) map[entry[0]] = entry[1];
 	}
-	return map;
+	return { ...map, ...drawn };
 }

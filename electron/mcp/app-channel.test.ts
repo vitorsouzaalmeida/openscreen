@@ -4,7 +4,7 @@
 // with its own local runner, as stdio-server.ts wires them.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -253,7 +253,7 @@ describe("forwarding to the app", () => {
 		expect(editor.document?.timeline.trimRanges).toHaveLength(3);
 	});
 
-	it("has the app compute and write setPointerTrack, under its checkpoints", async () => {
+	it("has the app compute and save setPointerTrack, under its checkpoints", async () => {
 		await startApp();
 		const route = cliRouter();
 		const video = path.join(dir, "take.mp4");
@@ -270,18 +270,19 @@ describe("forwarding to the app", () => {
 			{ edit: () => Promise.reject(new Error("ran locally")) },
 		);
 		expect(result.isError).toBeFalsy();
-		expect(JSON.parse(text(result)).samples).toBeGreaterThan(0);
-		expect(statSync(`${video}.cursor.json`).isFile()).toBe(true);
+		expect(JSON.parse(text(result)).points).toBe(1);
+		// The pointer is a cursor override in the project the app saved: no file beside the video.
+		expect((await appProjects.getProject("proj_closed")).cursorOverrides).toHaveLength(1);
+		expect(() => statSync(`${video}.cursor.json`)).toThrow();
 		expect(localCalls).toEqual([]);
 
 		await route("restoreCheckpoint", { projectId: "proj_closed", checkpointId });
-		expect(() => statSync(`${video}.cursor.json`)).toThrow();
+		expect((await appProjects.getProject("proj_closed")).cursorOverrides ?? []).toEqual([]);
 	});
 
 	it("has the app place the track on the client's own clock, for a video no take recorded", async () => {
 		await startApp();
 		const route = cliRouter();
-		const video = path.join(dir, "take.mp4");
 		await route("createCheckpoint", { projectId: "proj_closed" });
 		const result = await route(
 			"setPointerTrack",
@@ -294,10 +295,8 @@ describe("forwarding to the app", () => {
 			{ edit: () => Promise.reject(new Error("ran locally")) },
 		);
 		expect(result.isError).toBeFalsy();
-		const { samples } = JSON.parse(readFileSync(`${video}.cursor.json`, "utf8")) as {
-			samples: Array<{ timeMs: number; interactionType: string }>;
-		};
-		expect(samples.find((s) => s.interactionType === "click")?.timeMs).toBe(5_000);
+		const [override] = (await appProjects.getProject("proj_closed")).cursorOverrides ?? [];
+		expect(override.points).toEqual([{ timeMs: 5_000, cx: 0.5, cy: 0.5, click: true }]);
 		expect(localCalls).toEqual([]);
 	});
 

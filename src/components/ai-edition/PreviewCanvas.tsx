@@ -43,6 +43,7 @@ import type {
 	AxcutAnnotationRegion,
 	AxcutAudioTrack,
 	AxcutClip,
+	AxcutCursorOverride,
 	AxcutTranscript,
 	AxcutTrimRange,
 	AxcutZoomRegion,
@@ -50,6 +51,7 @@ import type {
 import { useProjectStore } from "@/lib/ai-edition/store/projectStore";
 import { useEditorSettings } from "@/lib/ai-edition/store/useEditorSettings";
 import { resolveActiveCameraTrack } from "@/lib/ai-edition/timeline/camera";
+import { cursorStageMapping } from "@/lib/ai-edition/timeline/cursor-stage";
 import type { SpeedRegion } from "@/lib/ai-edition/timeline/speed";
 import { locateVirtualPosition } from "@/lib/ai-edition/timeline/virtual-preview";
 import {
@@ -71,6 +73,7 @@ import {
 	subscribeWebcamNativeSize,
 } from "@/native/webcamSizeCache";
 import { AnnotationLayer } from "./AnnotationLayer";
+import { CursorPathOverlay } from "./CursorPathOverlay";
 import { NativeCompositorOverlay } from "./NativeCompositorOverlay";
 import styles from "./NewEditorShell.module.css";
 import { type VideoSource, VirtualPreview } from "./VirtualPreview";
@@ -96,6 +99,19 @@ interface PreviewCanvasProps {
 	selectedZoomRegionId?: string | null;
 	onZoomFocusChange?: (id: string, focus: ZoomFocus) => void;
 	onZoomFocusCommit?: () => void;
+	/** The cursor override selected on the timeline: its path is edited on the picture. */
+	cursorOverride?: AxcutCursorOverride | null;
+	/** Live edit of the override during a drag; `onCursorOverrideCommit` saves it on release. */
+	onCursorOverrideChange?: (
+		id: string,
+		change: (override: AxcutCursorOverride) => AxcutCursorOverride,
+	) => void;
+	onCursorOverrideCommit?: () => void;
+	/** One saved edit of the override: a point removed. */
+	onCursorOverrideEdit?: (
+		id: string,
+		change: (override: AxcutCursorOverride) => AxcutCursorOverride,
+	) => void;
 	annotationRegions?: AxcutAnnotationRegion[];
 	selectedAnnotationId?: string | null;
 	onSelectAnnotation?: (id: string) => void;
@@ -267,7 +283,16 @@ export function PreviewCanvas(props: PreviewCanvasProps) {
 	);
 	const activePreset = resolveWebcamLayoutPreset(sample.preset, activeClipHasCamera);
 
-	const formatFill = useMemo(() => (document ? isFormatFillActive(document) : false), [document]);
+	const [isPlaying, setIsPlaying] = useState(false);
+	// While a cursor override is being edited the picture is shown flat: no zoom, no fill that
+	// pans after the pointer (`flatPictureDocument`). Both move the footage under the stage, and
+	// a point drawn on the stage has to sit on the pixel it names. Playing shows the real film.
+	const cursorOverride = props.cursorOverride ?? null;
+	const editingCursor = cursorOverride !== null && !isPlaying;
+	const formatFill = useMemo(
+		() => (document && !editingCursor ? isFormatFillActive(document) : false),
+		[document, editingCursor],
+	);
 	const layout = useMemo(() => {
 		// A clip with no camera lays out as "no-webcam", whatever the panel says. Hiding
 		// only the webcam slot is not enough: the block presets size the SCREEN off the
@@ -372,7 +397,6 @@ export function PreviewCanvas(props: PreviewCanvasProps) {
 	// `layout` already resolves to "no-webcam" (hence `webcamRect: null`) for a
 	// camera-less clip, so this is belt-and-braces rather than the only guard.
 	const showWebcamSlot = Boolean(layout?.webcamRect && activeClipHasCamera);
-	const [isPlaying, setIsPlaying] = useState(false);
 	const handleVideoElement = useMemo(() => props.onVideoElement, [props.onVideoElement]);
 	// L'élément `<video>` lui-même n'est plus retenu : il ne servait qu'à échantillonner des pixels
 	// pour la mosaïque dessinée en DOM, que le compositeur natif rend désormais.
@@ -459,6 +483,33 @@ export function PreviewCanvas(props: PreviewCanvasProps) {
 		? (props.zoomRegions?.find((z) => z.id === props.selectedZoomRegionId) ?? null)
 		: null;
 
+	// The recorded frame on the stage, both ways, for the cursor path's handles.
+	const screenCover = layout?.screenCover === true;
+	const stageAspect = layout?.screenRect
+		? layout.screenRect.width / Math.max(1, layout.screenRect.height)
+		: 0;
+	const cursorMapping = useMemo(() => {
+		const source = screenNativeSize ?? SCREEN_SOURCE_SIZE;
+		return cursorStageMapping({
+			crop: cropRegion,
+			rotation,
+			cover: screenCover
+				? {
+						stageAspect,
+						pictureAspect:
+							(source.width * cropRegion.width) / Math.max(1, source.height * cropRegion.height),
+					}
+				: null,
+		});
+	}, [cropRegion, rotation, screenCover, stageAspect, screenNativeSize]);
+	// The recording millisecond under the playhead, when the clip there shows the override's take.
+	const cursorPlayheadMs =
+		cursorOverride && activeClip?.assetId === cursorOverride.assetId
+			? Math.round(
+					(activeClip.sourceStartSec + (props.currentTimeSec - activeClip.timelineStartSec)) * 1000,
+				)
+			: null;
+
 	return (
 		<div
 			ref={frameRef}
@@ -472,7 +523,10 @@ export function PreviewCanvas(props: PreviewCanvasProps) {
 			    interactive-only layers (ZoomFocusOverlay, AnnotationLayer, webcam drag
 			    hitbox) still render on top as normal DOM so they stay clickable. No more
 			    dual preview path. */}
-			<NativeCompositorOverlay playUneditedTimeline={props.playUneditedTimeline} />
+			<NativeCompositorOverlay
+				playUneditedTimeline={props.playUneditedTimeline}
+				flatPicture={editingCursor}
+			/>
 			{layout?.screenRect ? (
 				<div className={styles.screenStage} style={screenStyle}>
 					{(() => {
@@ -502,6 +556,33 @@ export function PreviewCanvas(props: PreviewCanvasProps) {
 							isPlaying={isPlaying}
 							onFocusChange={props.onZoomFocusChange}
 							onFocusCommit={props.onZoomFocusCommit}
+						/>
+					) : null}
+					{editingCursor &&
+					cursorOverride &&
+					props.onCursorOverrideChange &&
+					props.onCursorOverrideCommit &&
+					props.onCursorOverrideEdit ? (
+						<CursorPathOverlay
+							override={cursorOverride}
+							playheadMs={cursorPlayheadMs}
+							mapping={cursorMapping}
+							onChange={props.onCursorOverrideChange}
+							onCommit={props.onCursorOverrideCommit}
+							onEdit={props.onCursorOverrideEdit}
+							onSeekToMs={(timeMs) => {
+								// Onto the clip under the playhead when it shows this take, else the
+								// first clip that shows that instant.
+								const shows = (clip: AxcutClip) =>
+									clip.assetId === cursorOverride.assetId &&
+									timeMs / 1000 >= clip.sourceStartSec &&
+									timeMs / 1000 <=
+										clip.sourceStartSec + (clip.timelineEndSec - clip.timelineStartSec);
+								const clip = activeClip && shows(activeClip) ? activeClip : props.clips.find(shows);
+								if (clip) {
+									props.onSeek(clip.timelineStartSec + timeMs / 1000 - clip.sourceStartSec);
+								}
+							}}
 						/>
 					) : null}
 				</div>

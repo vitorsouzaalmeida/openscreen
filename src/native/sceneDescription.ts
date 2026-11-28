@@ -50,6 +50,10 @@ import {
 import { getEditorSettings } from "@/lib/ai-edition/store/editorSettings";
 import { assetCameraSource } from "@/lib/ai-edition/timeline/camera";
 import { resolveClipSourceEndSec } from "@/lib/ai-edition/timeline/clipDuration";
+import {
+	cursorPatchesForScene,
+	type SceneCursorPatch,
+} from "@/lib/ai-edition/timeline/cursor-overrides";
 import { removedHeadSec, removedRawSpans } from "@/lib/ai-edition/timeline/programme-time";
 import { takeProgramme } from "@/lib/ai-edition/timeline/take-programme";
 import {
@@ -626,6 +630,13 @@ export interface SceneDescription {
 		hits: Array<{ timeSec: number; gain: number; sample: number }>;
 	};
 	/**
+	 * Cursor overrides (see `src/lib/ai-edition/timeline/cursor-overrides.ts`): stretches of a
+	 * take's pointer drawn again in the editor or by an agent. The compositor reads the take's
+	 * recorded track and swaps each patch's samples in over its span (`CursorTrack::load_patched`),
+	 * so the recorded file is never rewritten. Omitted when the project has none.
+	 */
+	cursorPatches?: SceneCursorPatch[];
+	/**
 	 * Per-clip screen crop (fractions of the frame), or null for the identity
 	 * (full-frame) crop. One entry per clip in the same order as `clips`, so a
 	 * clip that owns its own cropRegion is rendered with that crop and a clip
@@ -953,6 +964,7 @@ export function buildSceneDescription(
 		keySound: settings.keySound,
 		keySoundGainDb: settings.keySoundGainDb,
 	});
+	const cursorPatches = cursorPatchesForScene(document, assetById);
 	const audioTracks = document.audioTracks.flatMap((fragment) => {
 		const track = takes.get(fragment.id);
 		if (!track || track.muted) return [];
@@ -1586,6 +1598,7 @@ export function buildSceneDescription(
 		audioTracks,
 		...(clickSound ? { clickSound } : {}),
 		...(keySound ? { keySound } : {}),
+		...(cursorPatches.length > 0 ? { cursorPatches } : {}),
 		background: sceneBackground(settings.wallpaper, settings.wallpaperMotion),
 		zoomRegions: projectedZoomRegions.map((region) => ({
 			id: region.id,

@@ -974,6 +974,91 @@ impl SceneWebcamEffect {
     }
 }
 
+/// What a pointer sample of a cursor patch does besides moving: `interactionType`, as the
+/// `.cursor.json` sidecar spells it. Only a press makes a click, which is all `CursorTrack::load`
+/// reads of it in a sidecar too, so a value this build does not know reads as a plain move
+/// instead of failing the whole scene.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SceneCursorInteraction {
+    Click,
+    Mouseup,
+    /// Last: serde only accepts `other` on the last variant.
+    #[default]
+    #[serde(other)]
+    Move,
+}
+
+/// One pointer sample of a cursor patch, in the sidecar's own shape and clock: milliseconds
+/// from the start of the recording, position as fractions of the recorded frame. It carries no
+/// `cursorType`: a patched stretch draws the arrow, as a sidecar sample without the key does.
+/// `Copy`, because the scene is cloned on every push and every clip switch and a patch can hold
+/// thousands of these.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SceneCursorSample {
+    pub time_ms: f64,
+    pub cx: f32,
+    pub cy: f32,
+    /// Absent reads as visible, as in a sidecar.
+    #[serde(default = "default_true")]
+    pub visible: bool,
+    #[serde(default)]
+    pub interaction_type: SceneCursorInteraction,
+}
+
+/// A stretch of a take's recorded pointer drawn again in the editor or by an agent
+/// (`SceneCursorPatch`, `src/lib/ai-edition/timeline/cursor-overrides.ts`). The recorded track,
+/// `<screen video>.cursor.json`, is never rewritten: `CursorTrack::load_patched` drops its
+/// samples over `[start_ms, end_ms]`, ends included, and puts `samples` in their place. The app
+/// is the only author of that motion (easing, glides, the hold of a click); nothing here or in
+/// the loader generates a sample. `samples` may be empty: the span is then only cut out, and
+/// the track interpolates across it.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SceneCursorPatch {
+    /// The take's screen video, as `clips[].screenPath` names it.
+    pub screen_path: String,
+    pub start_ms: f64,
+    pub end_ms: f64,
+    #[serde(default)]
+    pub samples: Vec<SceneCursorSample>,
+}
+
+impl SceneCursorPatch {
+    /// Whether a recorded sample at `time_ms` falls in the span this patch cuts out.
+    pub fn covers(&self, time_ms: f64) -> bool {
+        time_ms >= self.start_ms && time_ms <= self.end_ms
+    }
+}
+
+/// An identity of one take's cursor patches, `None` when it has none: what a cache of loaded
+/// tracks adds to its key (`live::cursor_key`) so that an edit of the pointer rereads the track
+/// and an edit of anything else in the scene does not. It reads every sample but allocates
+/// nothing, which is what lets it run on each scene push; rereading and smoothing the track is
+/// the cost it guards.
+pub fn cursor_patches_fingerprint(patches: &[&SceneCursorPatch]) -> Option<u64> {
+    use std::hash::{Hash, Hasher};
+    if patches.is_empty() {
+        return None;
+    }
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    patches.len().hash(&mut hasher);
+    for patch in patches {
+        patch.start_ms.to_bits().hash(&mut hasher);
+        patch.end_ms.to_bits().hash(&mut hasher);
+        patch.samples.len().hash(&mut hasher);
+        for sample in &patch.samples {
+            sample.time_ms.to_bits().hash(&mut hasher);
+            sample.cx.to_bits().hash(&mut hasher);
+            sample.cy.to_bits().hash(&mut hasher);
+            sample.visible.hash(&mut hasher);
+            sample.interaction_type.hash(&mut hasher);
+        }
+    }
+    Some(hasher.finish())
+}
+
 /// Tout ce dont le natif a besoin pour composer la scène, sérialisé depuis un document.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1023,6 +1108,12 @@ pub struct Scene {
     /// Effets shader écrits par un agent (`shader_fx`). Absent = aucun.
     #[serde(default)]
     pub shader_effects: Vec<SceneShaderEffect>,
+    /// Cursor overrides (`cursorPatches` on the TS side): stretches of a take's recorded pointer
+    /// replaced by samples the app made. Whole-scene data, keyed by screen video rather than by
+    /// clip, because every clip cut from one take reads the same track. Absent from a project
+    /// with none, and from every scene written before it.
+    #[serde(default)]
+    pub cursor_patches: Vec<SceneCursorPatch>,
     /// État de rendu interne, positionné par `for_clip_window` (jamais envoyé par l'app).
     #[serde(skip)]
     pub(crate) active_clip_index: usize,
@@ -1037,6 +1128,16 @@ impl Scene {
     /// Parse le JSON produit par `buildSceneDescription` (TS).
     pub fn from_json(json: &str) -> anyhow::Result<Scene> {
         Ok(serde_json::from_str(json)?)
+    }
+
+    /// The cursor patches of the take whose screen video is `screen_path`, in the order the app
+    /// sent them. Paths compare as the live view matches a clip to the scene
+    /// (`live::same_source_path`), so a clip the scene recognises also finds its patches.
+    pub fn cursor_patches_for(&self, screen_path: &str) -> Vec<&SceneCursorPatch> {
+        self.cursor_patches
+            .iter()
+            .filter(|patch| patch.screen_path.eq_ignore_ascii_case(screen_path))
+            .collect()
     }
 
     /// Whether the clip being composed is turned by 180°.
@@ -1150,6 +1251,108 @@ mod tests {
         assert!(scene.clips[0].has_audio);
         assert_eq!(scene.crop_by_clip.len(), 1);
         assert_eq!(scene.output.width, 1920);
+    }
+
+    /// A scene JSON with `cursorPatches` appended to the minimal scene's keys.
+    fn scene_with_cursor_patches(patches: &str) -> Scene {
+        let patches = if patches.is_empty() {
+            String::new()
+        } else {
+            format!(r#","cursorPatches":{patches}"#)
+        };
+        Scene::from_json(&format!(
+            r##"{{
+            "clips": [{{"screenPath":"/s.mp4","webcamPath":"","sourceStartSec":0,"sourceEndSec":4,"webcamOffsetSec":0}}],
+            "layout": {{"preset":"no-webcam","webcamSize":1,"webcamShape":"rectangle","webcamMirror":false,"webcamPosition":null,"webcamReactiveZoom":false}},
+            "effects": {{"padding":0,"blur":false,"shadow":0,"roundnessFrac":0,"motionBlur":0}},
+            "background": {{"kind":"color","color":"#000000"}},
+            "zoomRegions": [],
+            "cursor": {{"show":true,"size":1,"smoothing":0,"motionBlur":0,"clickBounce":1,"clipToBounds":false,"theme":"default"}},
+            "output": {{"width":1920,"height":1080,"fps":null}}{patches}
+        }}"##
+        ))
+        .expect("parse")
+    }
+
+    #[test]
+    fn cursor_patches_parse_in_the_sidecars_shape() {
+        let scene = scene_with_cursor_patches(
+            r#"[
+            {"screenPath":"/s.mp4","startMs":10000,"endMs":12000,"samples":[
+                {"timeMs":10000,"cx":0.31,"cy":0.52,"visible":true,"interactionType":"move"},
+                {"timeMs":11400,"cx":0.31,"cy":0.52,"visible":false,"interactionType":"mouseup"},
+                {"timeMs":12000,"cx":0.7,"cy":0.4,"visible":true,"interactionType":"click"}
+            ]},
+            {"screenPath":"/other.mp4","startMs":0,"endMs":500,"samples":[]},
+            {"screenPath":"/s.mp4","startMs":20000,"endMs":21000,"samples":[
+                {"timeMs":20000,"cx":0.5,"cy":0.5,"interactionType":"double-click"}
+            ]}
+        ]"#,
+        );
+        assert_eq!(scene.cursor_patches.len(), 3);
+        let patch = &scene.cursor_patches[0];
+        assert_eq!((patch.start_ms, patch.end_ms), (10000.0, 12000.0));
+        assert_eq!(patch.samples.len(), 3);
+        assert_eq!(patch.samples[0].time_ms, 10000.0);
+        assert!((patch.samples[0].cx - 0.31).abs() < 1e-6 && (patch.samples[0].cy - 0.52).abs() < 1e-6);
+        assert_eq!(patch.samples[0].interaction_type, SceneCursorInteraction::Move);
+        assert!(!patch.samples[1].visible);
+        assert_eq!(patch.samples[1].interaction_type, SceneCursorInteraction::Mouseup);
+        assert_eq!(patch.samples[2].interaction_type, SceneCursorInteraction::Click);
+        // Ends included, as the app cuts the recording on its side.
+        assert!(patch.covers(10000.0) && patch.covers(12000.0));
+        assert!(!patch.covers(9999.0) && !patch.covers(12001.0));
+        // A sample without `visible` is visible, and an interaction this build does not know is
+        // a move: neither fails the scene.
+        let later = scene.cursor_patches[2].samples[0];
+        assert!(later.visible);
+        assert_eq!(later.interaction_type, SceneCursorInteraction::Move);
+
+        // By take, in the order sent; a take without any gets none.
+        let mine = scene.cursor_patches_for("/s.mp4");
+        assert_eq!(mine.iter().map(|p| p.start_ms).collect::<Vec<_>>(), [10000.0, 20000.0]);
+        assert_eq!(scene.cursor_patches_for("/other.mp4").len(), 1);
+        assert!(scene.cursor_patches_for("/none.mp4").is_empty());
+        // The clip-scoped copy the compositor is handed still knows them.
+        assert_eq!(scene.for_clip_window(0, 0.0, 4.0).cursor_patches_for("/s.mp4").len(), 2);
+    }
+
+    #[test]
+    fn a_scene_without_cursor_patches_still_parses_with_none() {
+        let scene = scene_with_cursor_patches("");
+        assert!(scene.cursor_patches.is_empty());
+        assert!(scene.cursor_patches_for("/s.mp4").is_empty());
+        assert_eq!(cursor_patches_fingerprint(&scene.cursor_patches_for("/s.mp4")), None);
+    }
+
+    #[test]
+    fn the_cursor_patch_fingerprint_follows_the_patches_and_nothing_else() {
+        let base = r#"{"screenPath":"/s.mp4","startMs":1000,"endMs":2000,"samples":[{"timeMs":1000,"cx":0.25,"cy":0.5,"visible":true,"interactionType":"move"}]}"#;
+        let print = |patches: &str| {
+            let scene = scene_with_cursor_patches(patches);
+            cursor_patches_fingerprint(&scene.cursor_patches_for("/s.mp4"))
+        };
+        let same = print(&format!("[{base}]"));
+        assert!(same.is_some());
+        assert_eq!(same, print(&format!("[{base}]")), "the same patches parsed twice");
+        for (what, changed) in [
+            ("a position", base.replace(r#""cx":0.25"#, r#""cx":0.26"#)),
+            ("a time", base.replace(r#""timeMs":1000"#, r#""timeMs":1001"#)),
+            ("the span", base.replace(r#""endMs":2000"#, r#""endMs":2001"#)),
+            ("a click", base.replace(r#""move""#, r#""click""#)),
+            ("visibility", base.replace(r#""visible":true"#, r#""visible":false"#)),
+        ] {
+            assert_ne!(same, print(&format!("[{changed}]")), "{what}");
+        }
+        // A patch with no sample still cuts its span out: it is not the absence of a patch.
+        let empty = print(r#"[{"screenPath":"/s.mp4","startMs":1000,"endMs":2000,"samples":[]}]"#);
+        assert!(empty.is_some() && empty != same);
+        // Where the samples sit matters, not only which ones there are.
+        let split = print(&format!(
+            r#"[{},{}]"#,
+            r#"{"screenPath":"/s.mp4","startMs":1000,"endMs":2000,"samples":[]}"#, base
+        ));
+        assert_ne!(same, split);
     }
 
     #[test]

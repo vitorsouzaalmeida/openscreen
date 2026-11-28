@@ -262,6 +262,11 @@ const DECLARED: WritePath[] = [
 	w("src/lib/ai-edition/store/useTimeline.ts", "addTrim", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "addZoom", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "addZoomsBulk", "save", "gesture"),
+	// Cursor overrides: the `P` key, a point or a click set in the inspector, a point removed
+	// on the preview, and the pill dragged on its lane. One step each.
+	w("src/lib/ai-edition/store/useTimeline.ts", "addCursorOverride", "save", "gesture"),
+	w("src/lib/ai-edition/store/useTimeline.ts", "changeCursorOverride", "save", "gesture"),
+	w("src/lib/ai-edition/store/useTimeline.ts", "updateCursorOverrideSpan", "save", "gesture"),
 	// The Clear timeline button: every edit region in one write, so one undo step.
 	w("src/lib/ai-edition/store/useTimeline.ts", "clearTimeline", "save", "gesture"),
 	// The drag commits. One undo step per gesture, recorded on release and only
@@ -276,6 +281,10 @@ const DECLARED: WritePath[] = [
 	w("src/lib/ai-edition/store/useTimeline.ts", "commitShaderEffectChange", "state", "unrecorded"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "commitZoomFocus", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "commitZoomFocus", "state", "unrecorded"),
+	// A cursor point dragged on the preview, or its tick on the pill: committed and rolled
+	// back as the annotations' drags are.
+	w("src/lib/ai-edition/store/useTimeline.ts", "commitCursorOverride", "save", "gesture"),
+	w("src/lib/ai-edition/store/useTimeline.ts", "commitCursorOverride", "state", "unrecorded"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "duplicateClip", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "insertClipAt", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "moveClip", "save", "gesture"),
@@ -301,10 +310,13 @@ const DECLARED: WritePath[] = [
 	w("src/lib/ai-edition/store/useTimeline.ts", "removeRegions", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "saveZoomPatch", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "setLayoutPreset", "save", "gesture"),
+	// The Sound switch on clicks or key presses picked on their lane, and Delete on them.
+	w("src/lib/ai-edition/store/useTimeline.ts", "setInputSoundsMutedOp", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "setTrimEntries", "save", "gesture"),
 	// The live halves of the drags.
 	w("src/lib/ai-edition/store/useTimeline.ts", "updateAnnotationLive", "set", "automatic"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "updateAnnotationSpan", "save", "gesture"),
+	w("src/lib/ai-edition/store/useTimeline.ts", "updateCursorOverrideLive", "set", "automatic"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "updateCameraFullscreenSpan", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "updateShaderEffect", "save", "gesture"),
 	w("src/lib/ai-edition/store/useTimeline.ts", "updateShaderEffectLive", "set", "automatic"),

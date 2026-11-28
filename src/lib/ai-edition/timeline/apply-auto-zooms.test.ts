@@ -62,6 +62,53 @@ describe("collectAutoZoomSuggestionsForDocument", () => {
 		]);
 	});
 
+	it("plans on the pointer the document draws, not on a recorded click an override replaced", async () => {
+		const document: AxcutDocument = {
+			...documentWithClip(),
+			// The stretch around the recorded click at 4 s is drawn again, clicking at 7 s instead.
+			cursorOverrides: [
+				{
+					id: "cursor_1",
+					assetId: "asset_1",
+					sourceStartMs: 3000,
+					sourceEndMs: 8000,
+					points: [{ timeMs: 7000, cx: 0.2, cy: 0.3, click: true }],
+					origin: "user",
+				},
+			],
+		};
+		const suggestions = await collectAutoZoomSuggestionsForDocument(document, async () =>
+			clickAt(4000, 0.4, 0.6),
+		);
+		// One zoom, on the click the override draws at 7 s; none on the recorded one at 4 s.
+		expect(suggestions).toHaveLength(1);
+		const [{ span, focus }] = suggestions;
+		expect(focus).toEqual({ cx: 0.2, cy: 0.3 });
+		expect(span.start).toBeGreaterThan(4500);
+		expect(span.start).toBeLessThan(7000);
+		expect(span.end).toBeGreaterThan(7000);
+	});
+
+	it("plans on an override's clicks for a take that recorded no pointer", async () => {
+		const document: AxcutDocument = {
+			...documentWithClip(),
+			cursorOverrides: [
+				{
+					id: "cursor_1",
+					assetId: "asset_1",
+					sourceStartMs: 0,
+					sourceEndMs: 10_000,
+					points: [{ timeMs: 4000, cx: 0.4, cy: 0.6, click: true }],
+					origin: "agent",
+				},
+			],
+		};
+		const suggestions = await collectAutoZoomSuggestionsForDocument(document, async () => null);
+		expect(suggestions).toEqual([
+			{ span: { start: 3500, end: 5500 }, focus: { cx: 0.4, cy: 0.6 }, depth: 3 },
+		]);
+	});
+
 	it("asks for telemetry on the asset path, not a file URL", async () => {
 		const document = documentWithClip();
 		const paths: string[] = [];

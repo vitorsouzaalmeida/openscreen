@@ -126,6 +126,9 @@ function renderTimeline(
 		speedRegions: [],
 		cameraFullscreenRegions: [],
 		shaderEffectRanges: [],
+		cursorOverrides: [],
+		soundSelection: null,
+		selectInputSounds: vi.fn(),
 		shaderEffects: [],
 		layoutSegments: [],
 		hasDoc: true,
@@ -1004,6 +1007,9 @@ describe("V4Timeline audio lane drag", () => {
 			layoutSegments: [],
 			hasDoc: true,
 			shaderEffectRanges: [],
+			cursorOverrides: [],
+			soundSelection: null,
+			selectInputSounds: vi.fn(),
 			shaderEffects: [],
 			zoomRegions: [],
 			trimRanges: [],
@@ -1475,5 +1481,125 @@ describe("V4Timeline zoom trails", () => {
 			"Zoom-out: the view moves back out after the zoom ends",
 		);
 		expect(trail("out").querySelector("[data-zoom-trail-cut]")).toBeNull();
+	});
+});
+
+// Cursor overrides are stored against the take in recording time: the lane draws one pill per
+// clip that shows the stretch, and its drag hands the ruler span back with that clip.
+describe("the Cursor lane", () => {
+	const OVERRIDE = {
+		id: "cursor_1",
+		assetId: "a1",
+		sourceStartMs: 60_000,
+		sourceEndMs: 120_000,
+		points: [
+			{ timeMs: 60_000, cx: 0.1, cy: 0.1, recorded: true },
+			{ timeMs: 90_000, cx: 0.5, cy: 0.5, click: true },
+			{ timeMs: 120_000, cx: 0.2, cy: 0.2, recorded: true },
+		],
+		origin: "user",
+	};
+	const pct = (sec: number) => (sec / TOTAL_SEC) * 100;
+	const renderCursor = (overrides: Record<string, unknown> = {}, clips = [clip(0, TOTAL_SEC)]) =>
+		renderTimeline(clips, undefined, undefined, undefined, {
+			annotationRegions: [],
+			cursorOverrides: [OVERRIDE],
+			updateCursorOverrideSpan: vi.fn(async () => {
+				/* the drag only awaits it */
+			}),
+			...overrides,
+		});
+	const lane = () => document.querySelector<HTMLElement>('[data-track-kind="cursor"]');
+	const pills = () => [...(lane()?.querySelectorAll<HTMLElement>("[data-region-id]") ?? [])];
+
+	it("is not drawn for a project with no override", () => {
+		renderCursor({ cursorOverrides: [] });
+		expect(lane()).toBeNull();
+	});
+
+	it("draws the override where its clip shows it, as long as it lasts", () => {
+		renderCursor();
+		const [pill] = pills();
+		expect(pills()).toHaveLength(1);
+		expect(Number.parseFloat(pill.style.left)).toBeCloseTo(pct(60), 6);
+		expect(Number.parseFloat(pill.style.width)).toBeCloseTo(pct(60), 6);
+	});
+
+	it("draws it once under each clip that shows the stretch", () => {
+		// The same take twice: 0–100 s at the head of the ruler, and again from 900 s.
+		const shown = (startSec: number, id: string) => ({
+			...clip(startSec, startSec + 100),
+			id,
+			sourceStartSec: 0,
+			sourceEndSec: 100,
+		});
+		renderCursor({}, [shown(0, "first"), shown(900, "second")]);
+		// 60–100 s of the override fits each clip's footage, on a ruler now 1000 s long.
+		expect(pills().map((pill) => Number.parseFloat(pill.style.left))).toEqual([6, 96]);
+		expect(pills().map((pill) => Number.parseFloat(pill.style.width))).toEqual([4, 4]);
+		expect(pills().map((pill) => pill.dataset.regionId)).toEqual(["cursor_1", "cursor_1@@second"]);
+	});
+
+	it("selects the override, not the pill, and moves it by the ruler span under its clip", () => {
+		const updateCursorOverrideSpan = vi.fn(async () => {
+			/* the drag only awaits it */
+		});
+		const { tl } = renderCursor({ updateCursorOverrideSpan });
+		const [pill] = pills();
+		// 900 px for 1800 s: 15 px is 30 s.
+		fireEvent.pointerDown(pill, { clientX: 0 });
+		window.dispatchEvent(new MouseEvent("pointermove", { clientX: 15 }));
+		window.dispatchEvent(new MouseEvent("pointerup", { clientX: 15 }));
+		expect(tl.selectRegion).toHaveBeenCalledWith("cursor", "cursor_1", { additive: false });
+		expect(updateCursorOverrideSpan).toHaveBeenCalledWith("cursor_1", "c@0", 90_000, 150_000, true);
+	});
+
+	it("marks the user's points on the pill, and not the joins to the recording", () => {
+		renderCursor({ selection: { kind: "cursor", id: "cursor_1" } });
+		const ticks = [...(lane()?.querySelectorAll<HTMLElement>("[class*=cursorPointTick]") ?? [])];
+		// One point placed by the user, halfway along the pill, and it clicks.
+		expect(ticks.map((tick) => [tick.style.left, tick.dataset.click])).toEqual([["50%", "true"]]);
+	});
+
+	it("keeps the override selected through a scrub on the ruler, and lets go on the tracks", () => {
+		const { tl } = renderCursor({ selection: { kind: "cursor", id: "cursor_1" } });
+		const ruler = document.querySelector("[class*=tlRulerRow]") as HTMLElement;
+		fireEvent.pointerDown(ruler, { button: 0, clientX: 450 });
+		fireEvent.pointerUp(window);
+		expect(tl.clearSelection).not.toHaveBeenCalled();
+		const tracks = document.querySelector("[class*=tlTracks]") as HTMLElement;
+		fireEvent.pointerDown(tracks, { button: 0, clientX: 450 });
+		fireEvent.pointerUp(window);
+		expect(tl.clearSelection).toHaveBeenCalledTimes(1);
+	});
+
+	it("lets go of any other selection on a ruler scrub, as before", () => {
+		const { tl } = renderCursor({ selection: { kind: "zoom", id: "z1" } });
+		const ruler = document.querySelector("[class*=tlRulerRow]") as HTMLElement;
+		fireEvent.pointerDown(ruler, { button: 0, clientX: 450 });
+		fireEvent.pointerUp(window);
+		expect(tl.clearSelection).toHaveBeenCalledTimes(1);
+	});
+
+	it("teaches the cursor key only where there is a pointer to draw again", () => {
+		const hints = () => screen.getByTestId("timeline-add-hints").textContent ?? "";
+		const first = renderCursor({ cursorOverrides: [] });
+		expect(hints()).not.toContain("hints.kinds.cursor");
+		first.rerenderVariant("edit");
+		cleanup();
+		render(
+			<ShortcutsProvider>
+				<V4Timeline
+					tl={{ ...first.tl, cursorOverrides: [] } as unknown as ReturnType<typeof useTimeline>}
+					setCurrentTime={vi.fn()}
+					playing={false}
+					onTogglePlay={vi.fn()}
+					onEditClip={vi.fn()}
+					onAddVoiceover={vi.fn()}
+					canEditCursor
+				/>
+			</ShortcutsProvider>,
+		);
+		expect(hints()).toContain("hints.kinds.cursor");
 	});
 });
