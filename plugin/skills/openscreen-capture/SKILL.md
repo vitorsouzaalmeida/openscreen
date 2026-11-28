@@ -63,7 +63,7 @@ Log where each move starts and ends, and each click; OpenScreen glides between t
 - for a video given to `createProject` and timed on your clock: `recordingStartedAt`, the `Date.now()` of its first frame;
 - for a video captured frame by frame: `recordingStartedAt: 0`, and each `at` in milliseconds into the video.
 
-For a page shown in a real window, the tool's description gives the formula from a page point (`clientX`, `clientY`) to window fractions. `setPointerTrack` replaces the pointer the take had, then plans zooms on the new clicks (`autoZoomsAdded`). On a project not open in the editor it needs a checkpoint, which `stopRecording` and `createProject` make; `restoreCheckpoint` undoes it.
+For a page shown in a real window, the tool's description gives the formula from a page point (`clientX`, `clientY`) to window fractions. `setPointerTrack` draws its pointer in place of the one the take had, then plans zooms on the new clicks (`autoZoomsAdded`). The take's recorded pointer is kept: the new one is stored in the project as a cursor override, and `removeModifier` with the `overrideId` it returns gives the recorded pointer back. On a project not open in the editor it needs a checkpoint, which `stopRecording` and `createProject` make; `restoreCheckpoint` undoes it.
 
 <!-- full-plugin -->
 ## The headless recipe
@@ -80,7 +80,7 @@ For a page shown in a real window, the tool's description gives the formula from
 4. `setPointerTrack` with the `projectId` and the `recordingStartedAt` and `events` from `take.mp4.pointer.json`, passed as they are.
 5. Check the take (below), then edit as the `openscreen-demo` skill says.
 
-Never write a `.cursor.json` file yourself: `setPointerTrack` writes it, and a checkpoint keeps the old one.
+Never write a `.cursor.json` file yourself: it is the take's recorded pointer and nothing rewrites it. `setPointerTrack` keeps the pointer it draws in the project.
 
 **Pitfalls.**
 - A captured frame rate under 12 means the page is heavy: lower `scale` to 1.5 or shorten the take.
