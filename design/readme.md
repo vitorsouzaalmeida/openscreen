@@ -136,7 +136,9 @@ changing a rule; the app is the source of truth).
   0 0 0 4px var(--clip)`.
 - **Lane pills are candy too** (`.lanePill`): no border, no gloss, dark ink. Zoom is blue
   (`--zoom: #3b82f6`) so it never reads as the clip. Annotation amber, speed orange, trim
-  `--danger`, camera `#a855f7`. Source: `src/components/ai-edition/v4/EditorShellV4.module.css`,
+  `--danger`, camera `#a855f7`, cursor paths sky (`--lane-cursor`). The Clicks and Keys lanes
+  hold marks, not pills: what the take recorded, drawn in the chrome's greys with no lane colour
+  (`InputLane.module.css`). Source: `src/components/ai-edition/v4/EditorShellV4.module.css`,
   tokens in `tokens/v4.css`.
 - **Playhead violet** (`--playhead`), its own hue so it reads over every lane.
 - **No seek bar.** The ruler seeks; the transport sits centred in the timeline header row,
